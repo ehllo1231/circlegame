@@ -106,6 +106,10 @@ export class Game {
             this.rhythmEffect.update();
 
             // Clear screen
+            // Ensure a clean transform each frame to avoid accumulated transforms across restarts
+            if (this.ctx.setTransform) {
+                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
             this.ctx.fillStyle = '#000000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -121,6 +125,8 @@ export class Game {
             // Collision
             for (const obstacle of this.obstacleManager.obstacles) {
                 if (this.player.checkCollisionWithObstacle(obstacle)) {
+                    // Always restore transform before exiting to prevent stacked transforms
+                    this.rhythmEffect.restoreTransform(this.ctx);
                     this.gameOverScreenShow();
                     return;
                 }
@@ -153,4 +159,3 @@ export class Game {
         this.animationId = requestAnimationFrame(() => this.animate());
     }
 }
-
