@@ -22,7 +22,8 @@ export class Game {
         this.gameStarted = false;
         this.gameOver = false;
         this.animationId = null;
-        this.score = 0;
+        this.scoreSeconds = 0;
+        this._lastTime = null;
 
         // UI elements
         this.startScreen = document.getElementById('startScreen');
@@ -55,10 +56,11 @@ export class Game {
     startGame() {
         this.gameStarted = true;
         this.gameOver = false;
-        this.score = 0;
+        this.scoreSeconds = 0;
+        this._lastTime = null;
         this.startScreen.style.display = 'none';
         this.gameOverScreen.style.display = 'none';
-        this.animate();
+        this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
 
     gameOverScreenShow() {
@@ -69,14 +71,15 @@ export class Game {
             this.animationId = null;
         }
         // Final score (seconds) on game over screen
-        this.scoreDisplay.textContent = `\uC810\uC218: ${Math.floor(this.score / 60)}`;
+        this.scoreDisplay.textContent = `\uC810\uC218: ${Math.floor(this.scoreSeconds)}`;
     }
 
     restartGame() {
         // Reset state
         this.gameOver = false;
         this.gameStarted = false;
-        this.score = 0;
+        this.scoreSeconds = 0;
+        this._lastTime = null;
 
         // Recreate entities
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
@@ -97,10 +100,15 @@ export class Game {
         this.ctx.stroke();
     }
 
-    animate() {
+    animate(now) {
         if (!this.gameOver) {
-            // Increase score (per frame)
-            this.score++;
+            // time-based delta (ms -> s)
+            if (typeof now !== 'number') now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+            if (this._lastTime == null) this._lastTime = now;
+            const dt = (now - this._lastTime) / 1000;
+            this._lastTime = now;
+            // Increase score: 1 point per second
+            this.scoreSeconds += dt;
 
             // Update rhythm effect
             this.rhythmEffect.update();
@@ -132,6 +140,10 @@ export class Game {
             // Draw obstacles (no rhythm effect)
             this.obstacleManager.draw(this.ctx);
 
+            // Spawn acceleration by score (displayed seconds)
+            const visibleScore = Math.floor(this.scoreSeconds);
+            this.obstacleManager.applySpawnAcceleration(visibleScore);
+
             // Spawn
             if (this.obstacleManager.shouldSpawn()) {
                 this.obstacleManager.spawnObstacle(this.offscreenRadius);
@@ -149,9 +161,9 @@ export class Game {
             this.ctx.font = '20px Arial';
             this.ctx.textBaseline = 'top';
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(`\uC810\uC218: ${Math.floor(this.score / 60)}`, 20, 20);
+            this.ctx.fillText(`\uC810\uC218: ${Math.floor(this.scoreSeconds)}`, 20, 20);
         }
 
-        this.animationId = requestAnimationFrame(() => this.animate());
+        this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
 }
