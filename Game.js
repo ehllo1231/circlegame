@@ -113,26 +113,23 @@ export class Game {
             this.ctx.fillStyle = '#000000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Apply rhythm effect
+            // Apply rhythm effect ONLY to background orbit
             this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
-
-            // Draw orbit
             this.drawOrbit();
+            this.rhythmEffect.restoreTransform(this.ctx);
 
-            // Update obstacles
+            // Update obstacles (no rhythm effect)
             this.obstacleManager.update();
 
-            // Collision
+            // Collision (no active transform)
             for (const obstacle of this.obstacleManager.obstacles) {
                 if (this.player.checkCollisionWithObstacle(obstacle)) {
-                    // Always restore transform before exiting to prevent stacked transforms
-                    this.rhythmEffect.restoreTransform(this.ctx);
                     this.gameOverScreenShow();
                     return;
                 }
             }
 
-            // Draw obstacles
+            // Draw obstacles (no rhythm effect)
             this.obstacleManager.draw(this.ctx);
 
             // Spawn
@@ -141,11 +138,10 @@ export class Game {
                 this.obstacleManager.resetSpawnTimer();
             }
 
-            // Player
+            // Player (apply rhythm effect ONLY to the player)
             this.player.update();
+            this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
             this.player.draw(this.ctx);
-
-            // Restore rhythm effect
             this.rhythmEffect.restoreTransform(this.ctx);
 
             // Draw score (canvas)
