@@ -98,6 +98,6 @@ export const SNOW = {
 export const CONTROLS = {
   startOn: ['Space'],
   restartOn: ['Space'],
-  // Reverse direction only with Space (?붿껌???곕씪 醫??????쒓굅)
+  // Reverse direction only with Space 
   reverseOn: ['Space'],
 };

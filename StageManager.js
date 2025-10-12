@@ -113,20 +113,22 @@ export function createStage1() {
   // Phase 1: 20s, baseInterval 25, snow slight + slow
   phases.push(new Phase('phase1', 20, () => {
     SPAWN.baseInterval = 25;
-    SNOW.spawnPerMin = 60; // slight
-    SNOW.fallSpeed.min = 0.4; SNOW.fallSpeed.max = 1.0; // slow
+    SNOW.spawnPerMin = 100; // slight
+    SNOW.fallSpeed.min = 0.8; SNOW.fallSpeed.max = 2.0; // slow
   }));
   // Phase 2: 15s, baseInterval 15, snow many + fast
   phases.push(new Phase('phase2', 15, () => {
     SPAWN.baseInterval = 15;
-    SNOW.spawnPerMin = 360; // many
-    SNOW.fallSpeed.min = 1.2; SNOW.fallSpeed.max = 2.6; // fast
+    SNOW.spawnPerMin = 800; // many
+    SNOW.fallSpeed.min = 3; SNOW.fallSpeed.max = 5; // fast
+    SNOW.wind.baseX = 0.2;
   }));
   // Phase 3: 15s, baseInterval 15, snow very many + very fast
   phases.push(new Phase('phase3', 15, () => {
     SPAWN.baseInterval = 15;
-    SNOW.spawnPerMin = 900; // very many
-    SNOW.fallSpeed.min = 2.0; SNOW.fallSpeed.max = 3.6; // very fast
+    SNOW.spawnPerMin = 3000; // very many
+    SNOW.fallSpeed.min = 7.0; SNOW.fallSpeed.max = 10; // (insanely) very fast
+    SNOW.wind.baseX = 0.6;
   }));
 
   return new StageManager(phases, { fadeFrom: '#000000', fadeTo: '#670500', fadeDurationSec: 6 });
