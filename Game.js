@@ -1,10 +1,11 @@
-import { Player } from './Player.js';
+﻿import { Player } from './Player.js';
 import { ObstacleManager } from './ObstacleManager.js';
 import { RhythmEffect } from './RhythmEffect.js';
+import { SnowEffect } from './SnowEffect.js';
 import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER } from './Config.js';
+import { ORBIT, PLAYER, SNOW } from './Config.js';
 
 // Game - main controller
 export class Game {
@@ -21,12 +22,14 @@ export class Game {
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
         this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
         this.rhythmEffect = new RhythmEffect();
+        this.snow = new SnowEffect();
 
         // State
         this.gameStarted = false;
         this.gameOver = false;
         this.animationId = null;
         this.score = new Score();
+        this._lastTime = null;
 
         // UI / Input
         this.ui = new UIController();
@@ -73,6 +76,7 @@ export class Game {
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
         this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
         this.rhythmEffect = new RhythmEffect();
+        if (this.snow && this.snow.reset) this.snow.reset();
 
         // Hide overlays and immediately start
         this.ui.hideOverlays();
@@ -89,11 +93,13 @@ export class Game {
 
     animate(now) {
         if (!this.gameOver) {
+            const dt = this._lastTime == null ? 1 : Math.min(3, (now - this._lastTime) / (1000 / 60));
+            this._lastTime = now;
             // time-based scoring via Score module
             this.score.update(now);
 
             // Update rhythm effect
-            this.rhythmEffect.update();
+            this.rhythmEffect.update(dt);
 
             // Clear screen
             // Ensure a clean transform each frame to avoid accumulated transforms across restarts
@@ -103,13 +109,24 @@ export class Game {
             this.ctx.fillStyle = '#000000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+            // Background snow (no rhythm transform)
+            const secondsElapsed = this.score.getSeconds();
+            if (this.snow && typeof this.snow.update === 'function') {
+                // Only start after configured seconds; SnowEffect itself is cheap if nothing to draw
+                const startAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
+                if (secondsElapsed >= startAt) {
+                    this.snow.update(dt, this.canvas.width, this.canvas.height);
+                    this.snow.draw(this.ctx);
+                }
+            }
+
             // Apply rhythm effect ONLY to background orbit
             this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
             this.drawOrbit();
             this.rhythmEffect.restoreTransform(this.ctx);
 
             // Update obstacles (no rhythm effect)
-            this.obstacleManager.update();
+            this.obstacleManager.update(dt);
 
             // Collision (no active transform)
             for (const obstacle of this.obstacleManager.obstacles) {
@@ -133,7 +150,7 @@ export class Game {
             }
 
             // Player (apply rhythm effect ONLY to the player)
-            this.player.update();
+            this.player.update(dt);
             this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
             this.player.draw(this.ctx);
             this.rhythmEffect.restoreTransform(this.ctx);
@@ -145,3 +162,4 @@ export class Game {
         this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
 }
+

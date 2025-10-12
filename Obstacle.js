@@ -10,9 +10,9 @@ export class Obstacle {
         this.acceleration = acceleration;
     }
     
-    update() {
-        this.radius -= this.speed;
-        this.speed += this.acceleration;
+    update(dt = 1) {
+        this.radius -= this.speed * dt;
+        this.speed += this.acceleration * dt;
     }
     
     draw(ctx, centerX, centerY) {

@@ -11,8 +11,8 @@ export class Player {
         this.rotationDirection = 1; // 1: ?쒓퀎諛⑺뼢, -1: ?쒓퀎諛섎?諛⑺뼢
     }
     
-    update() {
-        this.angle += this.speed * this.rotationDirection;
+    update(dt = 1) {
+        this.angle += this.speed * this.rotationDirection * dt;
     }
     
     draw(ctx) {

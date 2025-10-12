@@ -40,11 +40,14 @@ export class ObstacleManager {
 
         // Gravity-like acceleration toward center (configurable)
         this.gravityAcc = (OBSTACLE && typeof OBSTACLE.gravityAcc === 'number') ? OBSTACLE.gravityAcc : 0;
+        // Constant-speed mode
+        this.constantSpeedEnabled = !!(OBSTACLE && OBSTACLE.constantSpeedEnabled === true);
+        this.constantSpeed = (OBSTACLE && typeof OBSTACLE.constantSpeed === 'number') ? OBSTACLE.constantSpeed : this.speed;
 
         // Multi-spawn configuration and angular separation
-        this.multiWeights = Array.isArray(SPAWN?.multiCountWeights) && SPAWN.multiCountWeights.length === 4
+        this.multiWeights = Array.isArray(SPAWN?.multiCountWeights) && SPAWN.multiCountWeights.length > 0
           ? SPAWN.multiCountWeights.slice()
-          : [1, 0, 0, 0];
+          : [1, 0, 0, 0, 0, 0, 0, 0];
         this.minSep = (SPAWN && typeof SPAWN.minAngularSeparationDeg === 'number') ? (SPAWN.minAngularSeparationDeg * Math.PI / 180) : 0;
         this.angleHistorySize = (SPAWN && typeof SPAWN.angleHistorySize === 'number') ? SPAWN.angleHistorySize : 32;
         this.recentAngles = [];
@@ -80,12 +83,14 @@ export class ObstacleManager {
             }
         }
         const spawned = [];
-        // Use one random speed multiplier for the whole batch to unify speeds
-        const batchMul = this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul);
-        const batchSpeed = this.speed * batchMul;
+        // Pick batch speed once (constant-speed mode overrides randomness)
+        const batchSpeed = this.constantSpeedEnabled
+            ? this.constantSpeed
+            : (this.speed * (this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul)));
+        const accel = this.constantSpeedEnabled ? 0 : this.gravityAcc;
         for (let i = 0; i < count; i++) {
             const angle = this._normAngle(baseAngle + i * step);
-            this.obstacles.push(new Obstacle(angle, offscreenRadius, batchSpeed, this.baseWidth, this.length, this.gravityAcc));
+            this.obstacles.push(new Obstacle(angle, offscreenRadius, batchSpeed, this.baseWidth, this.length, accel));
             spawned.push(angle);
         }
         this.recentAngles.push(...spawned);
@@ -95,13 +100,14 @@ export class ObstacleManager {
     }
 
     _chooseCount(weights) {
-        // weights for counts 1..4
+        // weights for counts 1..N (N = weights.length, up to 8 supported)
         const w = weights.map(v => (typeof v === 'number' && v > 0 ? v : 0));
+        const n = Math.max(1, w.length);
         const sum = w.reduce((a, b) => a + b, 0);
         if (sum <= 0) return 1;
         const r = Math.random() * sum;
         let acc = 0;
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < n; i++) {
             acc += w[i];
             if (r < acc) return i + 1;
         }
@@ -129,13 +135,13 @@ export class ObstacleManager {
         return true;
     }
 
-    update() {
-        this.frameCounter++;
+    update(dt = 1) {
+        this.frameCounter += dt;
 
         // Update existing obstacles and remove when needed
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obstacle = this.obstacles[i];
-            obstacle.update();
+            obstacle.update(dt);
 
             if (obstacle.isCollidingWithOrbit(this.orbitRadius)) {
                 this.spawnImpactShards(obstacle.angle, obstacle);
@@ -200,14 +206,16 @@ export class ObstacleManager {
         }
     }
 
-    updateParticles() {
+    updateParticles(dt = 1) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vx *= this.particleDamping;
-            p.vy *= this.particleDamping;
-            p.life -= 1;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            const damp = (typeof this.particleDamping === 'number') ? this.particleDamping : 0.98;
+            const dampPow = Math.pow(damp, dt);
+            p.vx *= dampPow;
+            p.vy *= dampPow;
+            p.life -= dt;
             if (p.life <= 0) this.particles.splice(i, 1);
         }
     }
