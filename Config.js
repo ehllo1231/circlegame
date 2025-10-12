@@ -50,6 +50,6 @@ export const PARTICLES = {
 export const CONTROLS = {
   startOn: ['Space'],
   restartOn: ['Space'],
-  // Allow both Space and Arrow keys to trigger reverse for flexibility
-  reverseOn: ['Space', 'ArrowLeft', 'ArrowRight'],
+  // Reverse direction only with Space (요청에 따라 좌/우 키 제거)
+  reverseOn: ['Space'],
 };

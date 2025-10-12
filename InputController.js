@@ -26,24 +26,22 @@ export class InputController {
 
   _onKeyDown(event) {
     const code = event.code;
+    let handled = false;
     // Start
     if (CONTROLS.startOn.includes(code) && this.handlers.start) {
-      event.preventDefault();
       this.handlers.start();
-      return;
+      handled = true;
     }
     // Restart
     if (CONTROLS.restartOn.includes(code) && this.handlers.restart) {
-      event.preventDefault();
       this.handlers.restart();
-      return;
+      handled = true;
     }
     // Reverse direction
     if (CONTROLS.reverseOn.includes(code) && this.handlers.reverse) {
-      event.preventDefault();
       this.handlers.reverse();
-      return;
+      handled = true;
     }
+    if (handled) event.preventDefault();
   }
 }
-
