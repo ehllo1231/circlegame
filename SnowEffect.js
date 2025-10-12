@@ -1,4 +1,4 @@
-import { SNOW } from './Config.js';
+﻿import { SNOW } from './Config.js';
 
 export class SnowEffect {
   constructor() {
@@ -38,12 +38,14 @@ export class SnowEffect {
     while (toSpawn-- > 0) {
       const size = this._rand(SNOW?.size?.min ?? 1, SNOW?.size?.max ?? 3);
       const vy = this._rand(SNOW?.fallSpeed?.min ?? 0.8, SNOW?.fallSpeed?.max ?? 2.0);
+      
       this.flakes.push({
-        x: Math.random() * width * 1, // 바람 불때 눈송이가 배경에 보이도록 하기 위해 설정
+        x: Math.random() * width * 3 - width, //
         y: -size - Math.random() * 30,
         vx: windX + (Math.random() - 0.5) * 0.1,
         vy,
         size,
+        appeared: false,
       });
     }
 
@@ -52,7 +54,14 @@ export class SnowEffect {
       const f = this.flakes[i];
       f.x += (windX + f.vx) * dt;
       f.y += f.vy * dt;
-      if (f.y - f.size > height || f.x < -20 || f.x > width + 20) {
+
+      // Mark as appeared once it intersects the viewport
+      const inView = (f.x + f.size >= 0) && (f.x - f.size <= width) && (f.y + f.size >= 0) && (f.y - f.size <= height);
+      if (inView) f.appeared = true;
+
+      // Remove only after it has appeared and then exits the screen bounds
+      const offScreen = (f.y - f.size > height) || (f.x < -20) || (f.x > width + 20);
+      if (f.appeared && offScreen) {
         this.flakes.splice(i, 1);
       }
     }
