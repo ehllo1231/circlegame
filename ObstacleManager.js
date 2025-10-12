@@ -14,8 +14,8 @@ export class ObstacleManager {
 
         // 스폰 가속 설정(사용자 조정 가능)
         this.baseSpawnInterval = this.spawnInterval; // 기준값
-        this.spawnAccelEvery = 10;   // 표시 점수(초) N마다 가속
-        this.spawnAccelFactor = 1.3; // X배 빠르게(간격 감소)
+        this.spawnAccelEvery = 7;   // 표시 점수(초) N마다 가속
+        this.spawnAccelFactor = 1.2; // X배 빠르게(간격 감소)
         this.lastSpawnAccelStage = 0; // 마지막 적용 스테이지
 
         // Obstacle default dimensions (1.5x of original 16/25)
@@ -24,8 +24,8 @@ export class ObstacleManager {
 
         // Falling speed base and randomization multipliers
         this.speed = 3;      // base falling speed (px/frame)
-        this.speedMinMul = 0.5;
-        this.speedMaxMul = 1.2;
+        this.speedMinMul = 0.7;
+        this.speedMaxMul = 1.3;
 
         // Configurable shard particle settings
         this.particleCount = 8;        // number of shards per impact

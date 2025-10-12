@@ -1,6 +1,10 @@
 import { Player } from './Player.js';
 import { ObstacleManager } from './ObstacleManager.js';
 import { RhythmEffect } from './RhythmEffect.js';
+import { UIController } from './UIController.js';
+import { InputController } from './InputController.js';
+import { Score } from './Score.js';
+import { ORBIT } from './Config.js';
 
 // Game - main controller
 export class Game {
@@ -22,64 +26,53 @@ export class Game {
         this.gameStarted = false;
         this.gameOver = false;
         this.animationId = null;
-        this.scoreSeconds = 0;
-        this._lastTime = null;
+        this.score = new Score();
 
-        // UI elements
+        // UI / Input
         this.startScreen = document.getElementById('startScreen');
         this.startButton = document.getElementById('startButton');
         this.gameOverScreen = document.getElementById('gameOverScreen');
         this.restartButton = document.getElementById('restartButton');
         this.scoreDisplay = document.getElementById('scoreDisplay');
+        this.ui = new UIController();
+        this.input = new InputController();
 
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        this.startButton.addEventListener('click', () => this.startGame());
-        this.restartButton.addEventListener('click', () => this.restartGame());
-
-        document.addEventListener('keydown', (event) => {
-            if (!this.gameStarted && event.code === 'Space') {
-                event.preventDefault();
-                this.startGame();
-            } else if (this.gameStarted && !this.gameOver && event.code === 'Space') {
-                event.preventDefault();
-                this.player.reverseDirection();
-            } else if (this.gameOver && event.code === 'Space') {
-                event.preventDefault();
-                this.restartGame();
-            }
+        this.ui.bind({ onStart: () => this.startGame(), onRestart: () => this.restartGame() });
+        this.input.bindHandlers({
+            onStart: () => { if (!this.gameStarted) this.startGame(); },
+            onRestart: () => { if (this.gameOver) this.restartGame(); },
+            onReverse: () => { if (this.gameStarted && !this.gameOver) this.player.reverseDirection(); },
         });
+        this.input.attach();
     }
 
     startGame() {
         this.gameStarted = true;
         this.gameOver = false;
-        this.scoreSeconds = 0;
-        this._lastTime = null;
-        this.startScreen.style.display = 'none';
-        this.gameOverScreen.style.display = 'none';
+        this.score.reset();
+        this.ui.hideOverlays();
         this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
 
     gameOverScreenShow() {
         this.gameOver = true;
-        this.gameOverScreen.style.display = 'flex';
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
         // Final score (seconds) on game over screen
-        this.scoreDisplay.textContent = `\uC810\uC218: ${Math.floor(this.scoreSeconds)}`;
+        this.ui.showGameOver(this.score.getVisible());
     }
 
     restartGame() {
         // Reset state
         this.gameOver = false;
         this.gameStarted = false;
-        this.scoreSeconds = 0;
-        this._lastTime = null;
+        this.score.reset();
 
         // Recreate entities
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
@@ -87,14 +80,13 @@ export class Game {
         this.rhythmEffect = new RhythmEffect();
 
         // Hide overlays and immediately start
-        this.gameOverScreen.style.display = 'none';
-        this.startScreen.style.display = 'none';
+        this.ui.hideOverlays();
         this.startGame();
     }
 
     drawOrbit() {
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = ORBIT.color;
+        this.ctx.lineWidth = ORBIT.lineWidth;
         this.ctx.beginPath();
         this.ctx.arc(this.centerX, this.centerY, this.orbitRadius, 0, 2 * Math.PI);
         this.ctx.stroke();
@@ -102,13 +94,8 @@ export class Game {
 
     animate(now) {
         if (!this.gameOver) {
-            // time-based delta (ms -> s)
-            if (typeof now !== 'number') now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-            if (this._lastTime == null) this._lastTime = now;
-            const dt = (now - this._lastTime) / 1000;
-            this._lastTime = now;
-            // Increase score: 1 point per second
-            this.scoreSeconds += dt;
+            // time-based scoring via Score module
+            this.score.update(now);
 
             // Update rhythm effect
             this.rhythmEffect.update();
@@ -141,7 +128,7 @@ export class Game {
             this.obstacleManager.draw(this.ctx);
 
             // Spawn acceleration by score (displayed seconds)
-            const visibleScore = Math.floor(this.scoreSeconds);
+            const visibleScore = this.score.getVisible();
             this.obstacleManager.applySpawnAcceleration(visibleScore);
 
             // Spawn
@@ -156,12 +143,8 @@ export class Game {
             this.player.draw(this.ctx);
             this.rhythmEffect.restoreTransform(this.ctx);
 
-            // Draw score (canvas)
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.font = '20px Arial';
-            this.ctx.textBaseline = 'top';
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(`\uC810\uC218: ${Math.floor(this.scoreSeconds)}`, 20, 20);
+            // Draw score (centered in orbit with transparency)
+            this.ui.drawScore(this.ctx, this.score.getSeconds(), this.centerX, this.centerY, this.orbitRadius);
         }
 
         this.animationId = requestAnimationFrame((t) => this.animate(t));
