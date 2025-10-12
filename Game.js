@@ -7,6 +7,7 @@ import { InputController } from './InputController.js';
 import { Score } from './Score.js';
 import { ORBIT, PLAYER, SNOW } from './Config.js';
 import { DebugController } from './DebugController.js';
+import { createStage1 } from './StageManager.js';
 
 // Game - main controller
 export class Game {
@@ -49,6 +50,9 @@ export class Game {
         // UI / Input
         this.ui = new UIController();
         this.input = new InputController();
+
+        // Stage manager (Stage1)
+        this.stage = createStage1();
 
         this.setupEventListeners();
     }
@@ -128,15 +132,33 @@ export class Game {
             if (this.ctx.setTransform) {
                 this.ctx.setTransform(1, 0, 0, 1, 0, 0);
             }
-            this.ctx.fillStyle = '#000000';
+            // Background color (stage fade after end)
+            const bg = this.stage ? this.stage.getBackgroundColor() : '#000000';
+            this.ctx.fillStyle = bg || '#000000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             // Background snow (no rhythm transform)
             const secondsElapsed = this.score.getSeconds();
+            // Stage update and apply baseInterval on phase change
+            if (this.stage) {
+                const prevInterval = this.obstacleManager.spawnInterval;
+                this.stage.update(secondsElapsed);
+                if (this.stage.changed) {
+                    const bi = this.stage.getCurrentBaseInterval();
+                    if (typeof bi === 'number') {
+                        this.obstacleManager.spawnInterval = bi;
+                        this.obstacleManager.frameCounter = 0;
+                        if (typeof this.obstacleManager.lastSpawnAccelStage === 'number') {
+                            this.obstacleManager.lastSpawnAccelStage = 0;
+                        }
+                    }
+                }
+            }
             if (this.snow && typeof this.snow.update === 'function') {
                 // Only start after configured seconds; SnowEffect itself is cheap if nothing to draw
                 const startAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
-                if (secondsElapsed >= startAt) {
+                const snowOk = this.stage ? this.stage.isSnowEnabled() : true;
+                if (snowOk && secondsElapsed >= startAt) {
                     this.snow.update(dt, this.canvas.width, this.canvas.height);
                     this.snow.draw(this.ctx);
                 }
@@ -171,7 +193,8 @@ export class Game {
             this.obstacleManager.applySpawnAcceleration(visibleScore);
 
             // Spawn
-            if (this.obstacleManager.shouldSpawn()) {
+            const allowSpawn = this.stage ? this.stage.canSpawn() : true;
+            if (allowSpawn && this.obstacleManager.shouldSpawn()) {
                 this.obstacleManager.spawnObstacle(this.offscreenRadius);
                 this.obstacleManager.resetSpawnTimer();
             }
