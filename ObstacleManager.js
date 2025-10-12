@@ -53,6 +53,24 @@ export class ObstacleManager {
         this.recentAngles = [];
     }
 
+    refreshFromConfig() {
+        // Re-read config values live (for debug panel)
+        if (typeof SPAWN?.baseInterval === 'number') this.spawnInterval = SPAWN.baseInterval;
+        if (typeof SPAWN?.accelEverySeconds === 'number') this.spawnAccelEvery = SPAWN.accelEverySeconds;
+        if (typeof SPAWN?.accelFactor === 'number') this.spawnAccelFactor = SPAWN.accelFactor;
+        if (Array.isArray(SPAWN?.multiCountWeights) && SPAWN.multiCountWeights.length > 0) {
+            this.multiWeights = SPAWN.multiCountWeights.slice();
+        }
+
+        if (typeof OBSTACLE?.baseWidth === 'number') this.baseWidth = OBSTACLE.baseWidth;
+        if (typeof OBSTACLE?.length === 'number') this.length = OBSTACLE.length;
+        if (typeof OBSTACLE?.baseSpeed === 'number') this.speed = OBSTACLE.baseSpeed;
+        if (typeof OBSTACLE?.speedMinMul === 'number') this.speedMinMul = OBSTACLE.speedMinMul;
+        if (typeof OBSTACLE?.speedMaxMul === 'number') this.speedMaxMul = OBSTACLE.speedMaxMul;
+        if (typeof OBSTACLE?.gravityAcc === 'number') this.gravityAcc = OBSTACLE.gravityAcc;
+        this.constantSpeedEnabled = !!OBSTACLE?.constantSpeedEnabled;
+        if (typeof OBSTACLE?.constantSpeed === 'number') this.constantSpeed = OBSTACLE.constantSpeed;
+    }
     // Score-based difficulty: shrink spawn interval stepwise
     applySpawnAcceleration(visibleScore) {
         if (typeof visibleScore !== 'number' || !isFinite(visibleScore)) return;
