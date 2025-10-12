@@ -28,9 +28,15 @@ export class UIController {
     if (this.startScreen) this.startScreen.style.display = 'flex';
   }
 
-  showGameOver(finalScoreSeconds) {
+  showGameOver(finalScoreSeconds, highScore = null, isNew = false) {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
-    if (this.scoreDisplay) this.scoreDisplay.textContent = `${SCORE.label}: ${finalScoreSeconds}`;
+    if (this.scoreDisplay) {
+      const lines = [];
+      if (isNew) lines.push('최고 점수!!');
+      lines.push(`${SCORE.label}: ${finalScoreSeconds}`);
+      if (highScore != null) lines.push(`최고 점수: ${highScore}`);
+      this.scoreDisplay.innerHTML = lines.map(x => `<div>${x}</div>`).join('');
+    }
   }
 
   drawScore(ctx, seconds, centerX, centerY, orbitRadius) {

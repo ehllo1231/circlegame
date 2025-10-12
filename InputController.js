@@ -9,6 +9,7 @@ export class InputController {
       debugToggle: null,
     };
     this._onKeyDown = this._onKeyDown.bind(this);
+    this.reverseAnyKey = false; // deprecated; kept for backward compatibility
   }
 
   bindHandlers({ onStart, onRestart, onReverse, onDebugToggle }) {
@@ -40,7 +41,10 @@ export class InputController {
       handled = true;
     }
     // Reverse direction
-    if (CONTROLS.reverseOn.includes(code) && this.handlers.reverse) {
+    const isAlpha = typeof code === 'string' && code.length === 4 && code.startsWith('Key');
+    const reverseByAlpha = !!CONTROLS?.reverseUseAlphabet && isAlpha;
+    const reverseByList = Array.isArray(CONTROLS?.reverseOn) && CONTROLS.reverseOn.includes(code);
+    if ((reverseByAlpha || reverseByList) && this.handlers.reverse) {
       this.handlers.reverse();
       handled = true;
     }
@@ -51,4 +55,6 @@ export class InputController {
     }
     if (handled) event.preventDefault();
   }
+
+  setReverseAnyKey(enabled) { this.reverseAnyKey = !!enabled; }
 }

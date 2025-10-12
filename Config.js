@@ -100,4 +100,6 @@ export const CONTROLS = {
   restartOn: ['Space'],
   // Reverse direction only with Space 
   reverseOn: ['Space'],
+  // If true, any alphabetic key (A–Z) also reverses direction during gameplay
+  reverseUseAlphabet: true,
 };

@@ -39,7 +39,7 @@ export class SnowEffect {
       const size = this._rand(SNOW?.size?.min ?? 1, SNOW?.size?.max ?? 3);
       const vy = this._rand(SNOW?.fallSpeed?.min ?? 0.8, SNOW?.fallSpeed?.max ?? 2.0);
       this.flakes.push({
-        x: Math.random() * width,
+        x: Math.random() * width * 1, // 바람 불때 눈송이가 배경에 보이도록 하기 위해 설정
         y: -size - Math.random() * 30,
         vx: windX + (Math.random() - 0.5) * 0.1,
         vy,
