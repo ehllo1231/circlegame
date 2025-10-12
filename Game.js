@@ -4,7 +4,7 @@ import { RhythmEffect } from './RhythmEffect.js';
 import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT } from './Config.js';
+import { ORBIT, PLAYER } from './Config.js';
 
 // Game - main controller
 export class Game {
@@ -13,8 +13,8 @@ export class Game {
         this.ctx = canvas.getContext('2d');
         this.centerX = canvas.width / 2;
         this.centerY = canvas.height / 2;
-        this.orbitRadius = 160;
-        this.playerRadius = 15;
+        this.orbitRadius = ORBIT?.radius ?? 160;
+        this.playerRadius = PLAYER?.radius ?? 15;
         this.offscreenRadius = Math.hypot(canvas.width / 2, canvas.height / 2) + 40;
 
         // Entities
@@ -29,11 +29,6 @@ export class Game {
         this.score = new Score();
 
         // UI / Input
-        this.startScreen = document.getElementById('startScreen');
-        this.startButton = document.getElementById('startButton');
-        this.gameOverScreen = document.getElementById('gameOverScreen');
-        this.restartButton = document.getElementById('restartButton');
-        this.scoreDisplay = document.getElementById('scoreDisplay');
         this.ui = new UIController();
         this.input = new InputController();
 

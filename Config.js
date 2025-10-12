@@ -1,4 +1,4 @@
-// Centralized configuration to improve maintainability
+﻿// Centralized configuration to improve maintainability
 export const SCORE = {
   label: "\uC810\uC218",
   font: "20px Arial",
@@ -11,28 +11,44 @@ export const SCORE = {
   fontFamily: 'Arial',
 };
 
+// Canvas/game viewport size (configurable)
+export const CANVAS = {
+  width: 900,
+  height: 900,
+};
+
 export const ORBIT = {
-  radius: 160,
+  radius: 144,
   color: "#ffffff",
   lineWidth: 2,
 };
 
 export const PLAYER = {
   radius: 15,
+  angularSpeed: 0.015, // radians per frame
 };
 
 export const SPAWN = {
   baseInterval: 90,
-  accelEverySeconds: 30,
+  accelEverySeconds: 7,
   accelFactor: 1.2,
+  // Probabilities (weights) for spawning 1..4 spikes
+  // e.g., [0.6, 0.25, 0.1, 0.05] means 60% 1 spike, 25% 2 spikes, etc.
+  multiCountWeights: [0.25, 0.25, 0.25, 0.25],
+  // Minimum angular separation in degrees across recent spawns
+  minAngularSeparationDeg: 20,
+  // How many recent spikes to remember for separation checks
+  angleHistorySize: 32,
+  // Minimum spawn interval cap (frames)
+  minInterval: 15,
 };
 
 export const OBSTACLE = {
   baseWidth: 24, // 1.5x of 16
   length: 37.5,  // 1.5x of 25
   baseSpeed: 3,
-  speedMinMul: 0.5,
-  speedMaxMul: 1.2,
+  speedMinMul: 0.9,
+  speedMaxMul: 1.9,
   // Acceleration toward center (px/frame^2)
   gravityAcc: 0.0,
 };
@@ -52,6 +68,6 @@ export const PARTICLES = {
 export const CONTROLS = {
   startOn: ['Space'],
   restartOn: ['Space'],
-  // Reverse direction only with Space (요청에 따라 좌/우 키 제거)
+  // Reverse direction only with Space (?붿껌???곕씪 醫??????쒓굅)
   reverseOn: ['Space'],
 };

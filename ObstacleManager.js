@@ -1,7 +1,7 @@
 import { Obstacle } from './Obstacle.js';
-import { OBSTACLE } from './Config.js';
+import { OBSTACLE, SPAWN, PARTICLES } from './Config.js';
 
-// ObstacleManager - 장애물 관리 및 파편 효과, 스폰 가속 관리
+// ObstacleManager - obstacle updates, spawning, and particle effects
 export class ObstacleManager {
     constructor(centerX, centerY, orbitRadius) {
         this.centerX = centerX;
@@ -9,63 +9,130 @@ export class ObstacleManager {
         this.orbitRadius = orbitRadius;
         this.obstacles = [];
 
-        // Spawn interval (frames)
-        this.spawnInterval = 90; // 기본 스폰 간격
+        // Spawn interval and counter
+        this.spawnInterval = (SPAWN && typeof SPAWN.baseInterval === 'number') ? SPAWN.baseInterval : 90;
         this.frameCounter = 0;
 
-        // 스폰 가속 설정(사용자 조정 가능)
-        this.baseSpawnInterval = this.spawnInterval; // 기준값
-        this.spawnAccelEvery = 7;   // 표시 점수(초) N마다 가속
-        this.spawnAccelFactor = 1.2; // X배 빠르게(간격 감소)
-        this.lastSpawnAccelStage = 0; // 마지막 적용 스테이지
+        // Score-based spawn acceleration
+        this.spawnAccelEvery = (SPAWN && typeof SPAWN.accelEverySeconds === 'number') ? SPAWN.accelEverySeconds : 30;
+        this.spawnAccelFactor = (SPAWN && typeof SPAWN.accelFactor === 'number') ? SPAWN.accelFactor : 1.2;
+        this.lastSpawnAccelStage = 0;
 
-        // Obstacle default dimensions (1.5x of original 16/25)
-        this.baseWidth = 24;
-        this.length = 37.5;
+        // Obstacle dimensions
+        this.baseWidth = (OBSTACLE && typeof OBSTACLE.baseWidth === 'number') ? OBSTACLE.baseWidth : 24;
+        this.length = (OBSTACLE && typeof OBSTACLE.length === 'number') ? OBSTACLE.length : 37.5;
 
         // Falling speed base and randomization multipliers
-        this.speed = 3;      // base falling speed (px/frame)
-        this.speedMinMul = 0.7;
-        this.speedMaxMul = 1.3;
+        this.speed = (OBSTACLE && typeof OBSTACLE.baseSpeed === 'number') ? OBSTACLE.baseSpeed : 3; // px/frame
+        this.speedMinMul = (OBSTACLE && typeof OBSTACLE.speedMinMul === 'number') ? OBSTACLE.speedMinMul : 0.7;
+        this.speedMaxMul = (OBSTACLE && typeof OBSTACLE.speedMaxMul === 'number') ? OBSTACLE.speedMaxMul : 1.3;
 
-        // Configurable shard particle settings
-        this.particleCount = 8;        // number of shards per impact
-        this.particleMinSpeed = 1.2;   // px/frame
-        this.particleMaxSpeed = 3.4;   // px/frame
-        this.particleMinLife = 18;     // frames
-        this.particleMaxLife = 29;     // frames (inclusive)
-        this.particleMinSize = 1;      // px radius
-        this.particleMaxSize = 3;      // px radius
+        // Particle settings
+        this.particleCount = (PARTICLES && typeof PARTICLES.count === 'number') ? PARTICLES.count : 8;
+        this.particleMinSpeed = (PARTICLES && typeof PARTICLES.minSpeed === 'number') ? PARTICLES.minSpeed : 1.2;
+        this.particleMaxSpeed = (PARTICLES && typeof PARTICLES.maxSpeed === 'number') ? PARTICLES.maxSpeed : 3.4;
+        this.particleMinLife = (PARTICLES && typeof PARTICLES.minLife === 'number') ? PARTICLES.minLife : 18;
+        this.particleMaxLife = (PARTICLES && typeof PARTICLES.maxLife === 'number') ? PARTICLES.maxLife : 29;
+        this.particleMinSize = (PARTICLES && typeof PARTICLES.minSize === 'number') ? PARTICLES.minSize : 1;
+        this.particleMaxSize = (PARTICLES && typeof PARTICLES.maxSize === 'number') ? PARTICLES.maxSize : 3;
+        this.particleDamping = (PARTICLES && typeof PARTICLES.damping === 'number') ? PARTICLES.damping : 0.98;
         this.particles = [];
 
         // Gravity-like acceleration toward center (configurable)
         this.gravityAcc = (OBSTACLE && typeof OBSTACLE.gravityAcc === 'number') ? OBSTACLE.gravityAcc : 0;
+
+        // Multi-spawn configuration and angular separation
+        this.multiWeights = Array.isArray(SPAWN?.multiCountWeights) && SPAWN.multiCountWeights.length === 4
+          ? SPAWN.multiCountWeights.slice()
+          : [1, 0, 0, 0];
+        this.minSep = (SPAWN && typeof SPAWN.minAngularSeparationDeg === 'number') ? (SPAWN.minAngularSeparationDeg * Math.PI / 180) : 0;
+        this.angleHistorySize = (SPAWN && typeof SPAWN.angleHistorySize === 'number') ? SPAWN.angleHistorySize : 32;
+        this.recentAngles = [];
     }
 
-    // 점수(초 단위 표시값)에 따라 스폰 간격 가속 적용
+    // Score-based difficulty: shrink spawn interval stepwise
     applySpawnAcceleration(visibleScore) {
         if (typeof visibleScore !== 'number' || !isFinite(visibleScore)) return;
         const stage = Math.floor(visibleScore / this.spawnAccelEvery);
         if (stage > this.lastSpawnAccelStage) {
             const steps = stage - this.lastSpawnAccelStage;
             for (let i = 0; i < steps; i++) {
-                this.spawnInterval = Math.max(1, Math.round(this.spawnInterval / this.spawnAccelFactor));
+                const minCap = (SPAWN && typeof SPAWN.minInterval === 'number') ? SPAWN.minInterval : 1;
+                this.spawnInterval = Math.max(minCap, Math.round(this.spawnInterval / this.spawnAccelFactor));
             }
             this.lastSpawnAccelStage = stage;
         }
     }
 
     spawnObstacle(offscreenRadius) {
-        const angle = Math.random() * Math.PI * 2;
-        const mul = this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul);
-        const speed = this.speed * mul;
-        this.obstacles.push(new Obstacle(angle, offscreenRadius, speed, this.baseWidth, this.length, this.gravityAcc));
+        const count = this._chooseCount(this.multiWeights);
+        const step = (Math.PI * 2) / count; // equal division
+        let baseAngle = Math.random() * Math.PI * 2;
+        if (this.minSep > 0 && this.recentAngles.length > 0) {
+            let attempts = 0;
+            const maxAttempts = 24;
+            while (attempts < maxAttempts) {
+                const candidate = [];
+                for (let i = 0; i < count; i++) candidate.push(this._normAngle(baseAngle + i * step));
+                if (this._anglesAreSeparated(candidate, this.recentAngles, this.minSep)) break;
+                baseAngle = this._normAngle(baseAngle + step * (0.25 + Math.random() * 0.5));
+                attempts++;
+            }
+        }
+        const spawned = [];
+        // Use one random speed multiplier for the whole batch to unify speeds
+        const batchMul = this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul);
+        const batchSpeed = this.speed * batchMul;
+        for (let i = 0; i < count; i++) {
+            const angle = this._normAngle(baseAngle + i * step);
+            this.obstacles.push(new Obstacle(angle, offscreenRadius, batchSpeed, this.baseWidth, this.length, this.gravityAcc));
+            spawned.push(angle);
+        }
+        this.recentAngles.push(...spawned);
+        if (this.recentAngles.length > this.angleHistorySize) {
+            this.recentAngles.splice(0, this.recentAngles.length - this.angleHistorySize);
+        }
+    }
+
+    _chooseCount(weights) {
+        // weights for counts 1..4
+        const w = weights.map(v => (typeof v === 'number' && v > 0 ? v : 0));
+        const sum = w.reduce((a, b) => a + b, 0);
+        if (sum <= 0) return 1;
+        const r = Math.random() * sum;
+        let acc = 0;
+        for (let i = 0; i < 4; i++) {
+            acc += w[i];
+            if (r < acc) return i + 1;
+        }
+        return 1;
+    }
+
+    _normAngle(a) {
+        a = a % (Math.PI * 2);
+        return a < 0 ? a + Math.PI * 2 : a;
+    }
+
+    _wrapAngle(a) {
+        a = (a + Math.PI) % (Math.PI * 2);
+        if (a < 0) a += Math.PI * 2;
+        return a - Math.PI;
+    }
+
+    _anglesAreSeparated(cands, hist, minSep) {
+        for (const c of cands) {
+            for (const h of hist) {
+                const d = Math.abs(this._wrapAngle(c - h));
+                if (d < minSep) return false;
+            }
+        }
+        return true;
     }
 
     update() {
         this.frameCounter++;
 
-        // 기존 장애물 업데이트 및 제거
+        // Update existing obstacles and remove when needed
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obstacle = this.obstacles[i];
             obstacle.update();
@@ -78,7 +145,7 @@ export class ObstacleManager {
             }
         }
 
-        // 파편 업데이트
+        // Update particle system
         this.updateParticles();
     }
 
@@ -86,7 +153,7 @@ export class ObstacleManager {
         this.obstacles.forEach(obstacle => {
             obstacle.draw(ctx, this.centerX, this.centerY);
         });
-        // 파편 그리기
+        // Draw particles
         this.drawParticles(ctx);
     }
 
@@ -128,7 +195,7 @@ export class ObstacleManager {
             const size = this.particleMinSize + Math.random() * (this.particleMaxSize - this.particleMinSize);
             const lifeRange = Math.max(0, this.particleMaxLife - this.particleMinLife);
             const baseLife = this.particleMinLife + Math.floor(Math.random() * (lifeRange + 1));
-            const life = Math.max(1, Math.floor(baseLife * 1.5)); // 1.5배 연장
+            const life = Math.max(1, Math.floor(baseLife * 1.5));
             this.particles.push({ x: px, y: py, vx, vy, size, life, maxLife: life });
         }
     }
@@ -138,8 +205,8 @@ export class ObstacleManager {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vx *= 0.98;
-            p.vy *= 0.98;
+            p.vx *= this.particleDamping;
+            p.vy *= this.particleDamping;
             p.life -= 1;
             if (p.life <= 0) this.particles.splice(i, 1);
         }
@@ -155,4 +222,3 @@ export class ObstacleManager {
         }
     }
 }
-

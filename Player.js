@@ -1,4 +1,5 @@
-// Player 클래스 - 주인공 관리
+﻿import { PLAYER } from './Config.js';
+// Player ?대옒??- 二쇱씤怨?愿由?
 export class Player {
     constructor(centerX, centerY, orbitRadius, playerRadius) {
         this.centerX = centerX;
@@ -6,8 +7,8 @@ export class Player {
         this.orbitRadius = orbitRadius;
         this.radius = playerRadius;
         this.angle = 0;
-        this.speed = 0.015; // 라디안/프레임
-        this.rotationDirection = 1; // 1: 시계방향, -1: 시계반대방향
+        this.speed = (PLAYER && typeof PLAYER.angularSpeed === 'number') ? PLAYER.angularSpeed : 0.015; // angular speed
+        this.rotationDirection = 1; // 1: ?쒓퀎諛⑺뼢, -1: ?쒓퀎諛섎?諛⑺뼢
     }
     
     update() {
@@ -28,7 +29,7 @@ export class Player {
         this.rotationDirection *= -1;
     }
     
-    // 주인공의 현재 위치 좌표 반환
+    // 二쇱씤怨듭쓽 ?꾩옱 ?꾩튂 醫뚰몴 諛섑솚
     getPosition() {
         return {
             x: this.centerX + Math.cos(this.angle) * this.orbitRadius,
@@ -36,18 +37,18 @@ export class Player {
         };
     }
     
-    // 장애물과의 충돌 판정
+    // ?μ븷臾쇨낵??異⑸룎 ?먯젙
     checkCollisionWithObstacle(obstacle) {
         const playerPos = this.getPosition();
         const playerRadius = this.radius;
         
-        // 장애물의 각 점들과의 거리 계산
+        // ?μ븷臾쇱쓽 媛??먮뱾怨쇱쓽 嫄곕━ 怨꾩궛
         const obstacleAngle = obstacle.angle;
         const obstacleRadius = obstacle.radius;
         const obstacleLength = obstacle.length;
         const obstacleBaseWidth = obstacle.baseWidth;
         
-        // 장애물의 세 점 좌표 계산 (중심 기준)
+        // ?μ븷臾쇱쓽 ????醫뚰몴 怨꾩궛 (以묒떖 湲곗?)
         const centerX = this.centerX;
         const centerY = this.centerY;
         
@@ -63,7 +64,7 @@ export class Player {
         const obstacleBase2X = centerX + Math.cos(obstacleAngle - Math.PI/2) * (obstacleBaseWidth/2) + Math.cos(obstacleAngle) * obstacleRadius;
         const obstacleBase2Y = centerY + Math.sin(obstacleAngle - Math.PI/2) * (obstacleBaseWidth/2) + Math.sin(obstacleAngle) * obstacleRadius;
         
-        // 점과 원의 충돌 판정 (간단한 방법)
+        // ?먭낵 ?먯쓽 異⑸룎 ?먯젙 (媛꾨떒??諛⑸쾿)
         const points = [
             {x: obstacleCenterX, y: obstacleCenterY},
             {x: obstacleTipX, y: obstacleTipY},
@@ -77,7 +78,7 @@ export class Player {
                 Math.pow(playerPos.y - point.y, 2)
             );
             
-            if (distance < playerRadius + 5) { // 5는 여유값
+            if (distance < playerRadius + 5) { // 5???ъ쑀媛?
                 return true;
             }
         }
@@ -85,3 +86,4 @@ export class Player {
         return false;
     }
 }
+
