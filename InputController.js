@@ -6,14 +6,16 @@ export class InputController {
       start: null,
       restart: null,
       reverse: null,
+      debugToggle: null,
     };
     this._onKeyDown = this._onKeyDown.bind(this);
   }
 
-  bindHandlers({ onStart, onRestart, onReverse }) {
+  bindHandlers({ onStart, onRestart, onReverse, onDebugToggle }) {
     this.handlers.start = onStart || null;
     this.handlers.restart = onRestart || null;
     this.handlers.reverse = onReverse || null;
+    this.handlers.debugToggle = onDebugToggle || null;
   }
 
   attach() {
@@ -40,6 +42,11 @@ export class InputController {
     // Reverse direction
     if (CONTROLS.reverseOn.includes(code) && this.handlers.reverse) {
       this.handlers.reverse();
+      handled = true;
+    }
+    // Debug toggle (F6), independent of CONTROLS to avoid accidental remap
+    if (code === 'F6' && this.handlers.debugToggle) {
+      this.handlers.debugToggle();
       handled = true;
     }
     if (handled) event.preventDefault();

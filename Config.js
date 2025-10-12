@@ -83,7 +83,6 @@ export const RHYTHM = {
 export const SNOW = {
   enabledAfterSeconds: 3,     // start snow after N seconds
   alpha: 0.28,                 // flake transparency (similar to SCORE.centerAlpha)
-  maxFlakes: 160,              // cap total flakes
   // average flakes spawned per minute (use this instead of per-second)
   spawnPerMin: 60,             // e.g., 30 flakes per minute
   size: { min: 3, max: 5 },    // px radius

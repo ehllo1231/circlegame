@@ -6,6 +6,7 @@ import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
 import { ORBIT, PLAYER, SNOW } from './Config.js';
+import { DebugController } from './DebugController.js';
 
 // Game - main controller
 export class Game {
@@ -23,6 +24,20 @@ export class Game {
         this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
         this.rhythmEffect = new RhythmEffect();
         this.snow = new SnowEffect();
+        this.debugMode = false;
+        this.playerHitFlash = 0; // frames at 60fps for red flash
+        this.debug = new DebugController({
+            onChange: (section) => {
+                if (section === 'spawn' || section === 'obstacle' || section === 'particles') {
+                    if (this.obstacleManager?.refreshFromConfig) this.obstacleManager.refreshFromConfig();
+                }
+                if (section === 'player') {
+                    // Apply PLAYER config directly to current player
+                    this.player.speed = (PLAYER && typeof PLAYER.angularSpeed === 'number') ? PLAYER.angularSpeed : this.player.speed;
+                    this.player.radius = (PLAYER && typeof PLAYER.radius === 'number') ? PLAYER.radius : this.player.radius;
+                }
+            }
+        });
 
         // State
         this.gameStarted = false;
@@ -44,6 +59,13 @@ export class Game {
             onStart: () => { if (!this.gameStarted) this.startGame(); },
             onRestart: () => { if (this.gameOver) this.restartGame(); },
             onReverse: () => { if (this.gameStarted && !this.gameOver) this.player.reverseDirection(); },
+            onDebugToggle: () => {
+                // Only allow toggling debug from start screen per requirement
+                if (!this.gameStarted) {
+                    this.debugMode = !this.debugMode;
+                    this.debug.toggle(this.debugMode);
+                }
+            },
         });
         this.input.attach();
     }
@@ -131,8 +153,13 @@ export class Game {
             // Collision (no active transform)
             for (const obstacle of this.obstacleManager.obstacles) {
                 if (this.player.checkCollisionWithObstacle(obstacle)) {
-                    this.gameOverScreenShow();
-                    return;
+                    if (!this.debugMode) {
+                        this.gameOverScreenShow();
+                        return;
+                    } else {
+                        // trigger brief red flash
+                        this.playerHitFlash = Math.max(this.playerHitFlash, 6);
+                    }
                 }
             }
 
@@ -152,11 +179,29 @@ export class Game {
             // Player (apply rhythm effect ONLY to the player)
             this.player.update(dt);
             this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
+            // flash effect
+            if (this.playerHitFlash > 0) {
+                this.player.color = '#ff4444';
+                this.playerHitFlash = Math.max(0, this.playerHitFlash - dt);
+            } else {
+                this.player.color = '#ffffff';
+            }
             this.player.draw(this.ctx);
             this.rhythmEffect.restoreTransform(this.ctx);
 
-            // Draw score (centered in orbit with transparency)
-            this.ui.drawScore(this.ctx, this.score.getSeconds(), this.centerX, this.centerY, this.orbitRadius);
+            // Draw score or debug label
+            if (this.debugMode) {
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                const sizePx = Math.max(16, Math.floor(this.orbitRadius * 0.33));
+                this.ctx.font = `${sizePx}px Arial`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText('Debug Mode', this.centerX, this.centerY);
+                this.ctx.restore();
+            } else {
+                this.ui.drawScore(this.ctx, this.score.getSeconds(), this.centerX, this.centerY, this.orbitRadius);
+            }
         }
 
         this.animationId = requestAnimationFrame((t) => this.animate(t));

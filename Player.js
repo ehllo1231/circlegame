@@ -19,7 +19,7 @@ export class Player {
         const playerX = this.centerX + Math.cos(this.angle) * this.orbitRadius;
         const playerY = this.centerY + Math.sin(this.angle) * this.orbitRadius;
         
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = this.color || '#ffffff';
         ctx.beginPath();
         ctx.arc(playerX, playerY, this.radius, 0, 2 * Math.PI);
         ctx.fill();
