@@ -1,4 +1,5 @@
 import { Obstacle } from './Obstacle.js';
+import { OBSTACLE } from './Config.js';
 
 // ObstacleManager - 장애물 관리 및 파편 효과, 스폰 가속 관리
 export class ObstacleManager {
@@ -36,6 +37,9 @@ export class ObstacleManager {
         this.particleMinSize = 1;      // px radius
         this.particleMaxSize = 3;      // px radius
         this.particles = [];
+
+        // Gravity-like acceleration toward center (configurable)
+        this.gravityAcc = (OBSTACLE && typeof OBSTACLE.gravityAcc === 'number') ? OBSTACLE.gravityAcc : 0;
     }
 
     // 점수(초 단위 표시값)에 따라 스폰 간격 가속 적용
@@ -55,7 +59,7 @@ export class ObstacleManager {
         const angle = Math.random() * Math.PI * 2;
         const mul = this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul);
         const speed = this.speed * mul;
-        this.obstacles.push(new Obstacle(angle, offscreenRadius, speed, this.baseWidth, this.length));
+        this.obstacles.push(new Obstacle(angle, offscreenRadius, speed, this.baseWidth, this.length, this.gravityAcc));
     }
 
     update() {

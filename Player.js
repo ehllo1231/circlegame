@@ -6,7 +6,7 @@ export class Player {
         this.orbitRadius = orbitRadius;
         this.radius = playerRadius;
         this.angle = 0;
-        this.speed = 0.013; // 라디안/프레임
+        this.speed = 0.015; // 라디안/프레임
         this.rotationDirection = 1; // 1: 시계방향, -1: 시계반대방향
     }
     

@@ -33,6 +33,8 @@ export const OBSTACLE = {
   baseSpeed: 3,
   speedMinMul: 0.5,
   speedMaxMul: 1.2,
+  // Acceleration toward center (px/frame^2)
+  gravityAcc: 0.0,
 };
 
 export const PARTICLES = {

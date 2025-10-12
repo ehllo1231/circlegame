@@ -1,16 +1,18 @@
 // Obstacle 클래스 - 장애물 관리
 export class Obstacle {
-    constructor(angle, radius, speed, baseWidth = 24, length = 37.5) {
+    constructor(angle, radius, speed, baseWidth = 24, length = 37.5, acceleration = 0) {
         this.angle = angle;
         this.radius = radius;
         this.speed = speed;
         // Allow explicit size from spawner; default to original if not provided
         this.baseWidth = baseWidth;
         this.length = length;
+        this.acceleration = acceleration;
     }
     
     update() {
         this.radius -= this.speed;
+        this.speed += this.acceleration;
     }
     
     draw(ctx, centerX, centerY) {
