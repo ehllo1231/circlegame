@@ -34,7 +34,7 @@ export const SPAWN = {
   accelFactor: 1,
   // Probabilities (weights) for spawning 1..N spikes (N up to 8)
   // Index 0->1 spike, 1->2 spikes, ..., 7->8 spikes
-  multiCountWeights: [0.05, 0.15, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05],
+  multiCountWeights: [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05],
   // Minimum angular separation in degrees across recent spawns
   minAngularSeparationDeg: 20,
   // How many recent spikes to remember for separation checks
@@ -82,7 +82,7 @@ export const RHYTHM = {
 // Speeds are per 60fps frame to match dt factor
 export const SNOW = {
   enabledAfterSeconds: 3,     // start snow after N seconds
-  alpha: 0.28,                 // flake transparency (similar to SCORE.centerAlpha)
+  alpha: 0.16,                 // flake transparency (similar to SCORE.centerAlpha)
   // average flakes spawned per minute (use this instead of per-second)
   spawnPerMin: 60,             // e.g., 30 flakes per minute
   size: { min: 3, max: 5 },    // px radius

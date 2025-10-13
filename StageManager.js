@@ -113,7 +113,7 @@ export function createStage1() {
   // Phase 1: 20s, baseInterval 25, snow slight + slow
   phases.push(new Phase('phase1', 20, () => {
     SPAWN.baseInterval = 25;
-    SNOW.spawnPerMin = 200; // slight
+    SNOW.spawnPerMin = 300; // slight
     SNOW.fallSpeed.min = 0.8; SNOW.fallSpeed.max = 2.0; // slow
   }));
   // Phase 2: 20s, baseInterval 17, snow many + fast
@@ -131,6 +131,6 @@ export function createStage1() {
     SNOW.wind.baseX = -6;
   }));
 
-  return new StageManager(phases, { fadeFrom: '#000000', fadeTo: '#670500', fadeDurationSec: 6 });
+  return new StageManager(phases, { fadeFrom: '#000000', fadeTo: '#460502ff', fadeDurationSec: 6 });
 }
 
