@@ -44,13 +44,18 @@ export class ObstacleManager {
         this.constantSpeedEnabled = !!(OBSTACLE && OBSTACLE.constantSpeedEnabled === true);
         this.constantSpeed = (OBSTACLE && typeof OBSTACLE.constantSpeed === 'number') ? OBSTACLE.constantSpeed : this.speed;
 
-        // Multi-spawn configuration and angular separation
+        // Multi-spawn configuration
         this.multiWeights = Array.isArray(SPAWN?.multiCountWeights) && SPAWN.multiCountWeights.length > 0
           ? SPAWN.multiCountWeights.slice()
           : [1, 0, 0, 0, 0, 0, 0, 0];
-        this.minSep = (SPAWN && typeof SPAWN.minAngularSeparationDeg === 'number') ? (SPAWN.minAngularSeparationDeg * Math.PI / 180) : 0;
-        this.angleHistorySize = (SPAWN && typeof SPAWN.angleHistorySize === 'number') ? SPAWN.angleHistorySize : 32;
-        this.recentAngles = [];
+
+        // New correction config: compare only with most recent spawn's remainder
+        this.corrThresholdDeg = (typeof SPAWN?.correctionThresholdDeg === 'number') ? SPAWN.correctionThresholdDeg : 8;
+        this.corrZeroWrap = !!SPAWN?.correctionZeroWrap;
+
+        // Track last correction remainder and step (in degrees)
+        this._lastCorrRemainderDeg = null; // in [0, stepDeg)
+        this._lastCorrStepDeg = null;      // stepDeg = 360 / lastCount
     }
 
     refreshFromConfig() {
@@ -70,6 +75,10 @@ export class ObstacleManager {
         if (typeof OBSTACLE?.gravityAcc === 'number') this.gravityAcc = OBSTACLE.gravityAcc;
         this.constantSpeedEnabled = !!OBSTACLE?.constantSpeedEnabled;
         if (typeof OBSTACLE?.constantSpeed === 'number') this.constantSpeed = OBSTACLE.constantSpeed;
+
+        // Live update correction settings
+        this.corrThresholdDeg = (typeof SPAWN?.correctionThresholdDeg === 'number') ? SPAWN.correctionThresholdDeg : this.corrThresholdDeg;
+        this.corrZeroWrap = !!SPAWN?.correctionZeroWrap;
     }
     // Score-based difficulty: shrink spawn interval stepwise
     applySpawnAcceleration(visibleScore) {
@@ -87,19 +96,42 @@ export class ObstacleManager {
 
     spawnObstacle(offscreenRadius) {
         const count = this._chooseCount(this.multiWeights);
-        const step = (Math.PI * 2) / count; // equal division
-        let baseAngle = Math.random() * Math.PI * 2;
-        if (this.minSep > 0 && this.recentAngles.length > 0) {
-            let attempts = 0;
-            const maxAttempts = 24;
-            while (attempts < maxAttempts) {
-                const candidate = [];
-                for (let i = 0; i < count; i++) candidate.push(this._normAngle(baseAngle + i * step));
-                if (this._anglesAreSeparated(candidate, this.recentAngles, this.minSep)) break;
-                baseAngle = this._normAngle(baseAngle + step * (0.25 + Math.random() * 0.5));
-                attempts++;
+
+        // Step size in radians/deg
+        const stepRad = (Math.PI * 2) / count;
+        const stepDeg = 360 / count;
+
+        // Base angle in degrees (random 0..360)
+        let baseDeg = Math.random() * 360;
+
+        // Compute current remainder (0..stepDeg)
+        let rNow = this._modDeg(baseDeg, stepDeg);
+
+        // Compare only with most recent spawn's remainder; enforce at least threshold separation
+        const threshold = Math.max(0, Math.min(stepDeg / 2, Number(this.corrThresholdDeg) || 0));
+        if (this._lastCorrRemainderDeg != null) {
+            // Do NOT convert previous remainder to current step domain; compare as stored
+            const prev = this._lastCorrRemainderDeg;
+            // For zero-wrap handling, only apply wrap if step sizes match; otherwise use linear diff
+            const diff = (this.corrZeroWrap && this._lastCorrStepDeg === stepDeg)
+                ? this._wrapDiffDeg(rNow, prev, stepDeg, true)
+                : (rNow - prev);
+            if (Math.abs(diff) < threshold) {
+                // Push away so that |diff| becomes exactly threshold (choose direction by diff, default +)
+                const s = (diff === 0 ? 1 : Math.sign(diff));
+                const target = s * threshold;
+                const delta = target - diff; // how much to move rNow
+                baseDeg += delta;
+                rNow = this._modDeg(baseDeg, stepDeg);
             }
         }
+
+        // Save current correction state
+        this._lastCorrRemainderDeg = rNow;
+        this._lastCorrStepDeg = stepDeg;
+
+        // Convert baseDeg to radians for spawn
+        let baseAngle = this._degToRad(baseDeg);
         const spawned = [];
         // Pick batch speed once (constant-speed mode overrides randomness)
         const batchSpeed = this.constantSpeedEnabled
@@ -107,13 +139,9 @@ export class ObstacleManager {
             : (this.speed * (this.speedMinMul + Math.random() * (this.speedMaxMul - this.speedMinMul)));
         const accel = this.constantSpeedEnabled ? 0 : this.gravityAcc;
         for (let i = 0; i < count; i++) {
-            const angle = this._normAngle(baseAngle + i * step);
+            const angle = this._normAngle(baseAngle + i * stepRad);
             this.obstacles.push(new Obstacle(angle, offscreenRadius, batchSpeed, this.baseWidth, this.length, accel));
             spawned.push(angle);
-        }
-        this.recentAngles.push(...spawned);
-        if (this.recentAngles.length > this.angleHistorySize) {
-            this.recentAngles.splice(0, this.recentAngles.length - this.angleHistorySize);
         }
     }
 
@@ -143,14 +171,22 @@ export class ObstacleManager {
         return a - Math.PI;
     }
 
-    _anglesAreSeparated(cands, hist, minSep) {
-        for (const c of cands) {
-            for (const h of hist) {
-                const d = Math.abs(this._wrapAngle(c - h));
-                if (d < minSep) return false;
-            }
-        }
-        return true;
+    // --- Degree helpers for correction logic ---
+    _degToRad(d) { return d * Math.PI / 180; }
+    _radToDeg(r) { return r * 180 / Math.PI; }
+    _modDeg(a, mod) {
+        const m = mod || 360;
+        let x = a % m;
+        if (x < 0) x += m;
+        return x;
+    }
+    _wrapDiffDeg(a, b, modLen, useWrap) {
+        const M = modLen || 360;
+        if (!useWrap) return a - b;
+        let d = (a - b) % M;
+        if (d > M / 2) d -= M;
+        if (d < -M / 2) d += M;
+        return d;
     }
 
     update(dt = 1) {

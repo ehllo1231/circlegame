@@ -35,10 +35,11 @@ export const SPAWN = {
   // Probabilities (weights) for spawning 1..N spikes (N up to 8)
   // Index 0->1 spike, 1->2 spikes, ..., 7->8 spikes
   multiCountWeights: [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05],
-  // Minimum angular separation in degrees across recent spawns
-  minAngularSeparationDeg: 20,
-  // How many recent spikes to remember for separation checks
-  angleHistorySize: 32,
+  // Angle correction: compare only to the most recent spawn batch
+  // Threshold for correction (in degrees) on the remainder domain (0..360/N)
+  correctionThresholdDeg: 30,
+  // Whether to treat 0° wrap-around as continuous when comparing remainders
+  correctionZeroWrap: true,
   // Minimum spawn interval cap (frames)
   minInterval: 5,
 };
