@@ -6,6 +6,7 @@ import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
 import { ORBIT, PLAYER, SNOW } from './Config.js';
+import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { createStage1 } from './StageManager.js';
 
@@ -107,16 +108,27 @@ export class Game {
     }
 
     restartGame() {
+        // Reset all config objects to their initial defaults
+        resetAllConfigToDefaults();
+
         // Reset state
         this.gameOver = false;
         this.gameStarted = false;
+        this.playerHitFlash = 0;
         this.score.reset();
 
-        // Recreate entities
+        // Re-read orbit/player radii from (now-reset) config
+        this.orbitRadius = ORBIT?.radius ?? this.orbitRadius;
+        this.playerRadius = PLAYER?.radius ?? this.playerRadius;
+
+        // Recreate entities using refreshed config
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
         this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
         this.rhythmEffect = new RhythmEffect();
         if (this.snow && this.snow.reset) this.snow.reset();
+
+        // Recreate stage so phase-driven config starts fresh
+        this.stage = createStage1();
 
         // Hide overlays and immediately start
         this.ui.hideOverlays();

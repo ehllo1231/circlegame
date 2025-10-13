@@ -1,0 +1,27 @@
+﻿import { SCORE, CANVAS, ORBIT, PLAYER, SPAWN, OBSTACLE, PARTICLES, RHYTHM, SNOW, CONTROLS } from './Config.js';
+
+const deepCopy = (o) => JSON.parse(JSON.stringify(o));
+
+export const SCORE_DEFAULTS = deepCopy(SCORE);
+export const CANVAS_DEFAULTS = deepCopy(CANVAS);
+export const ORBIT_DEFAULTS = deepCopy(ORBIT);
+export const PLAYER_DEFAULTS = deepCopy(PLAYER);
+export const SPAWN_DEFAULTS = deepCopy(SPAWN);
+export const OBSTACLE_DEFAULTS = deepCopy(OBSTACLE);
+export const PARTICLES_DEFAULTS = deepCopy(PARTICLES);
+export const RHYTHM_DEFAULTS = deepCopy(RHYTHM);
+export const SNOW_DEFAULTS = deepCopy(SNOW);
+export const CONTROLS_DEFAULTS = deepCopy(CONTROLS);
+
+export function resetAllConfigToDefaults() {
+  try { Object.assign(SCORE, deepCopy(SCORE_DEFAULTS)); } catch (_) {}
+  try { Object.assign(CANVAS, deepCopy(CANVAS_DEFAULTS)); } catch (_) {}
+  try { Object.assign(ORBIT, deepCopy(ORBIT_DEFAULTS)); } catch (_) {}
+  try { Object.assign(PLAYER, deepCopy(PLAYER_DEFAULTS)); } catch (_) {}
+  try { Object.assign(SPAWN, deepCopy(SPAWN_DEFAULTS)); } catch (_) {}
+  try { Object.assign(OBSTACLE, deepCopy(OBSTACLE_DEFAULTS)); } catch (_) {}
+  try { Object.assign(PARTICLES, deepCopy(PARTICLES_DEFAULTS)); } catch (_) {}
+  try { Object.assign(RHYTHM, deepCopy(RHYTHM_DEFAULTS)); } catch (_) {}
+  try { Object.assign(SNOW, deepCopy(SNOW_DEFAULTS)); } catch (_) {}
+  try { Object.assign(CONTROLS, deepCopy(CONTROLS_DEFAULTS)); } catch (_) {}
+}
