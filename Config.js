@@ -34,12 +34,12 @@ export const SPAWN = {
   accelFactor: 1,
   // Probabilities (weights) for spawning 1..N spikes (N up to 8)
   // Index 0->1 spike, 1->2 spikes, ..., 7->8 spikes
-  multiCountWeights: [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05],
-  // Angle correction: compare only to the most recent spawn batch
+  multiCountWeights: [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05],
+  // Angle correction: only compare against the most recent spawn batch
   // Threshold for correction (in degrees) on the remainder domain (0..360/N)
-  correctionThresholdDeg: 30,
-  // Whether to treat 0° wrap-around as continuous when comparing remainders
-  correctionZeroWrap: true,
+  correctionThresholdDeg: 10,
+  // Maximum random attempts per spawn batch before giving up on separation
+  correctionMaxRetries: 1000,
   // Minimum spawn interval cap (frames)
   minInterval: 5,
 };

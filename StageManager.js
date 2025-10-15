@@ -21,6 +21,7 @@ export class StageManager {
     this.fadeDurationSec = options.fadeDurationSec ?? 5; // seconds of fade
     this.fadeFrom = options.fadeFrom || '#000000';
     this.fadeTo = options.fadeTo || '#670500';
+    this.hideScoreDurationSec = options.hideScoreDurationSec ?? 0;
   }
 
   update(secondsElapsed) {
@@ -45,7 +46,7 @@ export class StageManager {
       } else if (t >= this.getTotalDuration()) {
         // Stage finished
         this.spawnEnabled = false;
-        this.snowEnabled = true; // allow snow to continue if configured
+        this.snowEnabled = false;
         this.fadeStartSec = this.getTotalDuration();
       }
     } else {
@@ -77,6 +78,49 @@ export class StageManager {
     const d = Math.max(0, this.totalElapsed - endAt);
     const k = Math.max(0, Math.min(1, this.fadeDurationSec > 0 ? d / this.fadeDurationSec : 1));
     return lerpHex(this.fadeFrom, this.fadeTo, k);
+  }
+
+  isFinished() {
+    return this.totalElapsed >= this.getTotalDuration();
+  }
+
+  hasFadeCompleted() {
+    if (!this.isFinished()) return false;
+    if (this.fadeDurationSec <= 0) return true;
+    return (this.totalElapsed - this.getTotalDuration()) >= this.fadeDurationSec;
+  }
+
+  shouldHideScore() {
+    if (!this.hasFadeCompleted()) return false;
+    if (this.hideScoreDurationSec <= 0) return false;
+    const sinceEnd = this.totalElapsed - this.getTotalDuration();
+    const sinceFadeDone = sinceEnd - this.fadeDurationSec;
+    return sinceFadeDone >= 0 && sinceFadeDone < this.hideScoreDurationSec;
+  }
+
+  fastForwardToEnd() {
+    const total = this.getTotalDuration();
+    const fade = Number.isFinite(this.fadeDurationSec) ? Math.max(0, this.fadeDurationSec) : 0;
+    if (total <= 0) {
+      this.totalElapsed = fade;
+      this.currentIndex = -1;
+      this.spawnEnabled = false;
+      this.snowEnabled = false;
+      this.fadeStartSec = 0;
+      this.changed = true;
+      return;
+    }
+    for (let i = 0; i < this.phases.length; i++) {
+      if (typeof this.phases[i]?.apply === 'function') {
+        this.phases[i].apply();
+      }
+    }
+    this.currentIndex = -1;
+    this.totalElapsed = total + fade;
+    this.spawnEnabled = false;
+    this.snowEnabled = false;
+    this.fadeStartSec = total;
+    this.changed = true;
   }
 }
 
@@ -123,14 +167,18 @@ export function createStage1() {
     SNOW.fallSpeed.min = 3; SNOW.fallSpeed.max = 5; // fast
     SNOW.wind.baseX = 3;
   }));
-  // Phase 3: 10s, baseInterval 12, snow very many + very fast
+  // Phase 3: 10s, baseInterval 14, snow very many + very fast
   phases.push(new Phase('phase3', 10, () => {
-    SPAWN.baseInterval = 12;
+    SPAWN.baseInterval = 14;
     SNOW.spawnPerMin = 6000; // very many
     SNOW.fallSpeed.min = 7.0; SNOW.fallSpeed.max = 10; // (insanely) very fast
     SNOW.wind.baseX = -6;
   }));
 
-  return new StageManager(phases, { fadeFrom: '#000000', fadeTo: '#460502ff', fadeDurationSec: 6 });
+  return new StageManager(phases, {
+    fadeFrom: '#000000',
+    fadeTo: '#180033',
+    fadeDurationSec: 3,
+    hideScoreDurationSec: 3,
+  });
 }
-

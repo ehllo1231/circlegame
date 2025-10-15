@@ -28,6 +28,7 @@ export class Game {
         this.snow = new SnowEffect();
         this.debugMode = false;
         this.playerHitFlash = 0; // frames at 60fps for red flash
+        this.fastForwardNextStart = false;
         this.debug = new DebugController({
             onChange: (section) => {
                 if (section === 'spawn' || section === 'obstacle' || section === 'particles') {
@@ -54,6 +55,9 @@ export class Game {
 
         // Stage manager (Stage1)
         this.stage = createStage1();
+        if (this.stage && typeof this.stage.getTotalDuration === 'function') {
+            this.score.setMaxSeconds(this.stage.getTotalDuration());
+        }
 
         this.setupEventListeners();
     }
@@ -71,6 +75,7 @@ export class Game {
                     this.debug.toggle(this.debugMode);
                 }
             },
+            onFastForward: () => this.enableFastForwardDebug(),
         });
         this.input.attach();
     }
@@ -80,6 +85,10 @@ export class Game {
         this.gameOver = false;
         this.score.reset();
         this.ui.hideOverlays();
+        if (this.fastForwardNextStart) {
+            this.applyFastForwardStageEnd();
+            this.fastForwardNextStart = false;
+        }
         // key handling is now driven purely by Config (CONTROLS.reverseUseAlphabet / reverseOn)
         this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
@@ -129,6 +138,10 @@ export class Game {
 
         // Recreate stage so phase-driven config starts fresh
         this.stage = createStage1();
+        if (this.stage && typeof this.stage.getTotalDuration === 'function') {
+            this.score.setMaxSeconds(this.stage.getTotalDuration());
+        }
+        this.fastForwardNextStart = false;
 
         // Hide overlays and immediately start
         this.ui.hideOverlays();
@@ -150,8 +163,34 @@ export class Game {
             // time-based scoring via Score module
             this.score.update(now);
 
-            // Update rhythm effect
-            this.rhythmEffect.update(dt);
+            const secondsElapsed = this.score.getSeconds();
+
+            // Stage update and apply baseInterval on phase change (disabled in debug)
+            if (this.stage && !this.debugMode) {
+                this.stage.update(secondsElapsed);
+                if (this.stage.changed) {
+                    const bi = this.stage.getCurrentBaseInterval();
+                    if (typeof bi === 'number') {
+                        this.obstacleManager.spawnInterval = bi;
+                        this.obstacleManager.frameCounter = 0;
+                        if (typeof this.obstacleManager.lastSpawnAccelStage === 'number') {
+                            this.obstacleManager.lastSpawnAccelStage = 0;
+                        }
+                    }
+                    if (!this.stage.isSnowEnabled() && this.snow && typeof this.snow.reset === 'function') {
+                        this.snow.reset();
+                    }
+                }
+            }
+
+            const stageFinished = this.stage ? this.stage.isFinished() : false;
+            if (stageFinished) {
+                if (this.rhythmEffect && typeof this.rhythmEffect.reset === 'function') {
+                    this.rhythmEffect.reset();
+                }
+            } else {
+                this.rhythmEffect.update(dt);
+            }
 
             // Clear screen
             // Ensure a clean transform each frame to avoid accumulated transforms across restarts
@@ -164,22 +203,6 @@ export class Game {
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             // Background snow (no rhythm transform)
-            const secondsElapsed = this.score.getSeconds();
-            // Stage update and apply baseInterval on phase change (disabled in debug)
-            if (this.stage && !this.debugMode) {
-                const prevInterval = this.obstacleManager.spawnInterval;
-                this.stage.update(secondsElapsed);
-                if (this.stage.changed) {
-                    const bi = this.stage.getCurrentBaseInterval();
-                    if (typeof bi === 'number') {
-                        this.obstacleManager.spawnInterval = bi;
-                        this.obstacleManager.frameCounter = 0;
-                        if (typeof this.obstacleManager.lastSpawnAccelStage === 'number') {
-                            this.obstacleManager.lastSpawnAccelStage = 0;
-                        }
-                    }
-                }
-            }
             if (this.snow && typeof this.snow.update === 'function') {
                 // Only start after configured seconds; SnowEffect itself is cheap if nothing to draw
                 const startAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
@@ -191,9 +214,14 @@ export class Game {
             }
 
             // Apply rhythm effect ONLY to background orbit
-            this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
+            const rhythmActive = !stageFinished;
+            if (rhythmActive) {
+                this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
+            }
             this.drawOrbit();
-            this.rhythmEffect.restoreTransform(this.ctx);
+            if (rhythmActive) {
+                this.rhythmEffect.restoreTransform(this.ctx);
+            }
 
             // Update obstacles (no rhythm effect)
             this.obstacleManager.update(dt);
@@ -227,7 +255,9 @@ export class Game {
 
             // Player (apply rhythm effect ONLY to the player)
             this.player.update(dt);
-            this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
+            if (rhythmActive) {
+                this.rhythmEffect.applyTransform(this.ctx, this.centerX, this.centerY);
+            }
             // flash effect
             if (this.playerHitFlash > 0) {
                 this.player.color = '#ff4444';
@@ -236,7 +266,9 @@ export class Game {
                 this.player.color = '#ffffff';
             }
             this.player.draw(this.ctx);
-            this.rhythmEffect.restoreTransform(this.ctx);
+            if (rhythmActive) {
+                this.rhythmEffect.restoreTransform(this.ctx);
+            }
 
             // Draw score or debug label
             if (this.debugMode) {
@@ -249,11 +281,51 @@ export class Game {
                 this.ctx.fillText('Debug Mode', this.centerX, this.centerY);
                 this.ctx.restore();
             } else {
-                this.ui.drawScore(this.ctx, this.score.getSeconds(), this.centerX, this.centerY, this.orbitRadius);
+                const hideScore = stageFinished
+                    ? true
+                    : (this.stage && typeof this.stage.shouldHideScore === 'function'
+                        ? this.stage.shouldHideScore()
+                        : false);
+                if (!hideScore) {
+                    this.ui.drawScore(this.ctx, this.score.getDisplaySeconds(), this.centerX, this.centerY, this.orbitRadius);
+                }
             }
         }
 
         this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
-}
 
+    enableFastForwardDebug() {
+        if (this.gameStarted) return;
+        this.fastForwardNextStart = true;
+    }
+
+    applyFastForwardStageEnd() {
+        const totalDuration = (this.stage && typeof this.stage.getTotalDuration === 'function')
+            ? this.stage.getTotalDuration()
+            : this.score.maxSeconds;
+        if (this.stage) {
+            if (typeof this.stage.fastForwardToEnd === 'function') {
+                this.stage.fastForwardToEnd();
+            } else if (typeof this.stage.update === 'function' && Number.isFinite(totalDuration)) {
+                this.stage.update(totalDuration);
+            }
+            if (Number.isFinite(totalDuration)) {
+                this.stage.totalElapsed = totalDuration;
+                this.stage.changed = true;
+            }
+        }
+        if (Number.isFinite(totalDuration)) {
+            this.score.seconds = totalDuration;
+        }
+        if (this.snow && typeof this.snow.reset === 'function') {
+            this.snow.reset();
+        }
+        if (this.obstacleManager) {
+            this.obstacleManager.obstacles.length = 0;
+            if (typeof this.obstacleManager.resetSpawnTimer === 'function') {
+                this.obstacleManager.resetSpawnTimer();
+            }
+        }
+    }
+}

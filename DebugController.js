@@ -68,6 +68,10 @@ export class DebugController {
           <label>minInterval <input id="dbg-spawn-min" type="number" step="1" min="1" style="width:80px"></label>
         </div>
         <div style="margin-top:4px;">
+          <label>corrThreshold° <input id="dbg-spawn-threshold" type="number" step="0.1" min="0" style="width:90px"></label>
+          <label style="margin-left:6px;">corrRetries <input id="dbg-spawn-retries" type="number" step="1" min="1" style="width:90px"></label>
+        </div>
+        <div style="margin-top:4px;">
           <label>multi weights (csv 1..N) <input id="dbg-spawn-weights" type="text" style="width:240px" placeholder="e.g. 0.5,0.3,0.2"></label>
         </div>
         <div style="margin-top:6px;"><button id="dbg-spawn-reset">Reset Spawn</button></div>
@@ -115,6 +119,8 @@ export class DebugController {
     $('#dbg-spawn-every').value = SPAWN?.accelEverySeconds ?? 30;
     $('#dbg-spawn-factor').value = SPAWN?.accelFactor ?? 1.2;
     $('#dbg-spawn-min').value = SPAWN?.minInterval ?? 15;
+    $('#dbg-spawn-threshold').value = SPAWN?.correctionThresholdDeg ?? 0;
+    $('#dbg-spawn-retries').value = SPAWN?.correctionMaxRetries ?? 1;
     $('#dbg-spawn-weights').value = Array.isArray(SPAWN?.multiCountWeights) ? SPAWN.multiCountWeights.join(',') : '';
 
     $('#dbg-obs-const').checked = !!OBSTACLE?.constantSpeedEnabled;
@@ -160,6 +166,8 @@ export class DebugController {
     onNum('#dbg-spawn-every', (v) => { SPAWN.accelEverySeconds = Math.max(1, Math.round(v)); this.onChange('spawn'); });
     onNum('#dbg-spawn-factor', (v) => { SPAWN.accelFactor = Math.max(1, v); this.onChange('spawn'); });
     onNum('#dbg-spawn-min', (v) => { SPAWN.minInterval = Math.max(1, Math.round(v)); this.onChange('spawn'); });
+    onNum('#dbg-spawn-threshold', (v) => { SPAWN.correctionThresholdDeg = Math.max(0, v); this.onChange('spawn'); });
+    onNum('#dbg-spawn-retries', (v) => { SPAWN.correctionMaxRetries = Math.max(1, Math.round(v)); this.onChange('spawn'); });
     const wEl = this.panel.querySelector('#dbg-spawn-weights');
     wEl.addEventListener('input', () => {
       const parts = (wEl.value || '').split(',').map(s => parseFloat(s.trim())).filter(v => !Number.isNaN(v));

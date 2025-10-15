@@ -29,6 +29,10 @@ export class RhythmEffect {
     restoreTransform(ctx) {
         ctx.restore();
     }
-}
 
+    reset() {
+        this.timer = 0;
+        this.scale = 1;
+    }
+}
 

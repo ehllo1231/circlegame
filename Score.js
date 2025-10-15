@@ -2,6 +2,7 @@ export class Score {
   constructor() {
     this.seconds = 0;
     this._lastTime = null;
+    this.maxSeconds = Infinity;
   }
 
   reset() {
@@ -27,7 +28,19 @@ export class Score {
   }
 
   getVisible() {
-    return Math.floor(this.seconds);
+    return Math.floor(this.getDisplaySeconds());
+  }
+
+  getDisplaySeconds() {
+    return Math.min(this.seconds, this.maxSeconds);
+  }
+
+  setMaxSeconds(maxSeconds = Infinity) {
+    if (Number.isFinite(maxSeconds) && maxSeconds >= 0) {
+      this.maxSeconds = Math.max(0, maxSeconds);
+    } else {
+      this.maxSeconds = Infinity;
+    }
   }
 }
 

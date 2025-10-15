@@ -7,16 +7,18 @@ export class InputController {
       restart: null,
       reverse: null,
       debugToggle: null,
+      fastForward: null,
     };
     this._onKeyDown = this._onKeyDown.bind(this);
     this.reverseAnyKey = false; // deprecated; kept for backward compatibility
   }
 
-  bindHandlers({ onStart, onRestart, onReverse, onDebugToggle }) {
+  bindHandlers({ onStart, onRestart, onReverse, onDebugToggle, onFastForward }) {
     this.handlers.start = onStart || null;
     this.handlers.restart = onRestart || null;
     this.handlers.reverse = onReverse || null;
     this.handlers.debugToggle = onDebugToggle || null;
+    this.handlers.fastForward = onFastForward || null;
   }
 
   attach() {
@@ -51,6 +53,10 @@ export class InputController {
     // Debug toggle (F6), independent of CONTROLS to avoid accidental remap
     if (code === 'F6' && this.handlers.debugToggle) {
       this.handlers.debugToggle();
+      handled = true;
+    }
+    if (code === 'F7' && this.handlers.fastForward) {
+      this.handlers.fastForward();
       handled = true;
     }
     if (handled) event.preventDefault();
