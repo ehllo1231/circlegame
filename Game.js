@@ -8,7 +8,7 @@ import { Score } from './Score.js';
 import { ORBIT, PLAYER, SNOW } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
-import { createStage1 } from './StageManager.js';
+import { Stage1 } from './Stage1.js';
 
 // Game - main controller
 export class Game {
@@ -38,6 +38,7 @@ export class Game {
                     // Apply PLAYER config directly to current player
                     this.player.speed = (PLAYER && typeof PLAYER.angularSpeed === 'number') ? PLAYER.angularSpeed : this.player.speed;
                     this.player.radius = (PLAYER && typeof PLAYER.radius === 'number') ? PLAYER.radius : this.player.radius;
+                    this.playerRadius = this.player.radius;
                 }
             }
         });
@@ -54,7 +55,7 @@ export class Game {
         this.input = new InputController();
 
         // Stage manager (Stage1)
-        this.stage = createStage1();
+        this.stage = new Stage1();
         if (this.stage && typeof this.stage.getTotalDuration === 'function') {
             this.score.setMaxSeconds(this.stage.getTotalDuration());
         }
@@ -137,7 +138,7 @@ export class Game {
         if (this.snow && this.snow.reset) this.snow.reset();
 
         // Recreate stage so phase-driven config starts fresh
-        this.stage = createStage1();
+        this.stage = new Stage1();
         if (this.stage && typeof this.stage.getTotalDuration === 'function') {
             this.score.setMaxSeconds(this.stage.getTotalDuration());
         }

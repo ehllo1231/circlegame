@@ -1,0 +1,89 @@
+import { StageManager, StagePhase } from './StageManager.js';
+import { SPAWN, SNOW } from './Config.js';
+
+class Stage1WarmupPhase extends StagePhase {
+  constructor() {
+    super({ name: 'stage1-warmup', durationSec: 10 });
+  }
+
+  onEnter() {
+    SPAWN.baseInterval = 30;
+    SPAWN.multiCountWeights = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125];
+    SNOW.spawnPerMin = 0;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = 0.12;
+    SNOW.wind.oscAmp = 0.1;
+  }
+}
+
+class Stage1BuildUpPhase extends StagePhase {
+  constructor() {
+    super({ name: 'stage1-build-up', durationSec: 20 });
+  }
+
+  onEnter() {
+    SPAWN.baseInterval = 25;
+    SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
+    SNOW.spawnPerMin = 300;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = 0.12;
+    SNOW.wind.oscAmp = 0.1;
+  }
+}
+
+class Stage1BlizzardPhase extends StagePhase {
+  constructor() {
+    super({ name: 'stage1-blizzard', durationSec: 20 });
+  }
+
+  onEnter() {
+    SPAWN.baseInterval = 17;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
+    SNOW.spawnPerMin = 2000;
+    SNOW.fallSpeed.min = 3;
+    SNOW.fallSpeed.max = 5;
+    SNOW.wind.baseX = 3;
+  }
+}
+
+class Stage1StormPhase extends StagePhase {
+  constructor() {
+    super({ name: 'stage1-storm', durationSec: 10 });
+  }
+
+  onEnter() {
+    SPAWN.baseInterval = 14;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
+    SNOW.spawnPerMin = 6000;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = -6;
+  }
+}
+
+export class Stage1 extends StageManager {
+  constructor() {
+    super({
+      phases: [
+        new Stage1WarmupPhase(),
+        new Stage1BuildUpPhase(),
+        new Stage1BlizzardPhase(),
+        new Stage1StormPhase(),
+      ],
+      fadeFrom: '#000000',
+      fadeTo: '#0f0020',
+      fadeDelaySec: 2,
+      fadeDurationSec: 2,
+      hideScoreDurationSec: 2,
+    });
+  }
+}
+
+export const STAGE1_PHASES = {
+  Stage1WarmupPhase,
+  Stage1BuildUpPhase,
+  Stage1BlizzardPhase,
+  Stage1StormPhase,
+};

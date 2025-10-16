@@ -1,53 +1,99 @@
-import { SPAWN, SNOW } from './Config.js';
+import { SPAWN } from './Config.js';
 
-class Phase {
-  constructor(name, durationSec, applyFn) {
-    this.name = name;
+/**
+ * Base class for an individual stage phase.
+ * Subclasses can override lifecycle hooks to tweak game configuration.
+ */
+export class StagePhase {
+  constructor({ name, durationSec }) {
+    if (typeof durationSec !== 'number' || durationSec <= 0) {
+      throw new Error('StagePhase requires a positive durationSec');
+    }
+    this.name = name || 'phase';
     this.durationSec = durationSec;
-    this.apply = typeof applyFn === 'function' ? applyFn : () => {};
   }
+
+  getName() {
+    return this.name;
+  }
+
+  getDurationSec() {
+    return this.durationSec;
+  }
+
+  onEnter(/* context */) {}
+  onExit(/* context */) {}
 }
 
+/**
+ * Orchestrates the lifecycle of a stage made up of StagePhase instances.
+ * Tracks time, phase boundaries, completion, and exposes helper methods
+ * used by the rest of the game loop.
+ */
 export class StageManager {
-  constructor(phases = [], options = {}) {
-    this.phases = phases;
+  constructor({
+    phases = [],
+    fadeStartSec = 0,
+    fadeDelaySec = 0,
+    fadeDurationSec = 5,
+    fadeFrom = '#000000',
+    fadeTo = '#670500',
+    hideScoreDurationSec = 0,
+    afterStageHandlers = [],
+  } = {}) {
+    this.phases = Array.isArray(phases) ? phases : [];
     this.currentIndex = -1;
     this.phaseStartTime = 0;
     this.totalElapsed = 0;
     this.changed = false;
     this.spawnEnabled = true;
     this.snowEnabled = true;
-    this.fadeStartSec = options.fadeStartSec ?? 0; // when to begin fade (absolute seconds)
-    this.fadeDurationSec = options.fadeDurationSec ?? 5; // seconds of fade
-    this.fadeFrom = options.fadeFrom || '#000000';
-    this.fadeTo = options.fadeTo || '#670500';
-    this.hideScoreDurationSec = options.hideScoreDurationSec ?? 0;
+    this.fadeStartSec = fadeStartSec;
+    this.fadeDelaySec = Math.max(0, fadeDelaySec);
+    this.fadeDurationSec = fadeDurationSec;
+    this.fadeFrom = fadeFrom;
+    this.fadeTo = fadeTo;
+    this.hideScoreDurationSec = hideScoreDurationSec;
+    this.afterStageHandlers = Array.isArray(afterStageHandlers)
+      ? afterStageHandlers.filter(Boolean)
+      : afterStageHandlers
+        ? [afterStageHandlers]
+        : [];
+    this.completionTriggered = false;
   }
 
   update(secondsElapsed) {
     this.totalElapsed = secondsElapsed;
-    let t = secondsElapsed;
-    // Determine which phase we are in based on cumulative durations
-    let acc = 0;
-    let index = -1;
-    for (let i = 0; i < this.phases.length; i++) {
-      acc += this.phases[i].durationSec;
-      if (t < acc) { index = i; break; }
-    }
+    const { index: newIndex, timeIntoPhase } = this._resolvePhase(secondsElapsed);
 
-    if (index !== this.currentIndex) {
-      this.currentIndex = index;
+    if (newIndex !== this.currentIndex) {
+      const context = this._buildContext({ secondsElapsed, timeIntoPhase });
+      const previousIndex = this.currentIndex;
+      if (previousIndex >= 0) {
+        const previousPhase = this.phases[previousIndex];
+        if (previousPhase && typeof previousPhase.onExit === 'function') {
+          previousPhase.onExit(context);
+        }
+      }
+
+      this.currentIndex = newIndex;
       this.changed = true;
-      if (index >= 0) {
-        // Entering a phase
+
+      if (newIndex >= 0) {
         this.snowEnabled = true;
-        this.phases[index].apply();
-        // Set fade schedule only when stage is ended
-      } else if (t >= this.getTotalDuration()) {
-        // Stage finished
+        this.spawnEnabled = true;
+        this.phaseStartTime = secondsElapsed - timeIntoPhase;
+        const phase = this.phases[newIndex];
+        if (phase && typeof phase.onEnter === 'function') {
+          phase.onEnter(context);
+        }
+      } else if (secondsElapsed >= this.getTotalDuration()) {
         this.spawnEnabled = false;
         this.snowEnabled = false;
         this.fadeStartSec = this.getTotalDuration();
+        this._triggerCompletionHandlers(
+          this._buildContext({ secondsElapsed, timeIntoPhase: 0 }),
+        );
       }
     } else {
       this.changed = false;
@@ -55,12 +101,14 @@ export class StageManager {
   }
 
   getTotalDuration() {
-    return this.phases.reduce((s, p) => s + (p.durationSec || 0), 0);
+    return this.phases.reduce(
+      (sum, phase) => sum + (typeof phase?.getDurationSec === 'function' ? phase.getDurationSec() : 0),
+      0,
+    );
   }
 
   canSpawn() {
-    // After last phase, disallow spawns
-    return this.currentIndex >= 0;
+    return this.spawnEnabled && this.currentIndex >= 0;
   }
 
   isSnowEnabled() {
@@ -72,11 +120,16 @@ export class StageManager {
   }
 
   getBackgroundColor() {
-    // If stage finished, fade from from->to over fadeDuration
     const endAt = this.getTotalDuration();
     if (this.totalElapsed <= endAt) return this.fadeFrom;
-    const d = Math.max(0, this.totalElapsed - endAt);
-    const k = Math.max(0, Math.min(1, this.fadeDurationSec > 0 ? d / this.fadeDurationSec : 1));
+    const elapsedSinceEnd = Math.max(0, this.totalElapsed - endAt);
+    const delay = this.fadeDelaySec || 0;
+    if (elapsedSinceEnd <= delay) return this.fadeFrom;
+    const elapsedAfterDelay = elapsedSinceEnd - delay;
+    const k = Math.max(
+      0,
+      Math.min(1, this.fadeDurationSec > 0 ? elapsedAfterDelay / this.fadeDurationSec : 1),
+    );
     return lerpHex(this.fadeFrom, this.fadeTo, k);
   }
 
@@ -86,99 +139,107 @@ export class StageManager {
 
   hasFadeCompleted() {
     if (!this.isFinished()) return false;
-    if (this.fadeDurationSec <= 0) return true;
-    return (this.totalElapsed - this.getTotalDuration()) >= this.fadeDurationSec;
+    const elapsedSinceEnd = Math.max(0, this.totalElapsed - this.getTotalDuration());
+    const delay = this.fadeDelaySec || 0;
+    if (this.fadeDurationSec <= 0) return elapsedSinceEnd >= delay;
+    return elapsedSinceEnd >= (delay + this.fadeDurationSec);
   }
 
   shouldHideScore() {
     if (!this.hasFadeCompleted()) return false;
     if (this.hideScoreDurationSec <= 0) return false;
     const sinceEnd = this.totalElapsed - this.getTotalDuration();
-    const sinceFadeDone = sinceEnd - this.fadeDurationSec;
+    const sinceFadeDone = sinceEnd - (this.fadeDelaySec + this.fadeDurationSec);
     return sinceFadeDone >= 0 && sinceFadeDone < this.hideScoreDurationSec;
   }
 
   fastForwardToEnd() {
     const total = this.getTotalDuration();
-    const fade = Number.isFinite(this.fadeDurationSec) ? Math.max(0, this.fadeDurationSec) : 0;
-    if (total <= 0) {
-      this.totalElapsed = fade;
-      this.currentIndex = -1;
-      this.spawnEnabled = false;
-      this.snowEnabled = false;
-      this.fadeStartSec = 0;
-      this.changed = true;
-      return;
-    }
-    for (let i = 0; i < this.phases.length; i++) {
-      if (typeof this.phases[i]?.apply === 'function') {
-        this.phases[i].apply();
+    const context = this._buildContext({ secondsElapsed: total, timeIntoPhase: 0 });
+    for (const phase of this.phases) {
+      if (phase && typeof phase.onEnter === 'function') {
+        phase.onEnter(context);
+      }
+      if (phase && typeof phase.onExit === 'function') {
+        phase.onExit(context);
       }
     }
     this.currentIndex = -1;
-    this.totalElapsed = total + fade;
+    this.phaseStartTime = 0;
+    this.totalElapsed = total + Math.max(0, this.fadeDelaySec) + Math.max(0, this.fadeDurationSec);
     this.spawnEnabled = false;
     this.snowEnabled = false;
     this.fadeStartSec = total;
     this.changed = true;
+    this._triggerCompletionHandlers(context);
+  }
+
+  setSnowEnabled(enabled = true) {
+    this.snowEnabled = !!enabled;
+  }
+
+  setSpawnEnabled(enabled = true) {
+    this.spawnEnabled = !!enabled;
+  }
+
+  _resolvePhase(secondsElapsed) {
+    let accumulated = 0;
+    for (let i = 0; i < this.phases.length; i++) {
+      const duration = this.phases[i]?.getDurationSec?.() ?? 0;
+      if (secondsElapsed < accumulated + duration) {
+        return { index: i, timeIntoPhase: secondsElapsed - accumulated };
+      }
+      accumulated += duration;
+    }
+    return { index: -1, timeIntoPhase: 0 };
+  }
+
+  _buildContext({ secondsElapsed, timeIntoPhase }) {
+    return {
+      stageManager: this,
+      secondsElapsed,
+      timeIntoPhase,
+    };
+  }
+
+  _triggerCompletionHandlers(context) {
+    if (this.completionTriggered) return;
+    this.completionTriggered = true;
+    for (const handler of this.afterStageHandlers) {
+      if (handler && typeof handler.execute === 'function') {
+        handler.execute({ ...context, stageManager: this });
+      }
+    }
   }
 }
 
-function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-function lerp(a,b,t){ return a + (b-a)*t; }
-function hexToRgb(hex){
-  const s = hex.replace('#','');
-  const v = parseInt(s,16);
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * clamp01(t);
+}
+
+function hexToRgb(hex) {
+  const s = hex.replace('#', '');
+  const v = parseInt(s, 16);
   if (s.length === 6) {
-    return { r:(v>>16)&255, g:(v>>8)&255, b:v&255 };
+    return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
   }
-  return { r:0,g:0,b:0 };
-}
-function rgbToHex(r,g,b){
-  const v = ((r&255)<<16)|((g&255)<<8)|(b&255);
-  return '#' + v.toString(16).padStart(6,'0');
-}
-function lerpHex(h1,h2,t){
-  const a = hexToRgb(h1); const b = hexToRgb(h2);
-  const r = Math.round(lerp(a.r,b.r,clamp01(t)));
-  const g = Math.round(lerp(a.g,b.g,clamp01(t)));
-  const b2= Math.round(lerp(a.b,b.b,clamp01(t)));
-  return rgbToHex(r,g,b2);
+  return { r: 0, g: 0, b: 0 };
 }
 
-// Factory for Stage1 as specified
-export function createStage1() {
-  const phases = [];
-  // Phase 0: 10s, baseInterval 30, snow off
-  phases.push(new Phase('phase0', 10, () => {
-    SPAWN.baseInterval = 30;
-    SNOW.spawnPerMin = 0;
-  }));
-  // Phase 1: 20s, baseInterval 25, snow slight + slow
-  phases.push(new Phase('phase1', 20, () => {
-    SPAWN.baseInterval = 25;
-    SNOW.spawnPerMin = 300; // slight
-    SNOW.fallSpeed.min = 0.8; SNOW.fallSpeed.max = 2.0; // slow
-  }));
-  // Phase 2: 20s, baseInterval 17, snow many + fast
-  phases.push(new Phase('phase2', 20, () => {
-    SPAWN.baseInterval = 17;
-    SNOW.spawnPerMin = 2000; // many
-    SNOW.fallSpeed.min = 3; SNOW.fallSpeed.max = 5; // fast
-    SNOW.wind.baseX = 3;
-  }));
-  // Phase 3: 10s, baseInterval 14, snow very many + very fast
-  phases.push(new Phase('phase3', 10, () => {
-    SPAWN.baseInterval = 14;
-    SNOW.spawnPerMin = 6000; // very many
-    SNOW.fallSpeed.min = 7.0; SNOW.fallSpeed.max = 10; // (insanely) very fast
-    SNOW.wind.baseX = -6;
-  }));
+function rgbToHex(r, g, b) {
+  const v = ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+  return `#${v.toString(16).padStart(6, '0')}`;
+}
 
-  return new StageManager(phases, {
-    fadeFrom: '#000000',
-    fadeTo: '#180033',
-    fadeDurationSec: 3,
-    hideScoreDurationSec: 3,
-  });
+function lerpHex(h1, h2, t) {
+  const a = hexToRgb(h1);
+  const b = hexToRgb(h2);
+  const r = Math.round(lerp(a.r, b.r, t));
+  const g = Math.round(lerp(a.g, b.g, t));
+  const b2 = Math.round(lerp(a.b, b.b, t));
+  return rgbToHex(r, g, b2);
 }
