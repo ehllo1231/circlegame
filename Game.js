@@ -9,6 +9,7 @@ import { ORBIT, PLAYER, SNOW } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
+import { Stage2 } from './Stage2.js';
 
 // Game - main controller
 export class Game {
@@ -54,11 +55,12 @@ export class Game {
         this.ui = new UIController();
         this.input = new InputController();
 
-        // Stage manager (Stage1)
-        this.stage = new Stage1();
-        if (this.stage && typeof this.stage.getTotalDuration === 'function') {
-            this.score.setMaxSeconds(this.stage.getTotalDuration());
-        }
+        // Stages
+        this.stageQueue = [];
+        this.stageIndex = 0;
+        this.stageStartSeconds = 0;
+        this.totalStageDuration = Infinity;
+        this._initStages();
 
         this.setupEventListeners();
     }
@@ -137,11 +139,8 @@ export class Game {
         this.rhythmEffect = new RhythmEffect();
         if (this.snow && this.snow.reset) this.snow.reset();
 
-        // Recreate stage so phase-driven config starts fresh
-        this.stage = new Stage1();
-        if (this.stage && typeof this.stage.getTotalDuration === 'function') {
-            this.score.setMaxSeconds(this.stage.getTotalDuration());
-        }
+        // Recreate stages so phase-driven config starts fresh
+        this._initStages();
         this.fastForwardNextStart = false;
 
         // Hide overlays and immediately start
@@ -165,10 +164,11 @@ export class Game {
             this.score.update(now);
 
             const secondsElapsed = this.score.getSeconds();
+            const stageElapsed = this.stage ? Math.max(0, secondsElapsed - (this.stageStartSeconds ?? 0)) : 0;
 
             // Stage update and apply baseInterval on phase change (disabled in debug)
             if (this.stage && !this.debugMode) {
-                this.stage.update(secondsElapsed);
+                this.stage.update(stageElapsed);
                 if (this.stage.changed) {
                     const bi = this.stage.getCurrentBaseInterval();
                     if (typeof bi === 'number') {
@@ -184,7 +184,13 @@ export class Game {
                 }
             }
 
-            const stageFinished = this.stage ? this.stage.isFinished() : false;
+            let stageFinished = this.stage ? this.stage.isFinished() : false;
+            if (stageFinished && this.stage && this.stageIndex < (Array.isArray(this.stageQueue) ? this.stageQueue.length - 1 : -1)) {
+                if (this.stage.hasFadeCompleted()) {
+                    this._advanceToNextStage();
+                    stageFinished = this.stage ? this.stage.isFinished() : false;
+                }
+            }
             if (stageFinished) {
                 if (this.rhythmEffect && typeof this.rhythmEffect.reset === 'function') {
                     this.rhythmEffect.reset();
@@ -302,22 +308,31 @@ export class Game {
     }
 
     applyFastForwardStageEnd() {
-        const totalDuration = (this.stage && typeof this.stage.getTotalDuration === 'function')
-            ? this.stage.getTotalDuration()
-            : this.score.maxSeconds;
-        if (this.stage) {
-            if (typeof this.stage.fastForwardToEnd === 'function') {
-                this.stage.fastForwardToEnd();
-            } else if (typeof this.stage.update === 'function' && Number.isFinite(totalDuration)) {
-                this.stage.update(totalDuration);
-            }
-            if (Number.isFinite(totalDuration)) {
-                this.stage.totalElapsed = totalDuration;
-                this.stage.changed = true;
+        if (!Array.isArray(this.stageQueue) || this.stageQueue.length === 0) return;
+        if (this.stageIndex < 0 || this.stageIndex >= this.stageQueue.length) {
+            this.stageIndex = 0;
+        }
+        this.stage = this.stageQueue[this.stageIndex] || null;
+        const currentStage = this.stage;
+        const stageDuration = currentStage && typeof currentStage.getTotalDuration === 'function'
+            ? currentStage.getTotalDuration()
+            : 0;
+        const baseSeconds = this.stageStartSeconds ?? 0;
+
+        if (currentStage) {
+            if (typeof currentStage.fastForwardToEnd === 'function') {
+                currentStage.fastForwardToEnd();
+                if (Number.isFinite(stageDuration)) currentStage.totalElapsed = stageDuration;
+            } else if (typeof currentStage.update === 'function' && Number.isFinite(stageDuration)) {
+                currentStage.update(stageDuration);
+                currentStage.totalElapsed = stageDuration;
+                currentStage.changed = true;
             }
         }
-        if (Number.isFinite(totalDuration)) {
-            this.score.seconds = totalDuration;
+
+        if (Number.isFinite(stageDuration)) {
+            const targetSeconds = baseSeconds + stageDuration;
+            this.score.seconds = targetSeconds;
         }
         if (this.snow && typeof this.snow.reset === 'function') {
             this.snow.reset();
@@ -327,6 +342,47 @@ export class Game {
             if (typeof this.obstacleManager.resetSpawnTimer === 'function') {
                 this.obstacleManager.resetSpawnTimer();
             }
+        }
+    }
+
+    _initStages() {
+        const stageConstructors = [Stage1, Stage2];
+        this.stageQueue = stageConstructors
+            .map((Ctor) => (typeof Ctor === 'function' ? new Ctor() : null))
+            .filter(Boolean);
+        this.stageIndex = 0;
+        this.stage = this.stageQueue[0] || null;
+        this.stageStartSeconds = 0;
+        this.totalStageDuration = this.stageQueue.reduce((sum, stage) => {
+            const duration = typeof stage?.getTotalDuration === 'function' ? stage.getTotalDuration() : 0;
+            return sum + (Number.isFinite(duration) ? duration : 0);
+        }, 0);
+        if (this.score) {
+            const total = this.totalStageDuration;
+            this.score.setMaxSeconds(Number.isFinite(total) && total > 0 ? total : Infinity);
+        }
+    }
+
+    _advanceToNextStage() {
+        if (!Array.isArray(this.stageQueue)) return;
+        if (this.stageIndex >= this.stageQueue.length - 1) return;
+        this.stageIndex += 1;
+        this.stage = this.stageQueue[this.stageIndex] || null;
+        this.stageStartSeconds = this.score ? this.score.getSeconds() : 0;
+        if (this.obstacleManager) {
+            this.obstacleManager.obstacles.length = 0;
+            if (typeof this.obstacleManager.resetSpawnTimer === 'function') {
+                this.obstacleManager.resetSpawnTimer();
+            }
+            if (Object.prototype.hasOwnProperty.call(this.obstacleManager, 'lastSpawnAccelStage')) {
+                this.obstacleManager.lastSpawnAccelStage = 0;
+            }
+        }
+        if (this.snow && typeof this.snow.reset === 'function') {
+            this.snow.reset();
+        }
+        if (this.rhythmEffect && typeof this.rhythmEffect.reset === 'function') {
+            this.rhythmEffect.reset();
         }
     }
 }

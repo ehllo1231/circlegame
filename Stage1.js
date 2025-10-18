@@ -1,9 +1,9 @@
 import { StageManager, StagePhase } from './StageManager.js';
 import { SPAWN, SNOW } from './Config.js';
 
-class Stage1WarmupPhase extends StagePhase {
+class Stage1Phase1 extends StagePhase {
   constructor() {
-    super({ name: 'stage1-warmup', durationSec: 10 });
+    super({ name: 'stage1-phase1', durationSec: 10 });
   }
 
   onEnter() {
@@ -17,9 +17,9 @@ class Stage1WarmupPhase extends StagePhase {
   }
 }
 
-class Stage1BuildUpPhase extends StagePhase {
+class Stage1Phase2 extends StagePhase {
   constructor() {
-    super({ name: 'stage1-build-up', durationSec: 20 });
+    super({ name: 'stage1-phase2', durationSec: 20 });
   }
 
   onEnter() {
@@ -33,9 +33,9 @@ class Stage1BuildUpPhase extends StagePhase {
   }
 }
 
-class Stage1BlizzardPhase extends StagePhase {
+class Stage1Phase3 extends StagePhase {
   constructor() {
-    super({ name: 'stage1-blizzard', durationSec: 20 });
+    super({ name: 'stage1-phase3', durationSec: 20 });
   }
 
   onEnter() {
@@ -48,9 +48,9 @@ class Stage1BlizzardPhase extends StagePhase {
   }
 }
 
-class Stage1StormPhase extends StagePhase {
+class Stage1Phase4 extends StagePhase {
   constructor() {
-    super({ name: 'stage1-storm', durationSec: 10 });
+    super({ name: 'stage1-phase4', durationSec: 10 });
   }
 
   onEnter() {
@@ -67,10 +67,10 @@ export class Stage1 extends StageManager {
   constructor() {
     super({
       phases: [
-        new Stage1WarmupPhase(),
-        new Stage1BuildUpPhase(),
-        new Stage1BlizzardPhase(),
-        new Stage1StormPhase(),
+        new Stage1Phase1(),
+        new Stage1Phase2(),
+        new Stage1Phase3(),
+        new Stage1Phase4(),
       ],
       fadeFrom: '#000000',
       fadeTo: '#0f0020',
@@ -82,8 +82,8 @@ export class Stage1 extends StageManager {
 }
 
 export const STAGE1_PHASES = {
-  Stage1WarmupPhase,
-  Stage1BuildUpPhase,
-  Stage1BlizzardPhase,
-  Stage1StormPhase,
+  Stage1Phase1,
+  Stage1Phase2,
+  Stage1Phase3,
+  Stage1Phase4,
 };
