@@ -9,10 +9,11 @@ export class UIController {
     this.scoreDisplay = document.getElementById('scoreDisplay');
     this.stageButtons = Array.from(document.querySelectorAll('.stage-button'));
     this.stageSelectButton = document.getElementById('stageSelectButton');
+    this.resetScoresButton = document.getElementById('resetScoresButton');
     this.selectedStageId = null;
   }
 
-  bind({ onStart, onRestart, onStageSelect, onStageSelectScreen }) {
+  bind({ onStart, onRestart, onStageSelect, onStageSelectScreen, onResetScores }) {
     if (this.startButton && onStart) {
       this.startButton.addEventListener('click', onStart);
     }
@@ -21,6 +22,9 @@ export class UIController {
     }
     if (this.stageSelectButton && onStageSelectScreen) {
       this.stageSelectButton.addEventListener('click', onStageSelectScreen);
+    }
+    if (this.resetScoresButton && onResetScores) {
+      this.resetScoresButton.addEventListener('click', onResetScores);
     }
     if (this.stageButtons.length > 0 && onStageSelect) {
       this.stageButtons.forEach((btn) => {
