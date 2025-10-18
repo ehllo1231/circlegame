@@ -7,14 +7,31 @@ export class UIController {
     this.gameOverScreen = document.getElementById('gameOverScreen');
     this.restartButton = document.getElementById('restartButton');
     this.scoreDisplay = document.getElementById('scoreDisplay');
+    this.stageButtons = Array.from(document.querySelectorAll('.stage-button'));
+    this.stageSelectButton = document.getElementById('stageSelectButton');
+    this.selectedStageId = null;
   }
 
-  bind({ onStart, onRestart }) {
+  bind({ onStart, onRestart, onStageSelect, onStageSelectScreen }) {
     if (this.startButton && onStart) {
       this.startButton.addEventListener('click', onStart);
     }
     if (this.restartButton && onRestart) {
       this.restartButton.addEventListener('click', onRestart);
+    }
+    if (this.stageSelectButton && onStageSelectScreen) {
+      this.stageSelectButton.addEventListener('click', onStageSelectScreen);
+    }
+    if (this.stageButtons.length > 0 && onStageSelect) {
+      this.stageButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const stage = btn.dataset.stage;
+          if (stage) {
+            this.setStageSelection(stage);
+            onStageSelect(stage);
+          }
+        });
+      });
     }
   }
 
@@ -26,6 +43,23 @@ export class UIController {
   showStart() {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'flex';
+  }
+
+  setStageSelection(stageId) {
+    if (!stageId) return;
+    this.selectedStageId = stageId;
+    if (this.stageButtons.length > 0) {
+      this.stageButtons.forEach((btn) => {
+        const btnStage = btn.dataset.stage;
+        if (btnStage) {
+          if (btnStage === stageId) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        }
+      });
+    }
   }
 
   showGameOver(finalScoreSeconds, highScore = null, isNew = false) {

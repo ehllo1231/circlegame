@@ -23,10 +23,10 @@ export class Game {
         this.offscreenRadius = Math.hypot(canvas.width / 2, canvas.height / 2) + 40;
 
         // Entities
-        this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
-        this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
-        this.rhythmEffect = new RhythmEffect();
-        this.snow = new SnowEffect();
+        this.player = null;
+        this.obstacleManager = null;
+        this.rhythmEffect = null;
+        this.snow = null;
         this.debugMode = false;
         this.playerHitFlash = 0; // frames at 60fps for red flash
         this.fastForwardNextStart = false;
@@ -55,18 +55,35 @@ export class Game {
         this.ui = new UIController();
         this.input = new InputController();
 
+        // Stage registry
+        this.stageMap = {
+            stage1: Stage1,
+            stage2: Stage2,
+        };
+        this.stageOrder = ['stage1', 'stage2'];
+        this.selectedStage = 'stage1';
+
         // Stages
         this.stageQueue = [];
         this.stageIndex = 0;
         this.stageStartSeconds = 0;
         this.totalStageDuration = Infinity;
-        this._initStages();
+        this._initStages(this.selectedStage);
+        this._recreateEntities();
+        if (this.ui && typeof this.ui.setStageSelection === 'function') {
+            this.ui.setStageSelection(this.selectedStage);
+        }
 
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        this.ui.bind({ onStart: () => this.startGame(), onRestart: () => this.restartGame() });
+        this.ui.bind({
+            onStart: () => this.startGame(),
+            onRestart: () => this.restartGame(),
+            onStageSelect: (stageId) => this.setSelectedStage(stageId),
+            onStageSelectScreen: () => this.returnToStageSelect(),
+        });
         this.input.bindHandlers({
             onStart: () => { if (!this.gameStarted) this.startGame(); },
             onRestart: () => { if (this.gameOver) this.restartGame(); },
@@ -120,32 +137,36 @@ export class Game {
     }
 
     restartGame() {
-        // Reset all config objects to their initial defaults
         resetAllConfigToDefaults();
 
-        // Reset state
         this.gameOver = false;
         this.gameStarted = false;
-        this.playerHitFlash = 0;
+        this.fastForwardNextStart = false;
+        this._lastTime = null;
         this.score.reset();
 
-        // Re-read orbit/player radii from (now-reset) config
-        this.orbitRadius = ORBIT?.radius ?? this.orbitRadius;
-        this.playerRadius = PLAYER?.radius ?? this.playerRadius;
+        this._syncRadiiFromConfig();
+        this._initStages(this.selectedStage);
+        this._recreateEntities();
 
-        // Recreate entities using refreshed config
-        this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
-        this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
-        this.rhythmEffect = new RhythmEffect();
-        if (this.snow && this.snow.reset) this.snow.reset();
-
-        // Recreate stages so phase-driven config starts fresh
-        this._initStages();
-        this.fastForwardNextStart = false;
-
-        // Hide overlays and immediately start
         this.ui.hideOverlays();
         this.startGame();
+    }
+
+    setSelectedStage(stageId) {
+        if (!stageId || !this.stageMap || typeof this.stageMap[stageId] !== 'function') return;
+        this.selectedStage = stageId;
+        if (!this.gameStarted) {
+            this._lastTime = null;
+            this.score.reset();
+            this.fastForwardNextStart = false;
+            this._syncRadiiFromConfig();
+            this._initStages(stageId);
+            this._recreateEntities();
+        }
+        if (this.ui && typeof this.ui.setStageSelection === 'function') {
+            this.ui.setStageSelection(stageId);
+        }
     }
 
     drawOrbit() {
@@ -307,6 +328,22 @@ export class Game {
         this.fastForwardNextStart = true;
     }
 
+    _syncRadiiFromConfig() {
+        this.orbitRadius = ORBIT?.radius ?? this.orbitRadius;
+        this.playerRadius = PLAYER?.radius ?? this.playerRadius;
+    }
+
+    _recreateEntities() {
+        this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
+        this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius);
+        this.rhythmEffect = new RhythmEffect();
+        this.snow = new SnowEffect();
+        this.playerHitFlash = 0;
+        if (this.debug && this.debugMode) {
+            this.debug.toggle(true);
+        }
+    }
+
     applyFastForwardStageEnd() {
         if (!Array.isArray(this.stageQueue) || this.stageQueue.length === 0) return;
         if (this.stageIndex < 0 || this.stageIndex >= this.stageQueue.length) {
@@ -319,15 +356,10 @@ export class Game {
             : 0;
         const baseSeconds = this.stageStartSeconds ?? 0;
 
-        if (currentStage) {
-            if (typeof currentStage.fastForwardToEnd === 'function') {
-                currentStage.fastForwardToEnd();
-                if (Number.isFinite(stageDuration)) currentStage.totalElapsed = stageDuration;
-            } else if (typeof currentStage.update === 'function' && Number.isFinite(stageDuration)) {
-                currentStage.update(stageDuration);
-                currentStage.totalElapsed = stageDuration;
-                currentStage.changed = true;
-            }
+        if (currentStage && typeof currentStage.update === 'function' && Number.isFinite(stageDuration)) {
+            currentStage.update(stageDuration);
+            currentStage.totalElapsed = stageDuration;
+            currentStage.changed = true;
         }
 
         if (Number.isFinite(stageDuration)) {
@@ -345,13 +377,52 @@ export class Game {
         }
     }
 
-    _initStages() {
-        const stageConstructors = [Stage1, Stage2];
-        this.stageQueue = stageConstructors
-            .map((Ctor) => (typeof Ctor === 'function' ? new Ctor() : null))
+    returnToStageSelect() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        resetAllConfigToDefaults();
+        this.gameStarted = false;
+        this.gameOver = false;
+        this.fastForwardNextStart = false;
+        this._lastTime = null;
+        this.score.reset();
+        this._syncRadiiFromConfig();
+        this._initStages(this.selectedStage);
+        this._recreateEntities();
+        if (this.ui) {
+            this.ui.hideOverlays();
+            this.ui.showStart();
+            if (typeof this.ui.setStageSelection === 'function') {
+                this.ui.setStageSelection(this.selectedStage);
+            }
+        }
+    }
+
+    _initStages(startStageId = this.selectedStage) {
+        const order = Array.isArray(this.stageOrder) ? this.stageOrder.slice() : [];
+        const startIdx = order.indexOf(startStageId);
+        const keys = startIdx >= 0 ? order.slice(startIdx) : order;
+
+        this.stageQueue = keys
+            .map((key) => {
+                const Ctor = this.stageMap ? this.stageMap[key] : null;
+                return typeof Ctor === 'function' ? new Ctor() : null;
+            })
             .filter(Boolean);
+
+        if (this.stageQueue.length === 0) {
+            this.stage = null;
+            this.stageIndex = -1;
+            this.stageStartSeconds = 0;
+            this.totalStageDuration = 0;
+            if (this.score) this.score.setMaxSeconds(Infinity);
+            return;
+        }
+
         this.stageIndex = 0;
-        this.stage = this.stageQueue[0] || null;
+        this.stage = this.stageQueue[0];
         this.stageStartSeconds = 0;
         this.totalStageDuration = this.stageQueue.reduce((sum, stage) => {
             const duration = typeof stage?.getTotalDuration === 'function' ? stage.getTotalDuration() : 0;
