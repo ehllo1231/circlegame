@@ -1,5 +1,99 @@
 import { StageManager, StagePhase } from './StageManager.js';
 import { SPAWN, SNOW } from './Config.js';
+import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
+
+export class Stage2Prolog {
+  constructor() {
+    this.started = false;
+    this.completed = false;
+    this.primaryColor = '#ff2d2d';
+    this.secondaryColor = '#ff5c5c';
+    this.spikeLength = 64;
+    this.spikeWidth = 26;
+    this.angleOffset = 0.04; // radians
+    this.elapsed = 0;
+    this.duration = 1; // seconds
+    this.obstacles = [];
+    this.geometry = null;
+  }
+
+  start(geometry) {
+    this.started = true;
+    this.completed = false;
+    this.elapsed = 0;
+    this.geometry = geometry || null;
+    this._buildObstacles();
+  }
+
+  update(dt = 0) {
+    if (!this.started || this.completed) return;
+    this.elapsed += dt;
+    if (Array.isArray(this.obstacles)) {
+      for (const obstacle of this.obstacles) {
+        if (obstacle && typeof obstacle.update === 'function') {
+          obstacle.update(dt);
+        }
+      }
+    }
+    if (this.elapsed >= this.duration) {
+      this.completed = true;
+      this.obstacles = [];
+    }
+  }
+
+  draw(ctx, geometry) {
+    if (!ctx || !this.isActive()) return;
+    const { centerX, centerY, orbitRadius } = geometry || {};
+    if (typeof centerX !== 'number' || typeof centerY !== 'number' || typeof orbitRadius !== 'number') return;
+    const obstacles = this.getObstacles();
+    for (const obstacle of obstacles) {
+      if (obstacle && typeof obstacle.draw === 'function') {
+        obstacle.draw(ctx, centerX, centerY);
+      }
+    }
+  }
+
+  isComplete() {
+    return this.completed;
+  }
+
+  isActive() {
+    return this.started && !this.completed;
+  }
+
+  getObstacles() {
+    return this.isActive() && Array.isArray(this.obstacles) ? this.obstacles : [];
+  }
+
+  _buildObstacles() {
+    const geom = this.geometry;
+    if (!geom) {
+      this.obstacles = [];
+      return;
+    }
+    const { orbitRadius } = geom;
+    if (typeof orbitRadius !== 'number') {
+      this.obstacles = [];
+      return;
+    }
+    const baseRadius = orbitRadius * (4 / 5);
+    const primary = new Stage2PrologObstacle({
+      angle: -Math.PI / 2,
+      radius: baseRadius,
+      baseWidth: this.spikeWidth,
+      length: this.spikeLength,
+      color: this.primaryColor,
+    });
+    const secondary = new Stage2PrologObstacle({
+      angle: -Math.PI / 2 + this.angleOffset,
+      radius: baseRadius,
+      baseWidth: this.spikeWidth * 0.9,
+      length: this.spikeLength * 0.9,
+      color: this.secondaryColor,
+    });
+    this.obstacles = [primary, secondary];
+  }
+}
 
 class Stage2Phase1 extends StagePhase {
   constructor() {
@@ -80,10 +174,41 @@ export class Stage2 extends StageManager {
       fadeDurationSec: 2,
       hideScoreDurationSec: 2,
     });
+
+    this.prolog = new Stage2Prolog();
+    this._prologShown = false;
+  }
+
+  drawProlog(ctx, geometry) {
+    if (!this.prolog || !this._prologShown || typeof this.prolog.draw !== 'function') return;
+    this.prolog.draw(ctx, geometry);
+  }
+
+  startProlog(geometry) {
+    if (!this.prolog || typeof this.prolog.start !== 'function') return;
+    if (this._prologShown) return;
+    this._prologShown = true;
+    this.prolog.start(geometry);
+  }
+
+  updateProlog(dtSeconds) {
+    if (!this.prolog || !this._prologShown || typeof this.prolog.update !== 'function') return;
+    this.prolog.update(dtSeconds);
+  }
+
+  isPrologActive() {
+    if (!this._prologShown || !this.prolog) return false;
+    return this.prolog.isActive();
+  }
+
+  getPrologObstacles() {
+    if (!this.prolog || !this._prologShown) return [];
+    return this.prolog.getObstacles();
   }
 }
 
 export const STAGE2_PHASES = {
+  Stage2Prolog,
   Stage2Phase1,
   Stage2Phase2,
   Stage2Phase3,

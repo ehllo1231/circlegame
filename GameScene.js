@@ -98,6 +98,7 @@ export class GameScene {
     snowActive = false,
     canvasWidth,
     canvasHeight,
+    extraObstacles = [],
   } = {}) {
     if (!stageFinished) {
       this.rhythmEffect.update(dt);
@@ -120,6 +121,14 @@ export class GameScene {
       if (this.player.checkCollisionWithObstacle(obstacle)) {
         playerCollided = true;
         break;
+      }
+    }
+    if (!playerCollided && Array.isArray(extraObstacles)) {
+      for (const obstacle of extraObstacles) {
+        if (obstacle && this.player.checkCollisionWithObstacle(obstacle)) {
+          playerCollided = true;
+          break;
+        }
       }
     }
     if (playerCollided) {
@@ -154,6 +163,7 @@ export class GameScene {
     centerY = this.centerY,
     orbitRadius = this.orbitRadius,
     snowActive = false,
+    extraObstacles = [],
   } = {}) {
     if (snowActive && this._snowShouldDraw && this.snow) {
       this.snow.draw(ctx);
@@ -169,6 +179,13 @@ export class GameScene {
     }
 
     this.obstacleManager.draw(ctx);
+    if (Array.isArray(extraObstacles)) {
+      for (const obstacle of extraObstacles) {
+        if (obstacle && typeof obstacle.draw === 'function') {
+          obstacle.draw(ctx, centerX, centerY);
+        }
+      }
+    }
 
     this.player.color = (this.playerHitFlash > 0) ? '#ff4444' : '#ffffff';
     if (rhythmActive) {

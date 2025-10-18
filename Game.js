@@ -64,6 +64,7 @@ export class Game {
     const initialStage = this.stageController.getActiveStage();
     if (initialStage) {
       this.scene.applyStageConfig(initialStage);
+      this._ensurePrologForStage(initialStage);
     }
     this.scene.applyPlayerConfigFromConfig();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
@@ -106,7 +107,10 @@ export class Game {
     this.stageController.resetProgress(0);
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    if (stage) this.scene.applyStageConfig(stage);
+    if (stage) {
+      this.scene.applyStageConfig(stage);
+      this._ensurePrologForStage(stage);
+    }
     this.scene.applyPlayerConfigFromConfig();
     this.ui.hideOverlays();
 
@@ -156,7 +160,10 @@ export class Game {
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    if (stage) this.scene.applyStageConfig(stage);
+    if (stage) {
+      this.scene.applyStageConfig(stage);
+      this._ensurePrologForStage(stage);
+    }
     this.scene.applyPlayerConfigFromConfig();
 
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
@@ -204,6 +211,7 @@ export class Game {
       const { stage, changed: stageChanged } = this.stageController.update(secondsElapsed, { debugMode: this.debugMode });
       if (stageChanged && stage) {
         this.scene.applyStageConfig(stage);
+        this._ensurePrologForStage(stage);
       }
 
       let stageFinished = this.stageController.isStageFinished();
@@ -217,13 +225,31 @@ export class Game {
         }
       }
 
+      const activeStage = this.stageController.getActiveStage();
+      if (activeStage && activeStage !== stage) {
+        this._ensurePrologForStage(activeStage);
+      }
+
+      const prologActiveStage = this.stageController.getActiveStage();
+      let prologActive = false;
+      const dtSeconds = dt / 60;
+      if (prologActiveStage && typeof prologActiveStage.updateProlog === 'function') {
+        prologActiveStage.updateProlog(dtSeconds);
+        if (typeof prologActiveStage.isPrologActive === 'function') {
+          prologActive = prologActiveStage.isPrologActive();
+        }
+      }
+      const prologObstacles = (prologActiveStage && typeof prologActiveStage.getPrologObstacles === 'function')
+        ? prologActiveStage.getPrologObstacles()
+        : [];
+
       const backgroundColor = this.stageController.getBackgroundColor('#000000');
       this._clearCanvas(backgroundColor);
 
       const snowStartAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
       const snowEnabled = this.debugMode ? true : this.stageController.isSnowEnabled();
-      const snowActive = snowEnabled && secondsElapsed >= snowStartAt;
-      const allowSpawn = this.debugMode ? true : this.stageController.canSpawn();
+      const snowActive = snowEnabled && secondsElapsed >= snowStartAt && !prologActive;
+      const allowSpawn = (!prologActive) && (this.debugMode ? true : this.stageController.canSpawn());
       const visibleScore = this.score.getVisible();
 
       const { playerHit } = this.scene.updateFrame({
@@ -236,6 +262,7 @@ export class Game {
         snowActive,
         canvasWidth: this.canvas.width,
         canvasHeight: this.canvas.height,
+        extraObstacles: prologObstacles,
       });
 
       if (playerHit) {
@@ -249,6 +276,7 @@ export class Game {
         centerY: this.centerY,
         orbitRadius: this.orbitRadius,
         snowActive,
+        extraObstacles: prologObstacles,
       });
 
       if (this.debugMode) {
@@ -283,7 +311,7 @@ export class Game {
   }
 
   applyFastForwardStageEnd() {
-    const targetSeconds = this.stageController.fastForwardActiveStage();
+    const targetSeconds = this.stageController.fastForwardToStageEnd();
     if (Number.isFinite(targetSeconds)) {
       this.score.seconds = targetSeconds;
     }
@@ -329,7 +357,10 @@ export class Game {
     if (!advanced) return false;
     this.scene.resetAfterStageTransition();
     const stage = this.stageController.getActiveStage();
-    if (stage) this.scene.applyStageConfig(stage);
+    if (stage) {
+      this.scene.applyStageConfig(stage);
+      this._ensurePrologForStage(stage);
+    }
     return true;
   }
 
@@ -367,6 +398,17 @@ export class Game {
     }
     for (const key of keys) {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
+    }
+  }
+
+  _ensurePrologForStage(stage) {
+    if (!stage) return;
+    if (typeof stage.startProlog === 'function') {
+      stage.startProlog({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+      });
     }
   }
 }

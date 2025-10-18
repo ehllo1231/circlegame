@@ -138,7 +138,7 @@ export class StageOrchestrator {
     return true;
   }
 
-  fastForwardActiveStage() {
+  fastForwardToStageEnd() {
     const stage = this.getActiveStage();
     if (!stage || typeof stage.getTotalDuration !== 'function') return null;
     const duration = stage.getTotalDuration();
