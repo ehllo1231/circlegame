@@ -5,10 +5,11 @@ import { SnowEffect } from './SnowEffect.js';
 import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER, SNOW } from './Config.js';
+import { ORBIT, PLAYER, SNOW, OBSTACLE } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
+import { StageSpikeEvent } from './StageSpikeEvent.js';
 
 // Game - main controller
 export class Game {
@@ -29,10 +30,14 @@ export class Game {
         this.debugMode = false;
         this.playerHitFlash = 0; // frames at 60fps for red flash
         this.fastForwardNextStart = false;
+        this.stageSpikeEvent = this.createStageSpikeEvent();
         this.debug = new DebugController({
             onChange: (section) => {
                 if (section === 'spawn' || section === 'obstacle' || section === 'particles') {
                     if (this.obstacleManager?.refreshFromConfig) this.obstacleManager.refreshFromConfig();
+                    if (section === 'obstacle') {
+                        this.stageSpikeEvent = this.createStageSpikeEvent();
+                    }
                 }
                 if (section === 'player') {
                     // Apply PLAYER config directly to current player
@@ -130,6 +135,7 @@ export class Game {
         // Re-read orbit/player radii from (now-reset) config
         this.orbitRadius = ORBIT?.radius ?? this.orbitRadius;
         this.playerRadius = PLAYER?.radius ?? this.playerRadius;
+        this.stageSpikeEvent = this.createStageSpikeEvent();
 
         // Recreate entities using refreshed config
         this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
@@ -184,7 +190,22 @@ export class Game {
                 }
             }
 
+            if (this.stageSpikeEvent) {
+                this.stageSpikeEvent.setGeometry(this.centerX, this.centerY, this.orbitRadius);
+            }
+
             const stageFinished = this.stage ? this.stage.isFinished() : false;
+            const stageFadeComplete = stageFinished && this.stage && typeof this.stage.hasFadeCompleted === 'function'
+                ? this.stage.hasFadeCompleted()
+                : false;
+            if (this.stageSpikeEvent) {
+                if (!stageFinished) {
+                    this.stageSpikeEvent.reset();
+                } else if (stageFadeComplete) {
+                    this.stageSpikeEvent.start();
+                }
+                this.stageSpikeEvent.update(dt);
+            }
             if (stageFinished) {
                 if (this.rhythmEffect && typeof this.rhythmEffect.reset === 'function') {
                     this.rhythmEffect.reset();
@@ -198,10 +219,19 @@ export class Game {
             if (this.ctx.setTransform) {
                 this.ctx.setTransform(1, 0, 0, 1, 0, 0);
             }
+            if (this.stageSpikeEvent) {
+                const shake = this.stageSpikeEvent.getShakeOffset();
+                if (shake && (shake.x || shake.y)) {
+                    this.ctx.translate(shake.x, shake.y);
+                }
+            }
             // Background color (stage fade after end) — in debug, keep static
             const bg = (this.debugMode || !this.stage) ? '#000000' : (this.stage.getBackgroundColor() || '#000000');
             this.ctx.fillStyle = bg || '#000000';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            if (this.stageSpikeEvent) {
+                this.stageSpikeEvent.draw(this.ctx);
+            }
 
             // Background snow (no rhythm transform)
             if (this.snow && typeof this.snow.update === 'function') {
@@ -236,6 +266,18 @@ export class Game {
                     } else {
                         // trigger brief red flash
                         this.playerHitFlash = Math.max(this.playerHitFlash, 6);
+                    }
+                }
+            }
+            if (this.stageSpikeEvent) {
+                for (const spike of this.stageSpikeEvent.getActiveSpikes()) {
+                    if (this.player.checkCollisionWithObstacle(spike)) {
+                        if (!this.debugMode) {
+                            this.gameOverScreenShow();
+                            return;
+                        } else {
+                            this.playerHitFlash = Math.max(this.playerHitFlash, 6);
+                        }
                     }
                 }
             }
@@ -322,11 +364,25 @@ export class Game {
         if (this.snow && typeof this.snow.reset === 'function') {
             this.snow.reset();
         }
+        this.stageSpikeEvent = this.createStageSpikeEvent();
         if (this.obstacleManager) {
             this.obstacleManager.obstacles.length = 0;
             if (typeof this.obstacleManager.resetSpawnTimer === 'function') {
                 this.obstacleManager.resetSpawnTimer();
             }
         }
+    }
+
+    createStageSpikeEvent() {
+        const obstacleLength = (typeof OBSTACLE?.length === 'number') ? OBSTACLE.length : 40;
+        const embedDepth = Math.max(20, Math.min(this.orbitRadius - 12, Math.max(obstacleLength, this.orbitRadius * 0.35)));
+        return new StageSpikeEvent({
+            centerX: this.centerX,
+            centerY: this.centerY,
+            orbitRadius: this.orbitRadius,
+            spikeLength: obstacleLength,
+            baseWidth: (typeof OBSTACLE?.baseWidth === 'number') ? OBSTACLE.baseWidth : 24,
+            embedDepth,
+        });
     }
 }
