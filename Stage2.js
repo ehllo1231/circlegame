@@ -24,10 +24,11 @@ export class Stage2Prolog {
   }
 
   update(dt = 0) {
-    if (!this.started || this.completed) return;
+    if (!this.started) return;
     this.elapsed += dt;
     const duration = this.durationSec > 0 ? this.durationSec : 1;
-    const progress = Math.max(0, Math.min(1, this.elapsed / duration));
+    const cappedElapsed = Math.max(0, Math.min(this.elapsed, duration));
+    const progress = duration > 0 ? Math.max(0, Math.min(1, cappedElapsed / duration)) : 1;
     const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * progress;
     if (Array.isArray(this.obstacles)) {
       for (const obstacle of this.obstacles) {
@@ -36,22 +37,22 @@ export class Stage2Prolog {
         } else if (obstacle) {
           obstacle.radius = currentRadius;
         }
-        if (obstacle && typeof obstacle.update === 'function') {
+        if (!this.completed && obstacle && typeof obstacle.update === 'function') {
           obstacle.update(dt);
         }
       }
     }
-    if (this.elapsed >= duration) {
+    if (!this.completed && this.elapsed >= duration) {
       this.completed = true;
-      this.obstacles = [];
     }
   }
 
   draw(ctx, geometry) {
-    if (!ctx || !this.isActive()) return;
+    if (!ctx) return;
     const { centerX, centerY, orbitRadius } = geometry || {};
     if (typeof centerX !== 'number' || typeof centerY !== 'number' || typeof orbitRadius !== 'number') return;
-    const obstacles = this.getObstacles();
+    const obstacles = Array.isArray(this.obstacles) ? this.obstacles : [];
+    if (!obstacles.length) return;
     for (const obstacle of obstacles) {
       if (obstacle && typeof obstacle.draw === 'function') {
         obstacle.draw(ctx, centerX, centerY);
@@ -68,7 +69,7 @@ export class Stage2Prolog {
   }
 
   getObstacles() {
-    return this.isActive() && Array.isArray(this.obstacles) ? this.obstacles : [];
+    return Array.isArray(this.obstacles) ? this.obstacles : [];
   }
 
   _buildObstacles() {

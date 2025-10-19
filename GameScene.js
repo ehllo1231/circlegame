@@ -182,10 +182,16 @@ export class GameScene {
 
     this.obstacleManager.draw(ctx);
     if (Array.isArray(extraObstacles)) {
+      if (rhythmActive) {
+        this.rhythmEffect.applyTransform(ctx, centerX, centerY);
+      }
       for (const obstacle of extraObstacles) {
         if (obstacle && typeof obstacle.draw === 'function') {
           obstacle.draw(ctx, centerX, centerY);
         }
+      }
+      if (rhythmActive) {
+        this.rhythmEffect.restoreTransform(ctx);
       }
     }
 
