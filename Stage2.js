@@ -9,6 +9,10 @@ export class Stage2Prolog {
     this.elapsed = 0;
     this.obstacles = [];
     this.geometry = null;
+    this._baseAngle = -Math.PI / 2;
+    this.radiusDurationSec = 0;
+    this.rotationDurationSec = 0;
+    this.totalDurationSec = 0;
     this._applyConfig();
     this._startRadius = 0;
     this._endRadius = 0;
@@ -26,10 +30,22 @@ export class Stage2Prolog {
   update(dt = 0) {
     if (!this.started) return;
     this.elapsed += dt;
-    const duration = this.durationSec > 0 ? this.durationSec : 1;
-    const cappedElapsed = Math.max(0, Math.min(this.elapsed, duration));
-    const progress = duration > 0 ? Math.max(0, Math.min(1, cappedElapsed / duration)) : 1;
-    const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * progress;
+    const totalDuration = this.totalDurationSec > 0 ? this.totalDurationSec : (this.radiusDurationSec + this.rotationDurationSec);
+    const cappedElapsed = Math.max(0, Math.min(this.elapsed, totalDuration));
+
+    const radiusDuration = this.radiusDurationSec > 0 ? this.radiusDurationSec : 0;
+    const rotationDuration = this.rotationDurationSec > 0 ? this.rotationDurationSec : 0;
+
+    const radiusProgress = radiusDuration > 0
+      ? Math.max(0, Math.min(1, cappedElapsed / radiusDuration))
+      : 1;
+    const rotationElapsed = Math.max(0, cappedElapsed - radiusDuration);
+    const rotationProgress = rotationDuration > 0
+      ? Math.max(0, Math.min(1, rotationElapsed / rotationDuration))
+      : radiusProgress >= 1 ? 1 : 0;
+
+    const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * radiusProgress;
+    this._applyRotation(rotationProgress);
     if (Array.isArray(this.obstacles)) {
       for (const obstacle of this.obstacles) {
         if (obstacle && typeof obstacle.setRadius === 'function') {
@@ -42,7 +58,7 @@ export class Stage2Prolog {
         }
       }
     }
-    if (!this.completed && this.elapsed >= duration) {
+    if (!this.completed && this.elapsed >= totalDuration) {
       this.completed = true;
     }
   }
@@ -86,7 +102,7 @@ export class Stage2Prolog {
     this._startRadius = orbitRadius * this.radiusStartFactor;
     this._endRadius = orbitRadius * this.radiusEndFactor;
     const baseParams = {
-      angle: -Math.PI / 2,
+      angle: this._baseAngle,
       radius: this._startRadius,
       baseWidth: this.spikeWidth,
       length: this.spikeLength,
@@ -96,13 +112,17 @@ export class Stage2Prolog {
     const primary = new Stage2PrologObstacle(baseParams);
     const secondary = new Stage2PrologObstacle({ ...baseParams });
     this.obstacles = [primary, secondary];
+    this._applyRotation(0);
   }
 
   _applyConfig() {
     const cfg = STAGE2_PROLOG ?? {};
     const spikeCfg = cfg.spike ?? {};
-    const duration = typeof cfg.durationSec === 'number' && cfg.durationSec > 0 ? cfg.durationSec : 1;
-    this.durationSec = duration;
+    const radiusDuration = typeof cfg.radiusDurationSec === 'number' && cfg.radiusDurationSec > 0 ? cfg.radiusDurationSec : 1;
+    const rotationDuration = typeof cfg.rotationDurationSec === 'number' && cfg.rotationDurationSec > 0 ? cfg.rotationDurationSec : 1;
+    this.radiusDurationSec = radiusDuration;
+    this.rotationDurationSec = rotationDuration;
+    this.totalDurationSec = Math.max(0, radiusDuration) + Math.max(0, rotationDuration);
     this.spikeLength = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
     this.spikeWidth = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
     this.spikeColor = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';
@@ -110,6 +130,29 @@ export class Stage2Prolog {
     const endFactor = Number.isFinite(cfg.radiusEndFactor) ? cfg.radiusEndFactor : 1.0;
     this.radiusStartFactor = startFactor;
     this.radiusEndFactor = endFactor;
+    if (typeof cfg.rotationAngleRad === 'number' && Number.isFinite(cfg.rotationAngleRad)) {
+      this.rotationAngleRad = cfg.rotationAngleRad;
+    } else {
+      const rotationDeg = Number.isFinite(cfg.rotationAngleDeg) ? cfg.rotationAngleDeg : 45;
+      this.rotationAngleRad = rotationDeg * (Math.PI / 180);
+    }
+    if (!Number.isFinite(this.rotationAngleRad)) {
+      this.rotationAngleRad = 45 * (Math.PI / 180);
+    }
+  }
+
+  _applyRotation(progress = 0) {
+    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
+    const clamped = Math.max(0, Math.min(1, progress));
+    const delta = this.rotationAngleRad * clamped;
+    const primary = this.obstacles[0];
+    const secondary = this.obstacles[1];
+    if (primary) primary.angle = this._baseAngle + delta;
+    if (secondary) secondary.angle = this._baseAngle - delta;
+  }
+
+  getTotalDuration() {
+    return this.totalDurationSec;
   }
 }
 
@@ -198,7 +241,9 @@ export class Stage2 extends StageManager {
   }
 
   update(secondsElapsed) {
-    const prologDuration = this.prolog ? Math.max(0, this.prolog.durationSec || 0) : 0;
+    const prologDuration = this.prolog && typeof this.prolog.getTotalDuration === 'function'
+      ? Math.max(0, this.prolog.getTotalDuration())
+      : 0;
     if (secondsElapsed < prologDuration) {
       this.totalElapsed = 0;
       this.changed = false;

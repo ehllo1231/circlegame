@@ -96,9 +96,11 @@ export const SNOW = {
 };
 
 export const STAGE2_PROLOG = {
-  durationSec: 2,
+  radiusDurationSec: 1,
+  rotationDurationSec: 2,
   radiusStartFactor: 0.6,
   radiusEndFactor: 1.0,
+  rotationAngleDeg: 90,
   spike: {
     length: 37.5,
     width: 24,
