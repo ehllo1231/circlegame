@@ -1,4 +1,4 @@
-﻿import { SCORE, CANVAS, ORBIT, PLAYER, SPAWN, OBSTACLE, PARTICLES, RHYTHM, SNOW, CONTROLS } from './Config.js';
+﻿import { SCORE, CANVAS, ORBIT, PLAYER, SPAWN, OBSTACLE, PARTICLES, RHYTHM, SNOW, STAGE2_PROLOG, CONTROLS } from './Config.js';
 
 const deepCopy = (o) => JSON.parse(JSON.stringify(o));
 
@@ -11,6 +11,7 @@ export const OBSTACLE_DEFAULTS = deepCopy(OBSTACLE);
 export const PARTICLES_DEFAULTS = deepCopy(PARTICLES);
 export const RHYTHM_DEFAULTS = deepCopy(RHYTHM);
 export const SNOW_DEFAULTS = deepCopy(SNOW);
+export const STAGE2_PROLOG_DEFAULTS = deepCopy(STAGE2_PROLOG);
 export const CONTROLS_DEFAULTS = deepCopy(CONTROLS);
 
 export function resetAllConfigToDefaults() {
@@ -23,5 +24,6 @@ export function resetAllConfigToDefaults() {
   try { Object.assign(PARTICLES, deepCopy(PARTICLES_DEFAULTS)); } catch (_) {}
   try { Object.assign(RHYTHM, deepCopy(RHYTHM_DEFAULTS)); } catch (_) {}
   try { Object.assign(SNOW, deepCopy(SNOW_DEFAULTS)); } catch (_) {}
+  try { Object.assign(STAGE2_PROLOG, deepCopy(STAGE2_PROLOG_DEFAULTS)); } catch (_) {}
   try { Object.assign(CONTROLS, deepCopy(CONTROLS_DEFAULTS)); } catch (_) {}
 }

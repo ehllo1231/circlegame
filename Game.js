@@ -24,6 +24,7 @@ export class Game {
     this.gameOver = false;
     this.animationId = null;
     this.score = new Score();
+    this.scoreOffset = 0;
     this._lastTime = null;
 
     this.ui = new UIController();
@@ -103,6 +104,7 @@ export class Game {
     this.gameStarted = true;
     this.gameOver = false;
     this.score.reset();
+    this.scoreOffset = 0;
     this._lastTime = null;
     this.stageController.resetProgress(0);
     this.scene.resetForNewRun();
@@ -128,7 +130,7 @@ export class Game {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
-    const finalScore = this.score.getVisible();
+    const finalScore = this.score.getVisibleWithOffset(this.scoreOffset);
     const stageId = this.stageController?.getStartingStageId?.() ?? 'default';
     const highKey = this._getHighScoreStorageKey(stageId);
     let high = 0;
@@ -173,6 +175,7 @@ export class Game {
     this.fastForwardNextStart = false;
     this._lastTime = null;
     this.score.reset();
+    this.scoreOffset = 0;
 
     this.ui.hideOverlays();
     this.startGame();
@@ -195,6 +198,7 @@ export class Game {
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this._lastTime = null;
     this.fastForwardNextStart = false;
+    this.scoreOffset = 0;
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(stageId);
@@ -243,14 +247,19 @@ export class Game {
         ? prologActiveStage.getPrologObstacles()
         : [];
 
+      if (prologActive) {
+        this.scoreOffset = this.score.getSeconds();
+      }
+
       const backgroundColor = this.stageController.getBackgroundColor('#000000');
       this._clearCanvas(backgroundColor);
 
+      const elapsedForEffects = this.score.getDisplaySecondsWithOffset(this.scoreOffset);
       const snowStartAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
       const snowEnabled = this.debugMode ? true : this.stageController.isSnowEnabled();
-      const snowActive = snowEnabled && secondsElapsed >= snowStartAt && !prologActive;
+      const snowActive = snowEnabled && elapsedForEffects >= snowStartAt && !prologActive;
       const allowSpawn = (!prologActive) && (this.debugMode ? true : this.stageController.canSpawn());
-      const visibleScore = this.score.getVisible();
+      const visibleScore = this.score.getVisibleWithOffset(this.scoreOffset);
 
       const { playerHit } = this.scene.updateFrame({
         dt,
@@ -263,6 +272,7 @@ export class Game {
         canvasWidth: this.canvas.width,
         canvasHeight: this.canvas.height,
         extraObstacles: prologObstacles,
+        rhythmPaused: prologActive,
       });
 
       if (playerHit) {
@@ -277,6 +287,7 @@ export class Game {
         orbitRadius: this.orbitRadius,
         snowActive,
         extraObstacles: prologObstacles,
+        rhythmPaused: prologActive,
       });
 
       if (this.debugMode) {
@@ -293,7 +304,7 @@ export class Game {
         if (!hideScore) {
           this.ui.drawScore(
             this.ctx,
-            this.score.getDisplaySeconds(),
+            this.score.getDisplaySecondsWithOffset(this.scoreOffset),
             this.centerX,
             this.centerY,
             this.orbitRadius,
@@ -330,6 +341,7 @@ export class Game {
     this.fastForwardNextStart = false;
     this._lastTime = null;
     this.score.reset();
+    this.scoreOffset = 0;
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);

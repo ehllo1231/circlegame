@@ -95,6 +95,17 @@ export const SNOW = {
   },
 };
 
+export const STAGE2_PROLOG = {
+  durationSec: 2,
+  radiusStartFactor: 0.6,
+  radiusEndFactor: 1.0,
+  spike: {
+    length: 37.5,
+    width: 24,
+    color: '#ff2d2d',
+  },
+};
+
 // Input controls mapping (customize key codes here)
 export const CONTROLS = {
   startOn: ['Space'],

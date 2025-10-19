@@ -99,11 +99,12 @@ export class GameScene {
     canvasWidth,
     canvasHeight,
     extraObstacles = [],
+    rhythmPaused = false,
   } = {}) {
-    if (!stageFinished) {
-      this.rhythmEffect.update(dt);
-    } else {
+    if (stageFinished || rhythmPaused) {
       this.rhythmEffect.reset();
+    } else {
+      this.rhythmEffect.update(dt);
     }
 
     this._snowShouldDraw = false;
@@ -164,12 +165,13 @@ export class GameScene {
     orbitRadius = this.orbitRadius,
     snowActive = false,
     extraObstacles = [],
+    rhythmPaused = false,
   } = {}) {
     if (snowActive && this._snowShouldDraw && this.snow) {
       this.snow.draw(ctx);
     }
 
-    const rhythmActive = !stageFinished;
+    const rhythmActive = !stageFinished && !rhythmPaused;
     if (rhythmActive) {
       this.rhythmEffect.applyTransform(ctx, centerX, centerY);
     }

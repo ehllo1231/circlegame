@@ -26,4 +26,8 @@ export class Stage2PrologObstacle extends Obstacle {
     ctx.fill();
     ctx.restore();
   }
+
+  setRadius(radius) {
+    this.radius = radius;
+  }
 }

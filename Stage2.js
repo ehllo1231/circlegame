@@ -1,23 +1,21 @@
 import { StageManager, StagePhase } from './StageManager.js';
-import { SPAWN, SNOW } from './Config.js';
+import { SPAWN, SNOW, STAGE2_PROLOG } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
 
 export class Stage2Prolog {
   constructor() {
     this.started = false;
     this.completed = false;
-    this.primaryColor = '#ff2d2d';
-    this.secondaryColor = this.primaryColor;
-    this.spikeLength = 37.5;
-    this.spikeWidth = 24;
-    this.angleOffset = 0; // radians
     this.elapsed = 0;
-    this.duration = 1; // seconds
     this.obstacles = [];
     this.geometry = null;
+    this._applyConfig();
+    this._startRadius = 0;
+    this._endRadius = 0;
   }
 
   start(geometry) {
+    this._applyConfig();
     this.started = true;
     this.completed = false;
     this.elapsed = 0;
@@ -28,14 +26,22 @@ export class Stage2Prolog {
   update(dt = 0) {
     if (!this.started || this.completed) return;
     this.elapsed += dt;
+    const duration = this.durationSec > 0 ? this.durationSec : 1;
+    const progress = Math.max(0, Math.min(1, this.elapsed / duration));
+    const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * progress;
     if (Array.isArray(this.obstacles)) {
       for (const obstacle of this.obstacles) {
+        if (obstacle && typeof obstacle.setRadius === 'function') {
+          obstacle.setRadius(currentRadius);
+        } else if (obstacle) {
+          obstacle.radius = currentRadius;
+        }
         if (obstacle && typeof obstacle.update === 'function') {
           obstacle.update(dt);
         }
       }
     }
-    if (this.elapsed >= this.duration) {
+    if (this.elapsed >= duration) {
       this.completed = true;
       this.obstacles = [];
     }
@@ -76,18 +82,33 @@ export class Stage2Prolog {
       this.obstacles = [];
       return;
     }
-    const baseRadius = orbitRadius*0.6;
+    this._startRadius = orbitRadius * this.radiusStartFactor;
+    this._endRadius = orbitRadius * this.radiusEndFactor;
     const baseParams = {
       angle: -Math.PI / 2,
-      radius: baseRadius,
+      radius: this._startRadius,
       baseWidth: this.spikeWidth,
       length: this.spikeLength,
-      color: this.primaryColor,
+      color: this.spikeColor,
       pointOutward: true,
     };
     const primary = new Stage2PrologObstacle(baseParams);
     const secondary = new Stage2PrologObstacle({ ...baseParams });
     this.obstacles = [primary, secondary];
+  }
+
+  _applyConfig() {
+    const cfg = STAGE2_PROLOG ?? {};
+    const spikeCfg = cfg.spike ?? {};
+    const duration = typeof cfg.durationSec === 'number' && cfg.durationSec > 0 ? cfg.durationSec : 1;
+    this.durationSec = duration;
+    this.spikeLength = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
+    this.spikeWidth = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
+    this.spikeColor = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';
+    const startFactor = Number.isFinite(cfg.radiusStartFactor) ? cfg.radiusStartFactor : 0.6;
+    const endFactor = Number.isFinite(cfg.radiusEndFactor) ? cfg.radiusEndFactor : 1.0;
+    this.radiusStartFactor = startFactor;
+    this.radiusEndFactor = endFactor;
   }
 }
 
@@ -173,6 +194,17 @@ export class Stage2 extends StageManager {
 
     this.prolog = new Stage2Prolog();
     this._prologShown = false;
+  }
+
+  update(secondsElapsed) {
+    const prologDuration = this.prolog ? Math.max(0, this.prolog.durationSec || 0) : 0;
+    if (secondsElapsed < prologDuration) {
+      this.totalElapsed = 0;
+      this.changed = false;
+      return;
+    }
+    const effectiveElapsed = Math.max(0, secondsElapsed - prologDuration);
+    super.update(effectiveElapsed);
   }
 
   drawProlog(ctx, geometry) {
