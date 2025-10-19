@@ -1,8 +1,9 @@
 import { Obstacle } from './Obstacle.js';
 
 export class Stage2PrologObstacle extends Obstacle {
-  constructor({ angle, radius, baseWidth, length, color = '#ff2d2d' }) {
-    super(angle, radius, 0, baseWidth, length, 0);
+  constructor({ angle, radius, baseWidth, length, color = '#ff2d2d', pointOutward = false }) {
+    const effectiveLength = pointOutward ? -Math.abs(length) : length;
+    super(angle, radius, 0, baseWidth, effectiveLength, 0);
     this.color = color;
   }
 

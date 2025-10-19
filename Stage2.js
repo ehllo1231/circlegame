@@ -7,10 +7,10 @@ export class Stage2Prolog {
     this.started = false;
     this.completed = false;
     this.primaryColor = '#ff2d2d';
-    this.secondaryColor = '#ff5c5c';
-    this.spikeLength = 64;
-    this.spikeWidth = 26;
-    this.angleOffset = 0.04; // radians
+    this.secondaryColor = this.primaryColor;
+    this.spikeLength = 37.5;
+    this.spikeWidth = 24;
+    this.angleOffset = 0; // radians
     this.elapsed = 0;
     this.duration = 1; // seconds
     this.obstacles = [];
@@ -76,21 +76,17 @@ export class Stage2Prolog {
       this.obstacles = [];
       return;
     }
-    const baseRadius = orbitRadius * (4 / 5);
-    const primary = new Stage2PrologObstacle({
+    const baseRadius = orbitRadius*0.6;
+    const baseParams = {
       angle: -Math.PI / 2,
       radius: baseRadius,
       baseWidth: this.spikeWidth,
       length: this.spikeLength,
       color: this.primaryColor,
-    });
-    const secondary = new Stage2PrologObstacle({
-      angle: -Math.PI / 2 + this.angleOffset,
-      radius: baseRadius,
-      baseWidth: this.spikeWidth * 0.9,
-      length: this.spikeLength * 0.9,
-      color: this.secondaryColor,
-    });
+      pointOutward: true,
+    };
+    const primary = new Stage2PrologObstacle(baseParams);
+    const secondary = new Stage2PrologObstacle({ ...baseParams });
     this.obstacles = [primary, secondary];
   }
 }
