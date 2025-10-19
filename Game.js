@@ -24,7 +24,10 @@ export class Game {
     this.gameOver = false;
     this.animationId = null;
     this.score = new Score();
-    this.scoreOffset = 0;
+    this.scoreBase = 0;
+    this.stageElapsedOffset = 0;
+    this.currentStageId = null;
+    this.currentDisplayScore = 0;
     this._lastTime = null;
 
     this.ui = new UIController();
@@ -39,6 +42,7 @@ export class Game {
       stageOrder: this.stageOrder,
       defaultStageId: this.selectedStage,
     });
+    this.stageDurationById = new Map();
 
     this.scene = new GameScene({
       centerX: this.centerX,
@@ -69,11 +73,13 @@ export class Game {
     }
     this.scene.applyPlayerConfigFromConfig();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
+    this.currentStageId = this.stageController.getActiveStageId();
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(this.selectedStage);
     }
 
+    this._refreshStageDurations();
     this.setupEventListeners();
   }
 
@@ -104,9 +110,13 @@ export class Game {
     this.gameStarted = true;
     this.gameOver = false;
     this.score.reset();
-    this.scoreOffset = 0;
+    this.scoreBase = 0;
+    this.stageElapsedOffset = 0;
+    this.currentStageId = this.stageController.getActiveStageId();
+    this.currentDisplayScore = 0;
     this._lastTime = null;
     this.stageController.resetProgress(0);
+    this._refreshStageDurations();
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     if (stage) {
@@ -130,7 +140,7 @@ export class Game {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
-    const finalScore = this.score.getVisibleWithOffset(this.scoreOffset);
+    const finalScore = Math.floor(this.currentDisplayScore ?? this.score.getSeconds());
     const stageId = this.stageController?.getStartingStageId?.() ?? 'default';
     const highKey = this._getHighScoreStorageKey(stageId);
     let high = 0;
@@ -158,6 +168,7 @@ export class Game {
     this.stageController.setStartingStage(this.selectedStage);
     this.stageController.reset();
     this.stageController.resetProgress(0);
+    this._refreshStageDurations();
 
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
@@ -175,7 +186,10 @@ export class Game {
     this.fastForwardNextStart = false;
     this._lastTime = null;
     this.score.reset();
-    this.scoreOffset = 0;
+    this.scoreBase = 0;
+    this.stageElapsedOffset = 0;
+    this.currentDisplayScore = 0;
+    this.currentStageId = this.stageController.getActiveStageId();
 
     this.ui.hideOverlays();
     this.startGame();
@@ -189,6 +203,7 @@ export class Game {
 
     this.stageController.setStartingStage(stageId);
     this.stageController.resetProgress(0);
+    this._refreshStageDurations();
     const stage = this.stageController.getActiveStage();
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
@@ -198,7 +213,10 @@ export class Game {
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this._lastTime = null;
     this.fastForwardNextStart = false;
-    this.scoreOffset = 0;
+    this.scoreBase = 0;
+    this.stageElapsedOffset = 0;
+    this.currentDisplayScore = 0;
+    this.currentStageId = this.stageController.getActiveStageId();
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(stageId);
@@ -234,6 +252,16 @@ export class Game {
         this._ensurePrologForStage(activeStage);
       }
 
+      const activeStageId = this.stageController.getActiveStageId();
+      if (this.currentStageId == null) this.currentStageId = activeStageId;
+      if (this.currentStageId !== activeStageId) {
+        if (this.currentStageId) {
+          this.scoreBase += this._getStageTotalDuration(this.currentStageId);
+        }
+        this.currentStageId = activeStageId;
+        this.stageElapsedOffset = 0;
+      }
+
       const prologActiveStage = this.stageController.getActiveStage();
       let prologActive = false;
       const dtSeconds = dt / 60;
@@ -247,19 +275,33 @@ export class Game {
         ? prologActiveStage.getPrologObstacles()
         : [];
 
+      const stageStartSeconds = this.stageController.stageStartSeconds ?? 0;
+      let stageElapsedRaw = Math.max(0, secondsElapsed - stageStartSeconds);
       if (prologActive) {
-        this.scoreOffset = this.score.getSeconds();
+        this.stageElapsedOffset = stageElapsedRaw;
+        stageElapsedRaw = 0;
+      } else if (this.stageElapsedOffset > 0) {
+        stageElapsedRaw = Math.max(0, stageElapsedRaw - this.stageElapsedOffset);
       }
+      const activeStageInstance = this.stageController.getActiveStage();
+      if (activeStageInstance && typeof activeStageInstance.getTotalDuration === 'function') {
+        const totalDuration = activeStageInstance.getTotalDuration();
+        if (this.stageController.isStageFinished()) {
+          stageElapsedRaw = totalDuration;
+        }
+      }
+      const displaySeconds = this.scoreBase + stageElapsedRaw;
+      this.currentDisplayScore = displaySeconds;
 
       const backgroundColor = this.stageController.getBackgroundColor('#000000');
       this._clearCanvas(backgroundColor);
 
-      const elapsedForEffects = this.score.getDisplaySecondsWithOffset(this.scoreOffset);
+      const elapsedForEffects = stageElapsedRaw;
       const snowStartAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
       const snowEnabled = this.debugMode ? true : this.stageController.isSnowEnabled();
       const snowActive = snowEnabled && elapsedForEffects >= snowStartAt && !prologActive;
       const allowSpawn = (!prologActive) && (this.debugMode ? true : this.stageController.canSpawn());
-      const visibleScore = this.score.getVisibleWithOffset(this.scoreOffset);
+      const visibleScore = Math.max(0, Math.floor(stageElapsedRaw));
 
       const { playerHit } = this.scene.updateFrame({
         dt,
@@ -300,11 +342,17 @@ export class Game {
         this.ctx.fillText('Debug Mode', this.centerX, this.centerY);
         this.ctx.restore();
       } else {
-        const hideScore = stageFinished ? true : this.stageController.shouldHideScore();
+        let hideScore = this.stageController.shouldHideScore();
+        if (stageFinished) {
+          hideScore = true;
+        }
+        if (activeStageId === 'stage2' && (prologActive || stageElapsedRaw <= 0)) {
+          hideScore = true;
+        }
         if (!hideScore) {
           this.ui.drawScore(
             this.ctx,
-            this.score.getDisplaySecondsWithOffset(this.scoreOffset),
+            displaySeconds,
             this.centerX,
             this.centerY,
             this.orbitRadius,
@@ -341,12 +389,15 @@ export class Game {
     this.fastForwardNextStart = false;
     this._lastTime = null;
     this.score.reset();
-    this.scoreOffset = 0;
+    this.scoreBase = 0;
+    this.stageElapsedOffset = 0;
+    this.currentDisplayScore = 0;
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);
     this.stageController.reset();
     this.stageController.resetProgress(0);
+    this._refreshStageDurations();
 
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
@@ -354,6 +405,7 @@ export class Game {
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.applyPlayerConfigFromConfig();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
+    this.currentStageId = this.stageController.getActiveStageId();
 
     if (this.ui) {
       this.ui.hideOverlays();
@@ -374,6 +426,25 @@ export class Game {
       this._ensurePrologForStage(stage);
     }
     return true;
+  }
+
+  _getStageTotalDuration(stageId) {
+    if (!stageId) return 0;
+    return this.stageDurationById?.get?.(stageId) ?? 0;
+  }
+
+  _refreshStageDurations() {
+    this.stageDurationById = new Map();
+    const queue = this.stageController?.stageQueue;
+    if (!Array.isArray(queue)) return;
+    for (const entry of queue) {
+      if (!entry || !entry.id) continue;
+      let duration = 0;
+      if (entry.stage && typeof entry.stage.getTotalDuration === 'function') {
+        duration = entry.stage.getTotalDuration();
+      }
+      this.stageDurationById.set(entry.id, Number.isFinite(duration) ? duration : 0);
+    }
   }
 
   _clearCanvas(color) {

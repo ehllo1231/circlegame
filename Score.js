@@ -31,18 +31,8 @@ export class Score {
     return Math.min(this.seconds, this.maxSeconds);
   }
 
-  getDisplaySecondsWithOffset(offset = 0) {
-    const normalizedOffset = Number.isFinite(offset) ? Math.max(0, offset) : 0;
-    const adjusted = Math.max(0, this.seconds - normalizedOffset);
-    return Math.min(adjusted, this.maxSeconds);
-  }
-
   getVisible() {
     return Math.floor(this.getDisplaySeconds());
-  }
-
-  getVisibleWithOffset(offset = 0) {
-    return Math.floor(this.getDisplaySecondsWithOffset(offset));
   }
 
   setMaxSeconds(maxSeconds = Infinity) {
