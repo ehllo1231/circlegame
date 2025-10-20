@@ -1,13 +1,15 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER, SNOW } from './Config.js';
+import { ORBIT, PLAYER, SNOW, STAGE_THEMES } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
 import { Stage2 } from './Stage2.js';
 import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
+import { StageThemeManager } from './StageThemeManager.js';
+import { StageBackgroundFader } from './StageBackgroundFader.js';
 
 // Game - main controller
 export class Game {
@@ -50,6 +52,14 @@ export class Game {
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
     });
+
+    this.stageThemeManager = new StageThemeManager({ themes: STAGE_THEMES });
+    this.backgroundFader = new StageBackgroundFader({
+      elements: this._collectBackgroundElements(),
+      initialColor: this.stageThemeManager.getBackgroundColor(this.selectedStage),
+      defaultDurationSec: this.stageThemeManager.getFadeDuration(this.selectedStage),
+    });
+    this._applyStageTheme(this.selectedStage, { immediate: true });
 
     this.debugMode = false;
     this.fastForwardNextStart = false;
@@ -200,6 +210,7 @@ export class Game {
     if (this.gameStarted) return;
 
     this.selectedStage = stageId;
+    this._applyStageTheme(stageId);
 
     this.stageController.setStartingStage(stageId);
     this.stageController.resetProgress(0);
@@ -513,6 +524,31 @@ export class Game {
         centerY: this.centerY,
         orbitRadius: this.orbitRadius,
       });
+    }
+  }
+
+  _collectBackgroundElements() {
+    const elements = [];
+    if (typeof document !== 'undefined' && document.body) {
+      elements.push(document.body);
+    }
+    if (this.canvas) elements.push(this.canvas);
+    if (this.ui) {
+      if (this.ui.startScreen) elements.push(this.ui.startScreen);
+      if (this.ui.gameOverScreen) elements.push(this.ui.gameOverScreen);
+    }
+    return elements;
+  }
+
+  _applyStageTheme(stageId, { immediate = false } = {}) {
+    if (!this.backgroundFader || !this.stageThemeManager) return;
+    this.backgroundFader.setElements(this._collectBackgroundElements());
+    const theme = this.stageThemeManager.getTheme(stageId);
+    this.backgroundFader.setDefaultDuration(theme.fadeDurationSec);
+    if (immediate) {
+      this.backgroundFader.setColorImmediate(theme.background);
+    } else {
+      this.backgroundFader.fadeTo(theme.background, theme.fadeDurationSec);
     }
   }
 }

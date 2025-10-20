@@ -132,6 +132,17 @@ export const STAGE2_PROLOG = {
   },
 };
 
+export const STAGE_THEMES = {
+  stage1: {
+    background: '#000000',
+    fadeDurationSec: 0.8,
+  },
+  stage2: {
+    background: '#0f0020',
+    fadeDurationSec: 0.8,
+  },
+};
+
 // Input controls mapping (customize key codes here)
 export const CONTROLS = {
   startOn: ['Space'],
