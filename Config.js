@@ -112,9 +112,10 @@ export const STAGE2_PROLOG = {
   dust: {
     enabled: true,
     spawnDurationSec: 3,
-    spawnIntervalSec: 0.15,
+    spawnRatePerMin: 600,
+    spawnRampDurationSec: 1,
     burstCount: 5,
-    speed: { min: 100, max: 150 },
+    speed: { min: 100, max: 200 },
     size: { min: 1, max: 3 },
     lifeSec: { min: 2, max: 2 },
     spreadDeg: 70,

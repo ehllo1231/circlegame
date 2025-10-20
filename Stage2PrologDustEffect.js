@@ -3,7 +3,8 @@ const TAU = Math.PI * 2;
 const DEFAULTS = {
   enabled: true,
   spawnDurationSec: 0.9,
-  spawnIntervalSec: 0.08,
+  spawnRatePerMin: 600,
+  spawnRampDurationSec: 1,
   burstCount: 12,
   speed: { min: 110, max: 220 },
   size: { min: 2, max: 5 },
@@ -47,9 +48,12 @@ export class Stage2PrologDustEffect {
     this.spawnDurationSec = Number.isFinite(merged.spawnDurationSec)
       ? Math.max(0, merged.spawnDurationSec)
       : DEFAULTS.spawnDurationSec;
-    this.spawnIntervalSec = Number.isFinite(merged.spawnIntervalSec) && merged.spawnIntervalSec > 0
-      ? merged.spawnIntervalSec
-      : DEFAULTS.spawnIntervalSec;
+    this.spawnRatePerMinTarget = Number.isFinite(merged.spawnRatePerMin) && merged.spawnRatePerMin >= 0
+      ? merged.spawnRatePerMin
+      : DEFAULTS.spawnRatePerMin;
+    this.spawnRampDurationSec = Number.isFinite(merged.spawnRampDurationSec) && merged.spawnRampDurationSec >= 0
+      ? merged.spawnRampDurationSec
+      : DEFAULTS.spawnRampDurationSec;
     this.burstCount = Math.max(1, Math.round(merged.burstCount ?? DEFAULTS.burstCount));
     this.gravity = Number.isFinite(merged.gravity) ? merged.gravity : DEFAULTS.gravity;
     this.opacity = clamp(Number(merged.opacity ?? DEFAULTS.opacity), 0, 1);
@@ -77,13 +81,16 @@ export class Stage2PrologDustEffect {
     this.elapsedInRadiusPhase = elapsedInRadius;
 
     if (this.enabled && active && elapsedInRadius <= this.spawnDurationSec) {
-      this.spawnAccumulator += dtSec;
-      while (this.spawnAccumulator >= this.spawnIntervalSec) {
-        this.spawnAccumulator -= this.spawnIntervalSec;
-        this._emitBurst();
+      const burstsPerSecond = this._resolveBurstsPerSecond();
+      if (burstsPerSecond > 0) {
+        this.spawnAccumulator += dtSec * burstsPerSecond;
+        while (this.spawnAccumulator >= 1) {
+          this.spawnAccumulator -= 1;
+          this._emitBurst();
+        }
       }
     } else {
-      this.spawnAccumulator = this.spawnIntervalSec;
+      this.spawnAccumulator = 0;
     }
 
     // Update particles
@@ -146,5 +153,14 @@ export class Stage2PrologDustEffect {
         maxLife: life,
       });
     }
+  }
+
+  _resolveBurstsPerSecond() {
+    const targetPerMin = this.spawnRatePerMinTarget;
+    if (targetPerMin <= 0) return 0;
+    const rampDuration = Math.max(0.0001, this.spawnRampDurationSec ?? 0);
+    const t = clamp(this.elapsedInRadiusPhase / rampDuration, 0, 1);
+    const currentPerMin = targetPerMin * t;
+    return currentPerMin / 60;
   }
 }

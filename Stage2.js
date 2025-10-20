@@ -182,6 +182,9 @@ export class Stage2Prolog {
     const invulnerable = this.elapsed < this.collisionSafeDurationSec;
     primary.ignoreCollision = invulnerable;
     secondary.ignoreCollision = invulnerable;
+    const orbitMask = Number.isFinite(geom.orbitRadius) ? geom.orbitRadius : null;
+    primary.setMaskRadius(orbitMask);
+    secondary.setMaskRadius(orbitMask);
     this.obstacles = [primary, secondary];
     this._applyRotation(0);
   }
@@ -271,7 +274,7 @@ class Stage2Phase1 extends StagePhase {
   onEnter() {
     SPAWN.baseInterval = 24;
     SPAWN.multiCountWeights = [0.08, 0.1, 0.15, 0.2, 0.2, 0.17, 0.07, 0.03];
-    SNOW.spawnPerMin = 400;
+    SNOW.spawnPerMin = 0;
     SNOW.fallSpeed.min = 1.2;
     SNOW.fallSpeed.max = 2.6;
     SNOW.wind.baseX = 0.4;

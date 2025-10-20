@@ -6,6 +6,7 @@ export class Stage2PrologObstacle extends Obstacle {
     super(angle, radius, 0, baseWidth, effectiveLength, 0);
     this.color = color;
     this.ignoreCollision = false;
+    this.maskRadius = null;
   }
 
   update() {
@@ -14,6 +15,22 @@ export class Stage2PrologObstacle extends Obstacle {
 
   draw(ctx, centerX, centerY) {
     ctx.save();
+    const maskRadius = this.maskRadius;
+    if (Number.isFinite(maskRadius) && maskRadius > 0 && ctx.canvas) {
+      const { width, height } = ctx.canvas;
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.moveTo(centerX + maskRadius, centerY);
+      ctx.arc(centerX, centerY, maskRadius, 0, Math.PI * 2, true);
+      ctx.closePath();
+      if (typeof ctx.clip === 'function') {
+        try {
+          ctx.clip('evenodd');
+        } catch (_) {
+          ctx.clip();
+        }
+      }
+    }
     ctx.translate(centerX, centerY);
     ctx.rotate(this.angle);
 
@@ -30,5 +47,9 @@ export class Stage2PrologObstacle extends Obstacle {
 
   setRadius(radius) {
     this.radius = radius;
+  }
+
+  setMaskRadius(radius) {
+    this.maskRadius = Number.isFinite(radius) ? radius : null;
   }
 }
