@@ -341,6 +341,14 @@ export class Game {
         rhythmPaused: prologActive,
       });
 
+      if (activeStage && typeof activeStage.drawProlog === 'function') {
+        activeStage.drawProlog(this.ctx, {
+          centerX: this.centerX,
+          centerY: this.centerY,
+          orbitRadius: this.orbitRadius,
+        });
+      }
+
       if (this.debugMode) {
         this.ctx.save();
         this.ctx.fillStyle = 'rgba(255,255,255,0.5)';

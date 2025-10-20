@@ -96,7 +96,7 @@ export const SNOW = {
 };
 
 export const STAGE2_PROLOG = {
-  radiusDurationSec: 2,
+  radiusDurationSec: 3,
   pauseBetweenSec: 1,
   rotationDurationSec: 2,
   radiusStartFactor: 0.6,
@@ -109,6 +109,20 @@ export const STAGE2_PROLOG = {
     axisScaleY: 0.4,
   },
   collisionSafeDurationSec: 1,
+  dust: {
+    enabled: true,
+    spawnDurationSec: 3,
+    spawnIntervalSec: 0.15,
+    burstCount: 5,
+    speed: { min: 100, max: 150 },
+    size: { min: 1, max: 3 },
+    lifeSec: { min: 2, max: 2 },
+    spreadDeg: 70,
+    jitterRadius: 15,
+    gravity: 220,
+    opacity: 0.75,
+    color: '#ffffff',
+  },
   spike: {
     length: 37.5,
     width: 24,

@@ -1,6 +1,7 @@
 import { StageManager, StagePhase } from './StageManager.js';
 import { SPAWN, SNOW, STAGE2_PROLOG } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
+import { Stage2PrologDustEffect } from './Stage2PrologDustEffect.js';
 
 export class Stage2Prolog {
   constructor() {
@@ -22,6 +23,8 @@ export class Stage2Prolog {
     this._tremorPhaseOffset = 0;
     this._backgroundOffset = { x: 0, y: 0 };
     this.collisionSafeDurationSec = 0;
+    this.dustEffect = null;
+    this._dustConfig = null;
     this._applyConfig();
     this._startRadius = 0;
     this._endRadius = 0;
@@ -37,6 +40,11 @@ export class Stage2Prolog {
     this._backgroundOffset.y = 0;
     this._tremorPhaseOffset = Math.random() * Math.PI * 2;
     this._buildObstacles();
+    if (this.dustEffect) {
+      this.dustEffect.setGeometry(this.geometry);
+      this.dustEffect.setEmitter(this._getEmitterPosition());
+      this.dustEffect.reset();
+    }
   }
 
   update(dt = 0) {
@@ -68,6 +76,8 @@ export class Stage2Prolog {
       rotationProgress = 1;
     }
 
+    const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * radiusProgress;
+
     let offsetX = 0;
     let offsetY = 0;
     if (this.tremorEnabled && radiusDuration > 0 && radiusProgress < 1) {
@@ -81,7 +91,13 @@ export class Stage2Prolog {
     this._backgroundOffset.x = offsetX;
     this._backgroundOffset.y = offsetY;
 
-    const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * radiusProgress;
+    if (this.dustEffect) {
+      this.dustEffect.setEmitter(this._getEmitterPosition());
+      this.dustEffect.update(dt, {
+        active: radiusDuration > 0 && radiusProgress < 1,
+        elapsedInRadius: Math.min(cappedElapsed, radiusDuration),
+      });
+    }
     this._applyRotation(rotationProgress);
     if (Array.isArray(this.obstacles)) {
       for (const obstacle of this.obstacles) {
@@ -116,14 +132,8 @@ export class Stage2Prolog {
 
   draw(ctx, geometry) {
     if (!ctx) return;
-    const { centerX, centerY, orbitRadius } = geometry || {};
-    if (typeof centerX !== 'number' || typeof centerY !== 'number' || typeof orbitRadius !== 'number') return;
-    const obstacles = Array.isArray(this.obstacles) ? this.obstacles : [];
-    if (!obstacles.length) return;
-    for (const obstacle of obstacles) {
-      if (obstacle && typeof obstacle.draw === 'function') {
-        obstacle.draw(ctx, centerX, centerY);
-      }
+    if (this.dustEffect) {
+      this.dustEffect.draw(ctx);
     }
   }
 
@@ -176,6 +186,17 @@ export class Stage2Prolog {
     this._applyRotation(0);
   }
 
+  _getEmitterPosition() {
+    const geom = this.geometry || {};
+    const centerX = Number.isFinite(geom.centerX) ? geom.centerX : 0;
+    const centerY = Number.isFinite(geom.centerY) ? geom.centerY : 0;
+    const orbitRadius = Number.isFinite(geom.orbitRadius) ? geom.orbitRadius : 0;
+    const angle = -Math.PI / 2;
+    const x = centerX;
+    const y = centerY - orbitRadius;
+    return { x, y, angle };
+  }
+
   _applyConfig() {
     const cfg = STAGE2_PROLOG ?? {};
     const spikeCfg = cfg.spike ?? {};
@@ -202,6 +223,13 @@ export class Stage2Prolog {
       }
     }
     this.collisionSafeDurationSec = safeDuration;
+    const dustCfg = cfg.dust ? JSON.parse(JSON.stringify(cfg.dust)) : {};
+    this._dustConfig = dustCfg;
+    if (this.dustEffect) {
+      this.dustEffect.configure(dustCfg);
+    } else {
+      this.dustEffect = new Stage2PrologDustEffect({ config: dustCfg });
+    }
     this.spikeLength = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
     this.spikeWidth = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
     this.spikeColor = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';
