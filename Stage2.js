@@ -272,13 +272,13 @@ class Stage2Phase1 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 24;
-    SPAWN.multiCountWeights = [0.08, 0.1, 0.15, 0.2, 0.2, 0.17, 0.07, 0.03];
+    SPAWN.baseInterval = 30;
+    SPAWN.multiCountWeights = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125];
     SNOW.spawnPerMin = 0;
-    SNOW.fallSpeed.min = 1.2;
-    SNOW.fallSpeed.max = 2.6;
-    SNOW.wind.baseX = 0.4;
-    SNOW.wind.oscAmp = 0.2;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = 0.12;
+    SNOW.wind.oscAmp = 0.1;
   }
 }
 
@@ -288,13 +288,13 @@ class Stage2Phase2 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 18;
-    SPAWN.multiCountWeights = [0.02, 0.04, 0.12, 0.2, 0.22, 0.2, 0.15, 0.05];
-    SNOW.spawnPerMin = 1400;
-    SNOW.fallSpeed.min = 2.4;
-    SNOW.fallSpeed.max = 4.2;
-    SNOW.wind.baseX = 1.6;
-    SNOW.wind.oscAmp = 0.35;
+    SPAWN.baseInterval = 25;
+    SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
+    SNOW.spawnPerMin = 300;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = -0.12;
+    SNOW.wind.oscAmp = 0.1;
   }
 }
 
@@ -304,12 +304,12 @@ class Stage2Phase3 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 14;
+    SPAWN.baseInterval = 17;
     SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.18, 0.22, 0.23, 0.18, 0.07];
-    SNOW.spawnPerMin = 3200;
-    SNOW.fallSpeed.min = 3.5;
-    SNOW.fallSpeed.max = 6.5;
-    SNOW.wind.baseX = -2.4;
+    SNOW.spawnPerMin = 2000;
+    SNOW.fallSpeed.min = 3;
+    SNOW.fallSpeed.max = 5;
+    SNOW.wind.baseX = 3;
     SNOW.wind.oscAmp = 0.5;
   }
 }
@@ -320,12 +320,12 @@ class Stage2Phase4 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 10;
-    SPAWN.multiCountWeights = [0.0, 0.01, 0.07, 0.18, 0.2, 0.24, 0.2, 0.1];
-    SNOW.spawnPerMin = 7000;
-    SNOW.fallSpeed.min = 6.5;
-    SNOW.fallSpeed.max = 10.5;
-    SNOW.wind.baseX = -5.5;
+    SPAWN.baseInterval = 14;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
+    SNOW.spawnPerMin = 6000;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = 6;
     SNOW.wind.oscAmp = 0.65;
   }
 }

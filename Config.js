@@ -120,7 +120,7 @@ export const STAGE2_PROLOG = {
     lifeSec: { min: 2, max: 2 },
     spreadDeg: 70,
     jitterRadius: 15,
-    gravity: 220,
+    gravity: -220,
     opacity: 0.75,
     color: '#ffffff',
   },
