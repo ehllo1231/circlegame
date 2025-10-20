@@ -5,6 +5,7 @@ export class Stage2PrologObstacle extends Obstacle {
     const effectiveLength = pointOutward ? -Math.abs(length) : length;
     super(angle, radius, 0, baseWidth, effectiveLength, 0);
     this.color = color;
+    this.ignoreCollision = false;
   }
 
   update() {

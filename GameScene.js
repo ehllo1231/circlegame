@@ -119,6 +119,7 @@ export class GameScene {
 
     let playerCollided = false;
     for (const obstacle of this.obstacleManager.obstacles) {
+      if (obstacle?.ignoreCollision) continue;
       if (this.player.checkCollisionWithObstacle(obstacle)) {
         playerCollided = true;
         break;
@@ -126,7 +127,8 @@ export class GameScene {
     }
     if (!playerCollided && Array.isArray(extraObstacles)) {
       for (const obstacle of extraObstacles) {
-        if (obstacle && this.player.checkCollisionWithObstacle(obstacle)) {
+        if (!obstacle || obstacle.ignoreCollision) continue;
+        if (this.player.checkCollisionWithObstacle(obstacle)) {
           playerCollided = true;
           break;
         }

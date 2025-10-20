@@ -21,6 +21,7 @@ export class Stage2Prolog {
     this._tremorAngularSpeed = 0;
     this._tremorPhaseOffset = 0;
     this._backgroundOffset = { x: 0, y: 0 };
+    this.collisionSafeDurationSec = 0;
     this._applyConfig();
     this._startRadius = 0;
     this._endRadius = 0;
@@ -94,10 +95,22 @@ export class Stage2Prolog {
         }
       }
     }
+    const invulnerable = this.elapsed < this.collisionSafeDurationSec;
+    if (Array.isArray(this.obstacles)) {
+      for (const obstacle of this.obstacles) {
+        if (obstacle) obstacle.ignoreCollision = invulnerable;
+      }
+    }
+
     if (!this.completed && this.elapsed >= totalDuration) {
       this.completed = true;
       this._backgroundOffset.x = 0;
       this._backgroundOffset.y = 0;
+      if (Array.isArray(this.obstacles)) {
+        for (const obstacle of this.obstacles) {
+          if (obstacle) obstacle.ignoreCollision = false;
+        }
+      }
     }
   }
 
@@ -156,6 +169,9 @@ export class Stage2Prolog {
     };
     const primary = new Stage2PrologObstacle(baseParams);
     const secondary = new Stage2PrologObstacle({ ...baseParams });
+    const invulnerable = this.elapsed < this.collisionSafeDurationSec;
+    primary.ignoreCollision = invulnerable;
+    secondary.ignoreCollision = invulnerable;
     this.obstacles = [primary, secondary];
     this._applyRotation(0);
   }
@@ -178,6 +194,14 @@ export class Stage2Prolog {
     this.tremorFrequencyHz = frequencyHz;
     this.tremorEnabled = tremorCfg.enabled !== false && amplitude > 0 && frequencyHz > 0;
     this._tremorAngularSpeed = this.tremorEnabled ? frequencyHz * (Math.PI * 2) : 0;
+    let safeDuration = radiusDuration;
+    if (Object.prototype.hasOwnProperty.call(cfg, 'collisionSafeDurationSec')) {
+      const rawSafe = cfg.collisionSafeDurationSec;
+      if (typeof rawSafe === 'number' && rawSafe >= 0) {
+        safeDuration = rawSafe;
+      }
+    }
+    this.collisionSafeDurationSec = safeDuration;
     this.spikeLength = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
     this.spikeWidth = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
     this.spikeColor = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';

@@ -97,17 +97,18 @@ export const SNOW = {
 
 export const STAGE2_PROLOG = {
   radiusDurationSec: 2,
-  pauseBetweenSec: 0,
+  pauseBetweenSec: 1,
   rotationDurationSec: 2,
   radiusStartFactor: 0.6,
   radiusEndFactor: 1.0,
   rotationAngleDeg: 90,
   tremor: {
     enabled: true,
-    amplitude: 7,
-    frequencyHz: 7,
-    axisScaleY: 0.6,
+    amplitude: 8,
+    frequencyHz: 10,
+    axisScaleY: 0.4,
   },
+  collisionSafeDurationSec: 1,
   spike: {
     length: 37.5,
     width: 24,
