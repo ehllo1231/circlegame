@@ -23,6 +23,10 @@ export class SnowEffect {
     // Advance global time for wind phase calculations
     this.timeFrames += dt;
 
+    const direction = this._resolveDirection();
+    const w = Number.isFinite(width) ? width : 0;
+    const h = Number.isFinite(height) ? height : 0;
+
     // Spawn (no hard cap): use accumulator; unbiased across full width
     this.spawnAcc += spawnPerFrame * dt;
     let toSpawn = Math.floor(this.spawnAcc);
@@ -30,7 +34,8 @@ export class SnowEffect {
     while (toSpawn-- > 0) {
       // Snapshot all config used by this flake at creation time
       const size = this._rand(SNOW?.size?.min ?? 1, SNOW?.size?.max ?? 3);
-      const vy = this._rand(SNOW?.fallSpeed?.min ?? 0.8, SNOW?.fallSpeed?.max ?? 2.0);
+      const speedMag = this._rand(SNOW?.fallSpeed?.min ?? 0.8, SNOW?.fallSpeed?.max ?? 2.0);
+      const verticalSpeed = direction === 'up' ? -speedMag : speedMag;
       const alpha = SNOW?.alpha ?? 0.28;
       const baseX = SNOW?.wind?.baseX ?? 0.1;
       const oscAmp = SNOW?.wind?.oscAmp ?? 0.08;
@@ -39,15 +44,21 @@ export class SnowEffect {
       // Use current wind for initial vx blend to preserve behavior
       const phase0 = (this.timeFrames / periodFrames) * Math.PI * 2;
       const windX0 = baseX + Math.sin(phase0) * oscAmp;
-      
+
+      const spawnX = Math.random() * w * 3 - w;
+      const spawnY = direction === 'up'
+        ? h + size + Math.random() * 30
+        : -size - Math.random() * 30;
+
       this.flakes.push({
-        x: Math.random() * width * 3 - width, // start potentially off-screen for natural entry
-        y: -size - Math.random() * 30,
+        x: spawnX,
+        y: spawnY,
         // keep existing behavior: include wind at spawn plus small noise
         vx: windX0 + (Math.random() - 0.5) * 0.1,
-        vy,
+        vy: verticalSpeed,
         size,
         appeared: false,
+        direction,
         // snapshot config so later changes do not affect this flake
         alpha,
         windBaseX: baseX,
@@ -65,11 +76,15 @@ export class SnowEffect {
       f.y += f.vy * dt;
 
       // Mark as appeared once it intersects the viewport
-      const inView = (f.x + f.size >= 0) && (f.x - f.size <= width) && (f.y + f.size >= 0) && (f.y - f.size <= height);
+      const inView = (f.x + f.size >= 0) && (f.x - f.size <= w) && (f.y + f.size >= 0) && (f.y - f.size <= h);
       if (inView) f.appeared = true;
 
-      // Remove only after it has appeared and then exits the screen bounds
-      const offScreen = (f.y - f.size > height) || (f.x < -20) || (f.x > width + 20);
+      const dir = f.direction === 'up' ? 'up' : 'down';
+      const offVertical = dir === 'up'
+        ? (f.y + f.size < -20)
+        : (f.y - f.size > h);
+      const offHorizontal = (f.x < -20) || (f.x > w + 20);
+      const offScreen = offVertical || offHorizontal;
       if (f.appeared && offScreen) {
         this.flakes.splice(i, 1);
       }
@@ -92,5 +107,10 @@ export class SnowEffect {
     const lo = Number(min) ?? 0;
     const hi = Number(max) ?? lo;
     return lo + Math.random() * Math.max(0, hi - lo);
+  }
+
+  _resolveDirection() {
+    const direction = SNOW?.direction;
+    return direction === 'up' ? 'up' : 'down';
   }
 }

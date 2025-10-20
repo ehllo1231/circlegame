@@ -84,6 +84,7 @@ export const RHYTHM = {
 export const SNOW = {
   enabledAfterSeconds: 3,     // start snow after N seconds
   alpha: 0.16,                 // flake transparency (similar to SCORE.centerAlpha)
+  direction: 'down',           // 'down' or 'up'
   // average flakes spawned per minute (use this instead of per-second)
   spawnPerMin: 60,             // e.g., 30 flakes per minute
   size: { min: 3, max: 5 },    // px radius
@@ -99,7 +100,7 @@ export const STAGE2_PROLOG = {
   radiusDurationSec: 3,
   pauseBetweenSec: 1,
   rotationDurationSec: 2,
-  radiusStartFactor: 0.6,
+  radiusStartFactor: 0.5,
   radiusEndFactor: 1.0,
   rotationAngleDeg: 90,
   tremor: {
@@ -113,7 +114,7 @@ export const STAGE2_PROLOG = {
     enabled: true,
     spawnDurationSec: 3,
     spawnRatePerMin: 600,
-    spawnRampDurationSec: 1,
+    spawnRampDurationSec: 2,
     burstCount: 5,
     speed: { min: 100, max: 200 },
     size: { min: 1, max: 3 },
