@@ -121,6 +121,16 @@ export class StageOrchestrator {
     return stage.getBackgroundColor() ?? defaultColor;
   }
 
+  getBackgroundOffset(defaultOffset = { x: 0, y: 0 }) {
+    const stage = this.getActiveStage();
+    if (!stage || typeof stage.getBackgroundOffset !== 'function') return defaultOffset;
+    const offset = stage.getBackgroundOffset();
+    if (!offset || typeof offset.x !== 'number' || typeof offset.y !== 'number') {
+      return defaultOffset;
+    }
+    return offset;
+  }
+
   advance(currentSeconds) {
     if (!this.hasNextStage()) return false;
     this.activeIndex += 1;

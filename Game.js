@@ -294,6 +294,10 @@ export class Game {
       this.currentDisplayScore = displaySeconds;
 
       const backgroundColor = this.stageController.getBackgroundColor('#000000');
+      const backgroundOffset = this.stageController.getBackgroundOffset({ x: 0, y: 0 }) ?? { x: 0, y: 0 };
+      const hasBackgroundOffset = Boolean(
+        backgroundOffset && (backgroundOffset.x !== 0 || backgroundOffset.y !== 0),
+      );
       this._clearCanvas(backgroundColor);
 
       const elapsedForEffects = stageElapsedRaw;
@@ -320,6 +324,11 @@ export class Game {
       if (playerHit) {
         this.gameOverScreenShow();
         return;
+      }
+
+      if (hasBackgroundOffset) {
+        this.ctx.save();
+        this.ctx.translate(backgroundOffset.x, backgroundOffset.y);
       }
 
       this.scene.drawFrame(this.ctx, {
@@ -358,6 +367,10 @@ export class Game {
             this.orbitRadius,
           );
         }
+      }
+
+      if (hasBackgroundOffset) {
+        this.ctx.restore();
       }
     }
 

@@ -133,6 +133,10 @@ export class StageManager {
     return lerpHex(this.fadeFrom, this.fadeTo, k);
   }
 
+  getBackgroundOffset() {
+    return { x: 0, y: 0 };
+  }
+
   isFinished() {
     return this.totalElapsed >= this.getTotalDuration();
   }

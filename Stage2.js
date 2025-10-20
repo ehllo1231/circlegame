@@ -11,8 +11,16 @@ export class Stage2Prolog {
     this.geometry = null;
     this._baseAngle = -Math.PI / 2;
     this.radiusDurationSec = 0;
+    this.pauseDurationSec = 0;
     this.rotationDurationSec = 0;
     this.totalDurationSec = 0;
+    this.tremorEnabled = false;
+    this.tremorAmplitude = 0;
+    this.tremorFrequencyHz = 0;
+    this.tremorAxisScaleY = 0.6;
+    this._tremorAngularSpeed = 0;
+    this._tremorPhaseOffset = 0;
+    this._backgroundOffset = { x: 0, y: 0 };
     this._applyConfig();
     this._startRadius = 0;
     this._endRadius = 0;
@@ -24,25 +32,53 @@ export class Stage2Prolog {
     this.completed = false;
     this.elapsed = 0;
     this.geometry = geometry || null;
+    this._backgroundOffset.x = 0;
+    this._backgroundOffset.y = 0;
+    this._tremorPhaseOffset = Math.random() * Math.PI * 2;
     this._buildObstacles();
   }
 
   update(dt = 0) {
     if (!this.started) return;
     this.elapsed += dt;
-    const totalDuration = this.totalDurationSec > 0 ? this.totalDurationSec : (this.radiusDurationSec + this.rotationDurationSec);
+    const radiusDuration = this.radiusDurationSec > 0 ? this.radiusDurationSec : 0;
+    const pauseDuration = this.pauseDurationSec > 0 ? this.pauseDurationSec : 0;
+    const rotationDuration = this.rotationDurationSec > 0 ? this.rotationDurationSec : 0;
+    const totalDuration = this.totalDurationSec > 0
+      ? this.totalDurationSec
+      : (radiusDuration + pauseDuration + rotationDuration);
     const cappedElapsed = Math.max(0, Math.min(this.elapsed, totalDuration));
 
-    const radiusDuration = this.radiusDurationSec > 0 ? this.radiusDurationSec : 0;
-    const rotationDuration = this.rotationDurationSec > 0 ? this.rotationDurationSec : 0;
+    let radiusProgress = 1;
+    if (radiusDuration > 0) {
+      const radiusElapsed = Math.min(cappedElapsed, radiusDuration);
+      radiusProgress = Math.max(0, Math.min(1, radiusElapsed / radiusDuration));
+    }
 
-    const radiusProgress = radiusDuration > 0
-      ? Math.max(0, Math.min(1, cappedElapsed / radiusDuration))
-      : 1;
-    const rotationElapsed = Math.max(0, cappedElapsed - radiusDuration);
-    const rotationProgress = rotationDuration > 0
-      ? Math.max(0, Math.min(1, rotationElapsed / rotationDuration))
-      : radiusProgress >= 1 ? 1 : 0;
+    let rotationProgress = 0;
+    const afterRadius = Math.max(0, cappedElapsed - radiusDuration);
+    if (afterRadius > pauseDuration) {
+      const rotationElapsed = Math.max(0, afterRadius - pauseDuration);
+      rotationProgress = rotationDuration > 0
+        ? Math.max(0, Math.min(1, rotationElapsed / rotationDuration))
+        : (radiusProgress >= 1 ? 1 : 0);
+    }
+    if (rotationDuration <= 0 && radiusProgress >= 1) {
+      rotationProgress = 1;
+    }
+
+    let offsetX = 0;
+    let offsetY = 0;
+    if (this.tremorEnabled && radiusDuration > 0 && radiusProgress < 1) {
+      const timeInRadius = Math.max(0, Math.min(cappedElapsed, radiusDuration));
+      const phase = this._tremorAngularSpeed * timeInRadius + this._tremorPhaseOffset;
+      const amplitude = this.tremorAmplitude;
+      offsetX = Math.sin(phase) * amplitude;
+      const secondaryPhase = phase * 1.3 + Math.PI * 0.25;
+      offsetY = Math.sin(secondaryPhase) * amplitude * this.tremorAxisScaleY;
+    }
+    this._backgroundOffset.x = offsetX;
+    this._backgroundOffset.y = offsetY;
 
     const currentRadius = this._startRadius + (this._endRadius - this._startRadius) * radiusProgress;
     this._applyRotation(rotationProgress);
@@ -60,6 +96,8 @@ export class Stage2Prolog {
     }
     if (!this.completed && this.elapsed >= totalDuration) {
       this.completed = true;
+      this._backgroundOffset.x = 0;
+      this._backgroundOffset.y = 0;
     }
   }
 
@@ -86,6 +124,13 @@ export class Stage2Prolog {
 
   getObstacles() {
     return Array.isArray(this.obstacles) ? this.obstacles : [];
+  }
+
+  getBackgroundOffset() {
+    return {
+      x: this._backgroundOffset.x,
+      y: this._backgroundOffset.y,
+    };
   }
 
   _buildObstacles() {
@@ -119,10 +164,20 @@ export class Stage2Prolog {
     const cfg = STAGE2_PROLOG ?? {};
     const spikeCfg = cfg.spike ?? {};
     const radiusDuration = typeof cfg.radiusDurationSec === 'number' && cfg.radiusDurationSec > 0 ? cfg.radiusDurationSec : 1;
+    const pauseDuration = typeof cfg.pauseBetweenSec === 'number' && cfg.pauseBetweenSec > 0 ? cfg.pauseBetweenSec : 0;
     const rotationDuration = typeof cfg.rotationDurationSec === 'number' && cfg.rotationDurationSec > 0 ? cfg.rotationDurationSec : 1;
     this.radiusDurationSec = radiusDuration;
+    this.pauseDurationSec = pauseDuration;
     this.rotationDurationSec = rotationDuration;
-    this.totalDurationSec = Math.max(0, radiusDuration) + Math.max(0, rotationDuration);
+    this.totalDurationSec = Math.max(0, radiusDuration) + Math.max(0, pauseDuration) + Math.max(0, rotationDuration);
+    const tremorCfg = cfg.tremor ?? {};
+    const amplitude = typeof tremorCfg.amplitude === 'number' ? Math.max(0, tremorCfg.amplitude) : 0;
+    const frequencyHz = typeof tremorCfg.frequencyHz === 'number' ? Math.max(0, tremorCfg.frequencyHz) : 0;
+    this.tremorAxisScaleY = typeof tremorCfg.axisScaleY === 'number' ? tremorCfg.axisScaleY : 0.6;
+    this.tremorAmplitude = amplitude;
+    this.tremorFrequencyHz = frequencyHz;
+    this.tremorEnabled = tremorCfg.enabled !== false && amplitude > 0 && frequencyHz > 0;
+    this._tremorAngularSpeed = this.tremorEnabled ? frequencyHz * (Math.PI * 2) : 0;
     this.spikeLength = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
     this.spikeWidth = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
     this.spikeColor = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';
@@ -278,6 +333,16 @@ export class Stage2 extends StageManager {
   getPrologObstacles() {
     if (!this.prolog || !this._prologShown) return [];
     return this.prolog.getObstacles();
+  }
+
+  getBackgroundOffset() {
+    if (this.prolog && this._prologShown && typeof this.prolog.getBackgroundOffset === 'function') {
+      const offset = this.prolog.getBackgroundOffset();
+      if (offset && typeof offset.x === 'number' && typeof offset.y === 'number') {
+        return offset;
+      }
+    }
+    return super.getBackgroundOffset();
   }
 }
 
