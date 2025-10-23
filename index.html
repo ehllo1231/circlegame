@@ -8,11 +8,10 @@
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         canvas { border: none; }
         /* Overlays */
-        .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 10; }
-        #startScreen { display: none; }
+        .overlay { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameTitle { font: bold 48px Arial, sans-serif; color: #fff; margin-bottom: 24px; text-shadow: 0 0 20px #fff; }
         #stageSelect { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
-        #stageSelectLabel { font: bold 22px Arial, sans-serif; color: #ddd; }
+        #stageSelectLabel { font: bold 22px Arial, sans-serif; color: #ddd; margin-bottom: 12px; }
         .stage-button { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 22px; font: 16px Arial, sans-serif; cursor: pointer; border-radius: 6px; transition: all .2s ease; min-width: 140px; }
         .stage-button:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
         .stage-button.active { background: #fff; color: #000; box-shadow: 0 0 14px rgba(255,255,255,0.6); }
@@ -22,6 +21,7 @@
         #gameOverScreen { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameOverTitle { font: bold 48px Arial, sans-serif; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
         #scoreDisplay { font: 24px Arial, sans-serif; color: #fff; margin-bottom: 10px; text-align: center; }
+        #gameOverActions { display: flex; gap: 16px; }
     </style>
 </head>
 <body>
@@ -50,7 +50,7 @@
     <div id="gameOverScreen">
         <div id="gameOverTitle">Game Over!</div>
         <div id="scoreDisplay">Score: 0</div>
-        <div style="display:flex; gap:16px;">
+        <div id="gameOverActions">
             <button id="restartButton">Restart</button>
             <button id="stageSelectButton">Stage Select</button>
         </div>

@@ -152,3 +152,40 @@ export const CONTROLS = {
   // If true, any alphabetic key (A–Z) also reverses direction during gameplay
   reverseUseAlphabet: true,
 };
+
+// UI layout configuration for overlays
+export const UI = {
+  intro: {
+    titleFontSizePx: 48,
+    titleSpacingPx: 24,
+    buttonFontSizePx: 18,
+    buttonPaddingPx: { vertical: 15, horizontal: 30 },
+    buttonMarginTopPx: 12,
+  },
+  stageSelect: {
+    labelFontSizePx: 22,
+    labelSpacingPx: 12,
+    buttonFontSizePx: 16,
+    buttonPaddingPx: { vertical: 10, horizontal: 22 },
+    buttonGapPx: 12,
+    containerGapPx: 28,
+    startButtonFontSizePx: 18,
+    startButtonPaddingPx: { vertical: 15, horizontal: 30 },
+    startButtonMarginTopPx: 16,
+    resetButtonFontSizePx: 18,
+    resetButtonPaddingPx: { vertical: 15, horizontal: 30 },
+  },
+  gameOver: {
+    titleFontSizePx: 48,
+    titleSpacingPx: 10,
+    scoreFontSizePx: 24,
+    scoreSpacingPx: 10,
+    containerGapPx: 20,
+    buttonFontSizePx: 18,
+    buttonPaddingPx: { vertical: 15, horizontal: 30 },
+    buttonGapPx: 16,
+  },
+  buttons: {
+    borderRadiusPx: 8,
+  },
+};

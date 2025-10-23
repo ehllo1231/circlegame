@@ -107,6 +107,11 @@ export class Game {
           this.ui.setStageSelection(this.selectedStage);
         }
       },
+      onIntroStartComplete: () => {
+        if (this.ui && typeof this.ui.showStageSelection === 'function') {
+          this.ui.showStageSelection();
+        }
+      },
       onStart: () => this.startGame(),
       onRestart: () => this.restartGame(),
       onStageSelect: (stageId) => this.setSelectedStage(stageId),
@@ -114,7 +119,15 @@ export class Game {
       onResetScores: () => this.resetHighScores(),
     });
     this.input.bindHandlers({
-      onStart: () => { if (!this.gameStarted) this.startGame(); },
+      onStart: () => {
+        if (!this.gameStarted) {
+          if (this.ui && typeof this.ui.isIntroVisible === 'function' && this.ui.isIntroVisible()) {
+            this.ui.triggerIntroStart();
+            return;
+          }
+          this.startGame();
+        }
+      },
       onRestart: () => { if (this.gameOver) this.restartGame(); },
       onReverse: () => { if (this.gameStarted && !this.gameOver) this.scene.reversePlayerDirection(); },
       onDebugToggle: () => {
@@ -186,6 +199,9 @@ export class Game {
 
   restartGame() {
     resetAllConfigToDefaults();
+    if (this.ui && typeof this.ui.applyUIConfig === 'function') {
+      this.ui.applyUIConfig();
+    }
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);
@@ -434,6 +450,9 @@ export class Game {
       this.animationId = null;
     }
     resetAllConfigToDefaults();
+    if (this.ui && typeof this.ui.applyUIConfig === 'function') {
+      this.ui.applyUIConfig();
+    }
 
     this.gameStarted = false;
     this.gameOver = false;
