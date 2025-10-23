@@ -13,6 +13,12 @@ export class UIController {
     this.stageSelectButton = document.getElementById('stageSelectButton');
     this.resetScoresButton = document.getElementById('resetScoresButton');
     this.selectedStageId = null;
+    this.stageLocks = new Map();
+    this.stageButtonMap = new Map();
+    for (const btn of this.stageButtons) {
+      const stage = btn?.dataset?.stage;
+      if (stage) this.stageButtonMap.set(stage, btn);
+    }
   }
 
   bind({ onIntroStart, onStart, onRestart, onStageSelect, onStageSelectScreen, onResetScores } = {}) {
@@ -39,6 +45,7 @@ export class UIController {
         btn.addEventListener('click', () => {
           const stage = btn.dataset.stage;
           if (stage) {
+            if (this.isStageLocked(stage)) return;
             this.setStageSelection(stage);
             onStageSelect(stage);
           }
@@ -70,6 +77,7 @@ export class UIController {
   }
 
   setStageSelection(stageId) {
+    if (this.isStageLocked(stageId)) return;
     if (!stageId) return;
     this.selectedStageId = stageId;
     if (this.stageButtons.length > 0) {
@@ -95,6 +103,20 @@ export class UIController {
       if (highScore != null) lines.push(`최고 점수: ${highScore}`);
       this.scoreDisplay.innerHTML = lines.map(x => `<div>${x}</div>`).join('');
     }
+  }
+
+  setStageLock(stageId, locked) {
+    const btn = this.stageButtonMap.get(stageId);
+    if (!btn) return;
+    this.stageLocks.set(stageId, !!locked);
+    btn.style.display = locked ? 'none' : '';
+    if (locked && btn.classList.contains('active')) {
+      btn.classList.remove('active');
+    }
+  }
+
+  isStageLocked(stageId) {
+    return !!this.stageLocks.get(stageId);
   }
 
   drawScore(ctx, seconds, centerX, centerY, orbitRadius) {

@@ -85,6 +85,7 @@ export class Game {
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this.currentStageId = this.stageController.getActiveStageId();
 
+    this._updateStageLocks();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(this.selectedStage);
     }
@@ -101,6 +102,7 @@ export class Game {
     this.ui.bind({
       onIntroStart: () => {
         if (this.gameStarted) return;
+        this._updateStageLocks();
         if (this.ui && typeof this.ui.setStageSelection === 'function') {
           this.ui.setStageSelection(this.selectedStage);
         }
@@ -178,6 +180,7 @@ export class Game {
       try { localStorage.setItem(highKey, String(high)); } catch (_) { /* ignore */ }
       isNew = true;
     }
+    this._updateStageLocks();
     this.ui.showGameOver(finalScore, high, isNew);
   }
 
@@ -217,6 +220,12 @@ export class Game {
 
   setSelectedStage(stageId) {
     if (!stageId || !this.stageMap?.[stageId]) return;
+    if (!this._isStageUnlocked(stageId)) {
+      if (this.ui && typeof this.ui.setStageSelection === 'function') {
+        this.ui.setStageSelection(this.selectedStage);
+      }
+      return;
+    }
     if (this.gameStarted) return;
 
     this.selectedStage = stageId;
@@ -449,6 +458,7 @@ export class Game {
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this.currentStageId = this.stageController.getActiveStageId();
 
+    this._updateStageLocks();
     if (this.ui) {
       this.ui.hideOverlays();
       this.ui.showStageSelection();
@@ -524,6 +534,7 @@ export class Game {
     for (const key of keys) {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
     }
+    this._updateStageLocks();
   }
 
   _ensurePrologForStage(stage) {
@@ -559,6 +570,40 @@ export class Game {
       this.backgroundFader.setColorImmediate(theme.background);
     } else {
       this.backgroundFader.fadeTo(theme.background, theme.fadeDurationSec);
+    }
+  }
+
+  _isStageUnlocked(stageId) {
+    if (!stageId || stageId === 'stage1') return true;
+    if (stageId === 'stage2') {
+      const key = this._getHighScoreStorageKey('stage1');
+      let high = 0;
+      try {
+        const stored = localStorage.getItem(key);
+        high = stored ? parseInt(stored, 10) : 0;
+        if (!Number.isFinite(high)) high = 0;
+      } catch (_) {
+        high = 0;
+      }
+      return high >= 60;
+    }
+    return true;
+  }
+
+  _updateStageLocks() {
+    const stage2Unlocked = this._isStageUnlocked('stage2');
+    if (this.ui && typeof this.ui.setStageLock === 'function') {
+      this.ui.setStageLock('stage2', !stage2Unlocked);
+    }
+    if (!stage2Unlocked && this.selectedStage === 'stage2') {
+      this.selectedStage = 'stage1';
+      this.stageController.setStartingStage(this.selectedStage);
+      this.stageController.resetProgress(0);
+      this._refreshStageDurations();
+      this.score.setMaxSeconds(this.stageController.getTotalDuration());
+      if (this.ui && typeof this.ui.setStageSelection === 'function') {
+        this.ui.setStageSelection(this.selectedStage);
+      }
     }
   }
 }
