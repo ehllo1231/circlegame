@@ -91,10 +91,20 @@ export class Game {
 
     this._refreshStageDurations();
     this.setupEventListeners();
+
+    if (this.ui && typeof this.ui.showIntro === 'function') {
+      this.ui.showIntro();
+    }
   }
 
   setupEventListeners() {
     this.ui.bind({
+      onIntroStart: () => {
+        if (this.gameStarted) return;
+        if (this.ui && typeof this.ui.setStageSelection === 'function') {
+          this.ui.setStageSelection(this.selectedStage);
+        }
+      },
       onStart: () => this.startGame(),
       onRestart: () => this.restartGame(),
       onStageSelect: (stageId) => this.setSelectedStage(stageId),
@@ -441,7 +451,7 @@ export class Game {
 
     if (this.ui) {
       this.ui.hideOverlays();
-      this.ui.showStart();
+      this.ui.showStageSelection();
       if (typeof this.ui.setStageSelection === 'function') {
         this.ui.setStageSelection(this.selectedStage);
       }

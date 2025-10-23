@@ -7,16 +7,17 @@
     <style>
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         canvas { border: none; }
-        /* Start screen */
-        #startScreen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 10; }
+        /* Overlays */
+        .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 10; }
+        #startScreen { display: none; }
         #gameTitle { font: bold 48px Arial, sans-serif; color: #fff; margin-bottom: 24px; text-shadow: 0 0 20px #fff; }
         #stageSelect { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
         #stageSelectLabel { font: bold 22px Arial, sans-serif; color: #ddd; }
         .stage-button { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 22px; font: 16px Arial, sans-serif; cursor: pointer; border-radius: 6px; transition: all .2s ease; min-width: 140px; }
         .stage-button:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
         .stage-button.active { background: #fff; color: #000; box-shadow: 0 0 14px rgba(255,255,255,0.6); }
-        #startButton, #restartButton, #stageSelectButton, #resetScoresButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
-        #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #resetScoresButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
+        #gameStartButton, #startButton, #restartButton, #stageSelectButton, #resetScoresButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
+        #gameStartButton:hover, #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #resetScoresButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
         /* Game over screen */
         #gameOverScreen { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameOverTitle { font: bold 48px Arial, sans-serif; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
@@ -24,9 +25,14 @@
     </style>
 </head>
 <body>
-    <!-- Start screen -->
-    <div id="startScreen">
+    <!-- Intro screen -->
+    <div id="introScreen" class="overlay">
         <div id="gameTitle">Orbit Dodge</div>
+        <button id="gameStartButton">Game Start</button>
+    </div>
+
+    <!-- Stage selection screen -->
+    <div id="startScreen" class="overlay">
         <div id="stageSelect">
             <div id="stageSelectLabel">Select Stage</div>
             <div>

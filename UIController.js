@@ -2,7 +2,9 @@ import { SCORE } from './Config.js';
 
 export class UIController {
   constructor() {
+    this.introScreen = document.getElementById('introScreen');
     this.startScreen = document.getElementById('startScreen');
+    this.gameStartButton = document.getElementById('gameStartButton');
     this.startButton = document.getElementById('startButton');
     this.gameOverScreen = document.getElementById('gameOverScreen');
     this.restartButton = document.getElementById('restartButton');
@@ -13,7 +15,13 @@ export class UIController {
     this.selectedStageId = null;
   }
 
-  bind({ onStart, onRestart, onStageSelect, onStageSelectScreen, onResetScores }) {
+  bind({ onIntroStart, onStart, onRestart, onStageSelect, onStageSelectScreen, onResetScores } = {}) {
+    if (this.gameStartButton) {
+      this.gameStartButton.addEventListener('click', () => {
+        this.showStageSelection();
+        if (onIntroStart) onIntroStart();
+      });
+    }
     if (this.startButton && onStart) {
       this.startButton.addEventListener('click', onStart);
     }
@@ -40,13 +48,25 @@ export class UIController {
   }
 
   hideOverlays() {
+    if (this.introScreen) this.introScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
   }
 
-  showStart() {
+  showIntro() {
+    if (this.startScreen) this.startScreen.style.display = 'none';
+    if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
+    if (this.introScreen) this.introScreen.style.display = 'flex';
+  }
+
+  showStageSelection() {
+    if (this.introScreen) this.introScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'flex';
+  }
+
+  showStart() {
+    this.showStageSelection();
   }
 
   setStageSelection(stageId) {
