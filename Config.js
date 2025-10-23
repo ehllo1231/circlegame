@@ -189,3 +189,12 @@ export const UI = {
     borderRadiusPx: 8,
   },
 };
+
+export const AUDIO = {
+  stage1: {
+    src: './Music/stage1.mp3',
+    volume: 0.6,
+    loop: true,
+    preload: 'auto',
+  },
+};

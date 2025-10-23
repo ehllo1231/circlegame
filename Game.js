@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER, SNOW, STAGE_THEMES } from './Config.js';
+import { ORBIT, PLAYER, SNOW, STAGE_THEMES, AUDIO } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
@@ -76,6 +76,9 @@ export class Game {
       },
     });
 
+    this.audioElements = new Map();
+    this.currentAudioStage = null;
+
     const initialStage = this.stageController.getActiveStage();
     if (initialStage) {
       this.scene.applyStageConfig(initialStage);
@@ -142,6 +145,7 @@ export class Game {
   }
 
   startGame() {
+    this._stopStageMusic();
     this.gameStarted = true;
     this.gameOver = false;
     this.score.reset();
@@ -160,6 +164,7 @@ export class Game {
     }
     this.scene.applyPlayerConfigFromConfig();
     this.ui.hideOverlays();
+    this._maybePlayStageMusic();
 
     if (this.fastForwardNextStart) {
       this.applyFastForwardStageEnd();
@@ -171,6 +176,7 @@ export class Game {
 
   gameOverScreenShow() {
     this.gameOver = true;
+    this._stopStageMusic();
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
@@ -198,6 +204,7 @@ export class Game {
   }
 
   restartGame() {
+    this._stopStageMusic();
     resetAllConfigToDefaults();
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
@@ -244,6 +251,10 @@ export class Game {
     }
     if (this.gameStarted) return;
 
+    if (stageId !== 'stage1') {
+      this._stopStageMusic();
+    }
+
     this.selectedStage = stageId;
     this._applyStageTheme(stageId);
 
@@ -280,6 +291,7 @@ export class Game {
       if (stageChanged && stage) {
         this.scene.applyStageConfig(stage);
         this._ensurePrologForStage(stage);
+        this._maybePlayStageMusic();
       }
 
       let stageFinished = this.stageController.isStageFinished();
@@ -302,6 +314,9 @@ export class Game {
       if (this.currentStageId == null) this.currentStageId = activeStageId;
       if (this.currentStageId !== activeStageId) {
         if (this.currentStageId) {
+          if (this.currentAudioStage === 'stage1' && this.currentStageId === 'stage1') {
+            this._stopStageMusic();
+          }
           this.scoreBase += this._getStageTotalDuration(this.currentStageId);
         }
         this.currentStageId = activeStageId;
@@ -338,6 +353,12 @@ export class Game {
       }
       const displaySeconds = this.scoreBase + stageElapsedRaw;
       this.currentDisplayScore = displaySeconds;
+
+      if (this.currentAudioStage === 'stage1') {
+        if (activeStageId !== 'stage1' || stageElapsedRaw >= 60) {
+          this._stopStageMusic();
+        }
+      }
 
       const backgroundColor = this.stageController.getBackgroundColor('#000000');
       const backgroundOffset = this.stageController.getBackgroundOffset({ x: 0, y: 0 }) ?? { x: 0, y: 0 };
@@ -449,6 +470,7 @@ export class Game {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
+    this._stopStageMusic();
     resetAllConfigToDefaults();
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
@@ -496,6 +518,7 @@ export class Game {
       this.scene.applyStageConfig(stage);
       this._ensurePrologForStage(stage);
     }
+    this._maybePlayStageMusic();
     return true;
   }
 
@@ -565,6 +588,67 @@ export class Game {
         orbitRadius: this.orbitRadius,
       });
     }
+  }
+
+  _maybePlayStageMusic() {
+    const stageId = this.stageController.getActiveStageId();
+    if (!stageId) return;
+    if (stageId === 'stage1') {
+      this._playStageMusic(stageId);
+    } else if (this.currentAudioStage) {
+      this._stopStageMusic();
+    }
+  }
+
+  _playStageMusic(stageId) {
+    if (!stageId) return;
+    if (this.currentAudioStage === stageId) return;
+    const cfg = AUDIO?.[stageId];
+    if (!cfg || !cfg.src) return;
+    const audio = this._getAudioElement(stageId, cfg);
+    if (!audio) return;
+    const volume = Number(cfg.volume);
+    if (Number.isFinite(volume)) {
+      audio.volume = Math.max(0, Math.min(1, volume));
+    }
+    audio.loop = cfg.loop !== false;
+    if (cfg.startTime != null && Number.isFinite(cfg.startTime)) {
+      audio.currentTime = Math.max(0, cfg.startTime);
+    } else {
+      audio.currentTime = 0;
+    }
+    const playResult = audio.play();
+    if (playResult && typeof playResult.catch === 'function') {
+      playResult.catch(() => {});
+    }
+    this.currentAudioStage = stageId;
+  }
+
+  _stopStageMusic() {
+    if (!this.currentAudioStage) return;
+    const audio = this.audioElements.get(this.currentAudioStage);
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    this.currentAudioStage = null;
+  }
+
+  _getAudioElement(stageId, cfg) {
+    if (this.audioElements.has(stageId)) {
+      const existing = this.audioElements.get(stageId);
+      if (cfg && cfg.src && existing.__cfgSrc !== cfg.src) {
+        this.audioElements.delete(stageId);
+      } else {
+        return existing;
+      }
+    }
+    if (!cfg || !cfg.src) return null;
+    const audio = new Audio(cfg.src);
+    audio.preload = cfg.preload ?? 'auto';
+    audio.__cfgSrc = cfg.src;
+    this.audioElements.set(stageId, audio);
+    return audio;
   }
 
   _collectBackgroundElements() {
