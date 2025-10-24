@@ -132,6 +132,21 @@ export const STAGE2_PROLOG = {
   },
 };
 
+export const STAGE3_PROLOG = {
+  durationSec: 3,
+  lightning: {
+    enabled: true,
+    intervalSec: 1.3,
+    flashDurationSec: 0.22,
+    color: '#ffd860',
+    strokeWidth: 3,
+    spawnDistance: 220,
+    forkJitter: 36,
+    segments: 6,
+    fadeExponent: 1.6,
+  },
+};
+
 export const STAGE_THEMES = {
   stage1: {
     background: '#000000',
@@ -142,7 +157,7 @@ export const STAGE_THEMES = {
     fadeDurationSec: 0.8,
   },
   stage3: {
-    background: '#00021f',
+    background: '#00032e',
     fadeDurationSec: 0.8,
   },
 };

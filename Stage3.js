@@ -1,5 +1,5 @@
 import { StageManager, StagePhase } from './StageManager.js';
-import { SPAWN, SNOW, STAGE2_PROLOG } from './Config.js';
+import { SPAWN, SNOW, STAGE2_PROLOG, STAGE3_PROLOG } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
 
 export class Stage3Prolog {
@@ -8,27 +8,88 @@ export class Stage3Prolog {
     this.completed = false;
     this.elapsed = 0;
     this.geometry = null;
-    this.totalDurationSec = 0;
+    const cfg = STAGE3_PROLOG ?? {};
+    this.totalDurationSec = Number.isFinite(cfg.durationSec) && cfg.durationSec > 0 ? cfg.durationSec : 0;
+    this.lightningConfig = cfg.lightning ?? {};
+    this.lightningEnabled = this.lightningConfig.enabled !== false;
+    this.lightningInterval = Math.max(0.05, Number(this.lightningConfig.intervalSec) || 1.3);
+    this.lightningDuration = Math.max(0.01, Number(this.lightningConfig.flashDurationSec) || 0.22);
+    this.lightningFadeExp = Math.max(0.1, Number(this.lightningConfig.fadeExponent) || 1.6);
     this.obstacles = [];
+    this.lightnings = [];
+    this.lightningTimer = 0;
+    this.centerX = 0;
+    this.centerY = 0;
   }
 
   start(geometry) {
+    const cfg = STAGE3_PROLOG ?? {};
+    this.totalDurationSec = Number.isFinite(cfg.durationSec) && cfg.durationSec > 0 ? cfg.durationSec : 0;
+    this.lightningConfig = cfg.lightning ?? this.lightningConfig ?? {};
+    this.lightningEnabled = this.lightningConfig.enabled !== false;
+    this.lightningInterval = Math.max(0.05, Number(this.lightningConfig.intervalSec) || 1.3);
+    this.lightningDuration = Math.max(0.01, Number(this.lightningConfig.flashDurationSec) || 0.22);
+    this.lightningFadeExp = Math.max(0.1, Number(this.lightningConfig.fadeExponent) || 1.6);
     this.started = true;
     this.completed = false;
     this.elapsed = 0;
     this.geometry = geometry || null;
     this._buildObstacles();
+    this.lightnings.length = 0;
+    this.lightningTimer = 0;
+    if (this.lightningEnabled) {
+      this._spawnLightning();
+    }
   }
 
   update(dt = 0) {
-    if (!this.started || this.completed) return;
-    this.elapsed += dt;
-    // No special prolog sequence yet; complete immediately.
-    this.completed = true;
+    if (!this.started) return;
+    if (!this.completed && this.lightningEnabled) {
+      this.lightningTimer += dt;
+      while (this.lightningTimer >= this.lightningInterval) {
+        this.lightningTimer -= this.lightningInterval;
+        this._spawnLightning();
+        if (!this.lightningEnabled) break;
+      }
+    }
+    if (this.lightningEnabled && this.lightnings.length > 0) {
+      for (let i = this.lightnings.length - 1; i >= 0; i -= 1) {
+        const bolt = this.lightnings[i];
+        bolt.life -= dt;
+        if (bolt.life <= 0) {
+          this.lightnings.splice(i, 1);
+        }
+      }
+    }
+    if (!this.completed) {
+      this.elapsed += dt;
+      if (this.totalDurationSec <= 0 || this.elapsed >= this.totalDurationSec) {
+        this.completed = true;
+      }
+    }
   }
 
-  draw() {
-    // No-op for now; effects will be added later.
+  draw(ctx) {
+    if (!ctx || !this.lightningEnabled || this.lightnings.length === 0) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const bolt of this.lightnings) {
+      const alpha = Math.max(0, Math.min(1, bolt.life / bolt.maxLife));
+      const faded = Math.pow(alpha, this.lightningFadeExp);
+      ctx.globalAlpha = faded;
+      ctx.strokeStyle = bolt.color;
+      ctx.lineWidth = bolt.width;
+      const pts = bolt.points;
+      if (!pts || pts.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i += 1) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   isComplete() {
@@ -93,6 +154,65 @@ export class Stage3Prolog {
     this.obstacles = [primary, secondary];
     this.centerX = centerX;
     this.centerY = centerY;
+  }
+
+  disableLightning() {
+    this.lightningEnabled = false;
+    if (Array.isArray(this.lightnings)) {
+      this.lightnings.length = 0;
+    }
+    this.lightningTimer = 0;
+  }
+
+  _spawnLightning() {
+    if (!this.lightningEnabled || !Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
+    const segments = Math.max(2, Math.round(Number(this.lightningConfig.segments) || 6));
+    const jitter = Math.max(0, Number(this.lightningConfig.forkJitter) || 36);
+    const spawnDistance = Number.isFinite(this.lightningConfig.spawnDistance)
+      ? this.lightningConfig.spawnDistance
+      : 220;
+    const color = typeof this.lightningConfig.color === 'string' ? this.lightningConfig.color : '#ffd860';
+    const width = Math.max(1, Number(this.lightningConfig.strokeWidth) || 3);
+
+    for (const obstacle of this.obstacles) {
+      if (!obstacle) continue;
+      const angle = obstacle.angle ?? 0;
+      const baseRadius = obstacle.radius ?? 0;
+      const length = obstacle.length ?? 0;
+      const tipRadius = baseRadius - length;
+      const startRadius = baseRadius + Math.max(0, spawnDistance);
+      const start = this._pointOnAngle(angle, startRadius);
+      const end = this._pointOnAngle(angle, tipRadius);
+      if (!Number.isFinite(start.x) || !Number.isFinite(start.y) || !Number.isFinite(end.x) || !Number.isFinite(end.y)) {
+        continue;
+      }
+      const points = [start];
+      for (let i = 1; i < segments; i += 1) {
+        const t = i / segments;
+        const lerpX = start.x + (end.x - start.x) * t;
+        const lerpY = start.y + (end.y - start.y) * t;
+        const falloff = 1 - t;
+        const offsetX = (Math.random() * 2 - 1) * jitter * falloff;
+        const offsetY = (Math.random() * 2 - 1) * jitter * falloff;
+        points.push({ x: lerpX + offsetX, y: lerpY + offsetY });
+      }
+      points.push(end);
+      this.lightnings.push({
+        points,
+        color,
+        width,
+        life: this.lightningDuration,
+        maxLife: this.lightningDuration,
+      });
+    }
+  }
+
+  _pointOnAngle(angle, radius) {
+    const r = Number.isFinite(radius) ? radius : 0;
+    return {
+      x: this.centerX + Math.cos(angle) * r,
+      y: this.centerY + Math.sin(angle) * r,
+    };
   }
 }
 
@@ -202,6 +322,9 @@ export class Stage3 extends StageManager {
       this._prologShown = true;
       this.prolog.start(geometry);
       this.prolog.completed = true;
+      if (typeof this.prolog.disableLightning === 'function') {
+        this.prolog.disableLightning();
+      }
       return;
     }
     if (this._prologShown) return;
