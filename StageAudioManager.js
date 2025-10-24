@@ -58,10 +58,16 @@ export class StageAudioManager {
   }
 
   updateConfig(config = AUDIO) {
-    this.config = config || {};
-    if (this._offsetIndexMap) {
-      this._offsetIndexMap.clear();
+    const newConfig = config || {};
+    if (this.config && this._offsetIndexMap) {
+      const currentStageIds = Object.keys(this.config);
+      for (const stageId of currentStageIds) {
+        if (!Object.prototype.hasOwnProperty.call(newConfig, stageId)) {
+          this._offsetIndexMap.delete(this._normalizeStage(stageId));
+        }
+      }
     }
+    this.config = newConfig;
   }
 
   _resolveStartOffset(stageId, cfg) {

@@ -196,13 +196,13 @@ export const AUDIO = {
     volume: 0.6,
     loop: true,
     preload: 'auto',
-    startOffsets: [0, 40, 59.5],
+    startOffsets: [0, 40, 60],
   },
   stage2: {
     src: './Music/stage2.mp3',
     volume: 0.6,
     loop: true,
     preload: 'auto',
-    startOffsets: [0, 48, 90],
+    startOffsets: [0, 40, 60],
   },
 };
