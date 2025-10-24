@@ -229,6 +229,8 @@ export class UIController {
   setStageSelection(stageId) {
     if (this.isStageLocked(stageId)) return;
     if (!stageId) return;
+    const btn = this.stageButtonMap.get(stageId);
+    if (!btn) return;
     this.selectedStageId = stageId;
     if (this.stageButtons.length > 0) {
       this.stageButtons.forEach((btn) => {
@@ -262,6 +264,7 @@ export class UIController {
     btn.style.display = locked ? 'none' : '';
     if (locked && btn.classList.contains('active')) {
       btn.classList.remove('active');
+      this.selectedStageId = null;
     }
   }
 

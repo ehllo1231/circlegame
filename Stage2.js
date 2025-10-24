@@ -269,7 +269,7 @@ export class Stage2Prolog {
 
 class Stage2Phase1 extends StagePhase {
   constructor() {
-    super({ name: 'stage2-phase1', durationSec: 12 });
+    super({ name: 'stage2-phase1', durationSec: 10 });
   }
 
   onEnter() {
@@ -286,7 +286,7 @@ class Stage2Phase1 extends StagePhase {
 
 class Stage2Phase2 extends StagePhase {
   constructor() {
-    super({ name: 'stage2-phase2', durationSec: 18 });
+    super({ name: 'stage2-phase2', durationSec: 20 });
   }
 
   onEnter() {
@@ -303,7 +303,7 @@ class Stage2Phase2 extends StagePhase {
 
 class Stage2Phase3 extends StagePhase {
   constructor() {
-    super({ name: 'stage2-phase3', durationSec: 22 });
+    super({ name: 'stage2-phase3', durationSec: 20 });
   }
 
   onEnter() {
@@ -320,7 +320,7 @@ class Stage2Phase3 extends StagePhase {
 
 class Stage2Phase4 extends StagePhase {
   constructor() {
-    super({ name: 'stage2-phase4', durationSec: 14 });
+    super({ name: 'stage2-phase4', durationSec: 10 });
   }
 
   onEnter() {

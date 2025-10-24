@@ -6,6 +6,7 @@ import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
 import { Stage2 } from './Stage2.js';
+import { Stage3 } from './Stage3.js';
 import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
 import { StageThemeManager } from './StageThemeManager.js';
@@ -35,8 +36,8 @@ export class Game {
     this.ui = new UIController();
     this.input = new InputController();
 
-    this.stageMap = { stage1: Stage1, stage2: Stage2 };
-    this.stageOrder = ['stage1', 'stage2'];
+    this.stageMap = { stage1: Stage1, stage2: Stage2, stage3: Stage3 };
+    this.stageOrder = ['stage1', 'stage2', 'stage3'];
     this.selectedStage = 'stage1';
 
     this.stageController = new StageOrchestrator({
@@ -527,6 +528,27 @@ export class Game {
       }
       return high >= 60;
     }
+    if (stageId === 'stage3') {
+      let stage2High = 0;
+      try {
+        const stored = localStorage.getItem(this._getHighScoreStorageKey('stage2'));
+        stage2High = stored ? parseInt(stored, 10) : 0;
+        if (!Number.isFinite(stage2High)) stage2High = 0;
+      } catch (_) {
+        stage2High = 0;
+      }
+
+      let stage1High = 0;
+      try {
+        const stored = localStorage.getItem(this._getHighScoreStorageKey('stage1'));
+        stage1High = stored ? parseInt(stored, 10) : 0;
+        if (!Number.isFinite(stage1High)) stage1High = 0;
+      } catch (_) {
+        stage1High = 0;
+      }
+
+      return stage2High >= 60 || stage1High >= 120;
+    }
     return true;
   }
 
@@ -534,8 +556,38 @@ export class Game {
     const stage2Unlocked = this._isStageUnlocked('stage2');
     if (this.ui && typeof this.ui.setStageLock === 'function') {
       this.ui.setStageLock('stage2', !stage2Unlocked);
+      const stage3Unlocked = this._isStageUnlocked('stage3');
+      this.ui.setStageLock('stage3', !stage3Unlocked);
     }
     if (!stage2Unlocked && this.selectedStage === 'stage2') {
+      this.selectedStage = 'stage1';
+      this._stopStageMusic();
+      this.stageController.setStartingStage(this.selectedStage);
+      this.stageController.reset();
+      this.stageController.resetProgress(0);
+      this.scene.resetForNewRun();
+      const stage = this.stageController.getActiveStage();
+      if (stage) {
+        this.scene.applyStageConfig(stage);
+      }
+      this.scene.applyPlayerConfigFromConfig();
+      this.score.reset();
+      this.score.setMaxSeconds(this.stageController.getTotalDuration());
+      if (this.runtime) {
+        this.runtime.updateGeometry({
+          centerX: this.centerX,
+          centerY: this.centerY,
+          orbitRadius: this.orbitRadius,
+          offscreenRadius: this.offscreenRadius,
+        });
+        this.runtime.resetTracking();
+      }
+      if (this.ui && typeof this.ui.setStageSelection === 'function') {
+        this.ui.setStageSelection(this.selectedStage);
+      }
+      this._applyStageTheme(this.selectedStage, { immediate: true });
+    }
+    if (!this._isStageUnlocked('stage3') && this.selectedStage === 'stage3') {
       this.selectedStage = 'stage1';
       this._stopStageMusic();
       this.stageController.setStartingStage(this.selectedStage);
