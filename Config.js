@@ -72,9 +72,9 @@ export const PARTICLES = {
 export const RHYTHM = {
   // Frames at 60fps between pulses. Set smaller for faster rhythm.
   // 180 ~ 3s, 90 ~ 1.5s (2x faster than 180)
-  intervalFrames: 60,
-  // Scale decrease per 60fps frame
-  scaleDecrease: 0.005,
+  intervalSeconds: 1,
+  // Scale decrease per 60fps frame / per second (legacy/backward compat)
+  scaleDecreasePerSecond: 0.3,
   // Max scale applied on pulse
   maxScale: 1.1,
 };
@@ -196,5 +196,13 @@ export const AUDIO = {
     volume: 0.6,
     loop: true,
     preload: 'auto',
+    startOffsets: [0, 40, 59.5],
+  },
+  stage2: {
+    src: './Music/stage2.mp3',
+    volume: 0.6,
+    loop: true,
+    preload: 'auto',
+    startOffsets: [0, 48, 90],
   },
 };

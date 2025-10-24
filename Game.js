@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER, SNOW, STAGE_THEMES, AUDIO } from './Config.js';
+import { ORBIT, PLAYER, STAGE_THEMES, AUDIO } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
@@ -10,6 +10,8 @@ import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
 import { StageThemeManager } from './StageThemeManager.js';
 import { StageBackgroundFader } from './StageBackgroundFader.js';
+import { StageAudioManager } from './StageAudioManager.js';
+import { StageRuntime } from './StageRuntime.js';
 
 // Game - main controller
 export class Game {
@@ -26,11 +28,6 @@ export class Game {
     this.gameOver = false;
     this.animationId = null;
     this.score = new Score();
-    this.scoreBase = 0;
-    this.stageElapsedOffset = 0;
-    this.currentStageId = null;
-    this.currentDisplayScore = 0;
-    this._lastTime = null;
 
     this.ui = new UIController();
     this.input = new InputController();
@@ -44,8 +41,6 @@ export class Game {
       stageOrder: this.stageOrder,
       defaultStageId: this.selectedStage,
     });
-    this.stageDurationById = new Map();
-
     this.scene = new GameScene({
       centerX: this.centerX,
       centerY: this.centerY,
@@ -60,6 +55,24 @@ export class Game {
       defaultDurationSec: this.stageThemeManager.getFadeDuration(this.selectedStage),
     });
     this._applyStageTheme(this.selectedStage, { immediate: true });
+
+    this.audioManager = new StageAudioManager({ config: AUDIO });
+
+    this.runtime = new StageRuntime({
+      scene: this.scene,
+      stageController: this.stageController,
+      score: this.score,
+      ui: this.ui,
+      audioManager: this.audioManager,
+      ctx: this.ctx,
+      canvas: this.canvas,
+      geometry: {
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      },
+    });
 
     this.debugMode = false;
     this.fastForwardNextStart = false;
@@ -76,24 +89,19 @@ export class Game {
       },
     });
 
-    this.audioElements = new Map();
-    this.currentAudioStage = null;
-
     const initialStage = this.stageController.getActiveStage();
     if (initialStage) {
       this.scene.applyStageConfig(initialStage);
-      this._ensurePrologForStage(initialStage);
+      this.runtime.ensurePrologForStage(initialStage);
     }
     this.scene.applyPlayerConfigFromConfig();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
-    this.currentStageId = this.stageController.getActiveStageId();
 
     this._updateStageLocks();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(this.selectedStage);
     }
 
-    this._refreshStageDurations();
     this.setupEventListeners();
 
     if (this.ui && typeof this.ui.showIntro === 'function') {
@@ -149,22 +157,19 @@ export class Game {
     this.gameStarted = true;
     this.gameOver = false;
     this.score.reset();
-    this.scoreBase = 0;
-    this.stageElapsedOffset = 0;
-    this.currentStageId = this.stageController.getActiveStageId();
-    this.currentDisplayScore = 0;
-    this._lastTime = null;
     this.stageController.resetProgress(0);
-    this._refreshStageDurations();
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     if (stage) {
       this.scene.applyStageConfig(stage);
-      this._ensurePrologForStage(stage);
+      this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
     this.ui.hideOverlays();
-    this._maybePlayStageMusic();
+    if (this.runtime) {
+      this.runtime.resetTracking();
+      this.runtime.syncAudio();
+    }
 
     if (this.fastForwardNextStart) {
       this.applyFastForwardStageEnd();
@@ -181,7 +186,8 @@ export class Game {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
-    const finalScore = Math.floor(this.currentDisplayScore ?? this.score.getSeconds());
+    const displayScore = this.runtime ? this.runtime.getDisplayScore() : this.score.getSeconds();
+    const finalScore = Math.floor(displayScore ?? this.score.getSeconds());
     const stageId = this.stageController?.getStartingStageId?.() ?? 'default';
     const highKey = this._getHighScoreStorageKey(stageId);
     let high = 0;
@@ -209,33 +215,40 @@ export class Game {
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
     }
+    if (this.audioManager) {
+      this.audioManager.updateConfig(AUDIO);
+    }
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);
     this.stageController.reset();
     this.stageController.resetProgress(0);
-    this._refreshStageDurations();
 
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     if (stage) {
       this.scene.applyStageConfig(stage);
-      this._ensurePrologForStage(stage);
+      this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
+    this._applyStageTheme(this.selectedStage, { immediate: true });
 
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
 
     this.gameOver = false;
     this.gameStarted = false;
     this.fastForwardNextStart = false;
-    this._lastTime = null;
     this.score.reset();
-    this.scoreBase = 0;
-    this.stageElapsedOffset = 0;
-    this.currentDisplayScore = 0;
-    this.currentStageId = this.stageController.getActiveStageId();
+    if (this.runtime) {
+      this.runtime.updateGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      });
+      this.runtime.resetTracking();
+    }
 
     this.ui.hideOverlays();
     this.startGame();
@@ -260,7 +273,6 @@ export class Game {
 
     this.stageController.setStartingStage(stageId);
     this.stageController.resetProgress(0);
-    this._refreshStageDurations();
     const stage = this.stageController.getActiveStage();
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
@@ -268,12 +280,17 @@ export class Game {
 
     this.score.reset();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
-    this._lastTime = null;
     this.fastForwardNextStart = false;
-    this.scoreBase = 0;
-    this.stageElapsedOffset = 0;
-    this.currentDisplayScore = 0;
-    this.currentStageId = this.stageController.getActiveStageId();
+
+    if (this.runtime) {
+      this.runtime.updateGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      });
+      this.runtime.resetTracking();
+    }
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(stageId);
@@ -282,170 +299,10 @@ export class Game {
 
   animate(now) {
     if (!this.gameOver) {
-      const dt = this._lastTime == null ? 1 : Math.min(3, (now - this._lastTime) / (1000 / 60));
-      this._lastTime = now;
-      this.score.update(now);
-
-      const secondsElapsed = this.score.getSeconds();
-      const { stage, changed: stageChanged } = this.stageController.update(secondsElapsed, { debugMode: this.debugMode });
-      if (stageChanged && stage) {
-        this.scene.applyStageConfig(stage);
-        this._ensurePrologForStage(stage);
-        this._maybePlayStageMusic();
-      }
-
-      let stageFinished = this.stageController.isStageFinished();
-      if (
-        stageFinished &&
-        this.stageController.hasNextStage() &&
-        this.stageController.isFadeComplete()
-      ) {
-        if (this._handleStageAdvance(secondsElapsed)) {
-          stageFinished = this.stageController.isStageFinished();
-        }
-      }
-
-      const activeStage = this.stageController.getActiveStage();
-      if (activeStage && activeStage !== stage) {
-        this._ensurePrologForStage(activeStage);
-      }
-
-      const activeStageId = this.stageController.getActiveStageId();
-      if (this.currentStageId == null) this.currentStageId = activeStageId;
-      if (this.currentStageId !== activeStageId) {
-        if (this.currentStageId) {
-          if (this.currentAudioStage === 'stage1' && this.currentStageId === 'stage1') {
-            this._stopStageMusic();
-          }
-          this.scoreBase += this._getStageTotalDuration(this.currentStageId);
-        }
-        this.currentStageId = activeStageId;
-        this.stageElapsedOffset = 0;
-      }
-
-      const prologActiveStage = this.stageController.getActiveStage();
-      let prologActive = false;
-      const dtSeconds = dt / 60;
-      if (prologActiveStage && typeof prologActiveStage.updateProlog === 'function') {
-        prologActiveStage.updateProlog(dtSeconds);
-        if (typeof prologActiveStage.isPrologActive === 'function') {
-          prologActive = prologActiveStage.isPrologActive();
-        }
-      }
-      const prologObstacles = (prologActiveStage && typeof prologActiveStage.getPrologObstacles === 'function')
-        ? prologActiveStage.getPrologObstacles()
-        : [];
-
-      const stageStartSeconds = this.stageController.stageStartSeconds ?? 0;
-      let stageElapsedRaw = Math.max(0, secondsElapsed - stageStartSeconds);
-      if (prologActive) {
-        this.stageElapsedOffset = stageElapsedRaw;
-        stageElapsedRaw = 0;
-      } else if (this.stageElapsedOffset > 0) {
-        stageElapsedRaw = Math.max(0, stageElapsedRaw - this.stageElapsedOffset);
-      }
-      const activeStageInstance = this.stageController.getActiveStage();
-      if (activeStageInstance && typeof activeStageInstance.getTotalDuration === 'function') {
-        const totalDuration = activeStageInstance.getTotalDuration();
-        if (this.stageController.isStageFinished()) {
-          stageElapsedRaw = totalDuration;
-        }
-      }
-      const displaySeconds = this.scoreBase + stageElapsedRaw;
-      this.currentDisplayScore = displaySeconds;
-
-      if (this.currentAudioStage === 'stage1') {
-        if (activeStageId !== 'stage1' || stageElapsedRaw >= 60) {
-          this._stopStageMusic();
-        }
-      }
-
-      const backgroundColor = this.stageController.getBackgroundColor('#000000');
-      const backgroundOffset = this.stageController.getBackgroundOffset({ x: 0, y: 0 }) ?? { x: 0, y: 0 };
-      const hasBackgroundOffset = Boolean(
-        backgroundOffset && (backgroundOffset.x !== 0 || backgroundOffset.y !== 0),
-      );
-      this._clearCanvas(backgroundColor);
-
-      const elapsedForEffects = stageElapsedRaw;
-      const snowStartAt = (typeof SNOW?.enabledAfterSeconds === 'number') ? SNOW.enabledAfterSeconds : 10;
-      const snowEnabled = this.debugMode ? true : this.stageController.isSnowEnabled();
-      const snowActive = snowEnabled && elapsedForEffects >= snowStartAt && !prologActive;
-      const allowSpawn = (!prologActive) && (this.debugMode ? true : this.stageController.canSpawn());
-      const visibleScore = Math.max(0, Math.floor(stageElapsedRaw));
-
-      const { playerHit } = this.scene.updateFrame({
-        dt,
-        debugMode: this.debugMode,
-        stageFinished,
-        allowSpawn,
-        visibleScore,
-        offscreenRadius: this.offscreenRadius,
-        snowActive,
-        canvasWidth: this.canvas.width,
-        canvasHeight: this.canvas.height,
-        extraObstacles: prologObstacles,
-        rhythmPaused: prologActive,
-      });
-
+      const { playerHit } = this.runtime.step(now, { debugMode: this.debugMode });
       if (playerHit) {
         this.gameOverScreenShow();
         return;
-      }
-
-      if (hasBackgroundOffset) {
-        this.ctx.save();
-        this.ctx.translate(backgroundOffset.x, backgroundOffset.y);
-      }
-
-      this.scene.drawFrame(this.ctx, {
-        stageFinished,
-        centerX: this.centerX,
-        centerY: this.centerY,
-        orbitRadius: this.orbitRadius,
-        snowActive,
-        extraObstacles: prologObstacles,
-        rhythmPaused: prologActive,
-      });
-
-      if (activeStage && typeof activeStage.drawProlog === 'function') {
-        activeStage.drawProlog(this.ctx, {
-          centerX: this.centerX,
-          centerY: this.centerY,
-          orbitRadius: this.orbitRadius,
-        });
-      }
-
-      if (this.debugMode) {
-        this.ctx.save();
-        this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        const sizePx = Math.max(16, Math.floor(this.orbitRadius * 0.33));
-        this.ctx.font = `${sizePx}px Arial`;
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('Debug Mode', this.centerX, this.centerY);
-        this.ctx.restore();
-      } else {
-        let hideScore = this.stageController.shouldHideScore();
-        if (stageFinished) {
-          hideScore = true;
-        }
-        if (activeStageId === 'stage2' && (prologActive || stageElapsedRaw <= 0)) {
-          hideScore = true;
-        }
-        if (!hideScore) {
-          this.ui.drawScore(
-            this.ctx,
-            displaySeconds,
-            this.centerX,
-            this.centerY,
-            this.orbitRadius,
-          );
-        }
-      }
-
-      if (hasBackgroundOffset) {
-        this.ctx.restore();
       }
     }
 
@@ -463,6 +320,9 @@ export class Game {
       this.score.seconds = targetSeconds;
     }
     this.scene.resetAfterStageTransition();
+    if (this.runtime) {
+      this.runtime.resetTracking();
+    }
   }
 
   returnToStageSelect() {
@@ -475,29 +335,39 @@ export class Game {
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
     }
+    if (this.audioManager) {
+      this.audioManager.updateConfig(AUDIO);
+    }
 
     this.gameStarted = false;
     this.gameOver = false;
     this.fastForwardNextStart = false;
-    this._lastTime = null;
     this.score.reset();
-    this.scoreBase = 0;
-    this.stageElapsedOffset = 0;
-    this.currentDisplayScore = 0;
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);
     this.stageController.reset();
     this.stageController.resetProgress(0);
-    this._refreshStageDurations();
 
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    if (stage) this.scene.applyStageConfig(stage);
+    if (stage) {
+      this.scene.applyStageConfig(stage);
+    }
     this.scene.applyPlayerConfigFromConfig();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
-    this.currentStageId = this.stageController.getActiveStageId();
+    this._applyStageTheme(this.selectedStage, { immediate: true });
+
+    if (this.runtime) {
+      this.runtime.updateGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      });
+      this.runtime.resetTracking();
+    }
 
     this._updateStageLocks();
     if (this.ui) {
@@ -509,52 +379,20 @@ export class Game {
     }
   }
 
-  _handleStageAdvance(currentSeconds) {
-    const advanced = this.stageController.advance(currentSeconds);
-    if (!advanced) return false;
-    this.scene.resetAfterStageTransition();
-    const stage = this.stageController.getActiveStage();
-    if (stage) {
-      this.scene.applyStageConfig(stage);
-      this._ensurePrologForStage(stage);
-    }
-    this._maybePlayStageMusic();
-    return true;
-  }
-
-  _getStageTotalDuration(stageId) {
-    if (!stageId) return 0;
-    return this.stageDurationById?.get?.(stageId) ?? 0;
-  }
-
-  _refreshStageDurations() {
-    this.stageDurationById = new Map();
-    const queue = this.stageController?.stageQueue;
-    if (!Array.isArray(queue)) return;
-    for (const entry of queue) {
-      if (!entry || !entry.id) continue;
-      let duration = 0;
-      if (entry.stage && typeof entry.stage.getTotalDuration === 'function') {
-        duration = entry.stage.getTotalDuration();
-      }
-      this.stageDurationById.set(entry.id, Number.isFinite(duration) ? duration : 0);
-    }
-  }
-
-  _clearCanvas(color) {
-    if (this.ctx.setTransform) {
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-    this.ctx.fillStyle = color || '#000000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-  }
-
   _syncRadiiFromConfig() {
     if (typeof ORBIT?.radius === 'number') {
       this.orbitRadius = ORBIT.radius;
     }
     if (typeof PLAYER?.radius === 'number') {
       this.playerRadius = PLAYER.radius;
+    }
+    if (this.runtime) {
+      this.runtime.updateGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      });
     }
   }
 
@@ -579,76 +417,10 @@ export class Game {
     this._updateStageLocks();
   }
 
-  _ensurePrologForStage(stage) {
-    if (!stage) return;
-    if (typeof stage.startProlog === 'function') {
-      stage.startProlog({
-        centerX: this.centerX,
-        centerY: this.centerY,
-        orbitRadius: this.orbitRadius,
-      });
-    }
-  }
-
-  _maybePlayStageMusic() {
-    const stageId = this.stageController.getActiveStageId();
-    if (!stageId) return;
-    if (stageId === 'stage1') {
-      this._playStageMusic(stageId);
-    } else if (this.currentAudioStage) {
-      this._stopStageMusic();
-    }
-  }
-
-  _playStageMusic(stageId) {
-    if (!stageId) return;
-    if (this.currentAudioStage === stageId) return;
-    const cfg = AUDIO?.[stageId];
-    if (!cfg || !cfg.src) return;
-    const audio = this._getAudioElement(stageId, cfg);
-    if (!audio) return;
-    const volume = Number(cfg.volume);
-    if (Number.isFinite(volume)) {
-      audio.volume = Math.max(0, Math.min(1, volume));
-    }
-    audio.loop = cfg.loop !== false;
-    if (cfg.startTime != null && Number.isFinite(cfg.startTime)) {
-      audio.currentTime = Math.max(0, cfg.startTime);
-    } else {
-      audio.currentTime = 0;
-    }
-    const playResult = audio.play();
-    if (playResult && typeof playResult.catch === 'function') {
-      playResult.catch(() => {});
-    }
-    this.currentAudioStage = stageId;
-  }
-
   _stopStageMusic() {
-    if (!this.currentAudioStage) return;
-    const audio = this.audioElements.get(this.currentAudioStage);
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
+    if (this.audioManager) {
+      this.audioManager.stopAll();
     }
-    this.currentAudioStage = null;
-  }
-
-  _getAudioElement(stageId, cfg) {
-    if (this.audioElements.has(stageId)) {
-      const existing = this.audioElements.get(stageId);
-      if (cfg && cfg.src && existing.__cfgSrc !== cfg.src) {
-        this.audioElements.delete(stageId);
-      } else {
-        return existing;
-      }
-    }
-    if (!cfg || !cfg.src) return null;
-    const audio = new Audio(cfg.src);
-    audio.preload = cfg.preload ?? 'auto';
-    audio.__cfgSrc = cfg.src;
-    this.audioElements.set(stageId, audio);
-    return audio;
   }
 
   _collectBackgroundElements() {
@@ -700,13 +472,31 @@ export class Game {
     }
     if (!stage2Unlocked && this.selectedStage === 'stage2') {
       this.selectedStage = 'stage1';
+      this._stopStageMusic();
       this.stageController.setStartingStage(this.selectedStage);
+      this.stageController.reset();
       this.stageController.resetProgress(0);
-      this._refreshStageDurations();
+      this.scene.resetForNewRun();
+      const stage = this.stageController.getActiveStage();
+      if (stage) {
+        this.scene.applyStageConfig(stage);
+      }
+      this.scene.applyPlayerConfigFromConfig();
+      this.score.reset();
       this.score.setMaxSeconds(this.stageController.getTotalDuration());
+      if (this.runtime) {
+        this.runtime.updateGeometry({
+          centerX: this.centerX,
+          centerY: this.centerY,
+          orbitRadius: this.orbitRadius,
+          offscreenRadius: this.offscreenRadius,
+        });
+        this.runtime.resetTracking();
+      }
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
         this.ui.setStageSelection(this.selectedStage);
       }
+      this._applyStageTheme(this.selectedStage, { immediate: true });
     }
   }
 }

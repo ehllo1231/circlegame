@@ -101,10 +101,11 @@ export class GameScene {
     extraObstacles = [],
     rhythmPaused = false,
   } = {}) {
+    const dtSeconds = dt / 60;
     if (stageFinished || rhythmPaused) {
       this.rhythmEffect.reset();
-    } else {
-      this.rhythmEffect.update(dt);
+    } else if (this.rhythmEffect && typeof this.rhythmEffect.updateSeconds === 'function') {
+      this.rhythmEffect.updateSeconds(dtSeconds);
     }
 
     this._snowShouldDraw = false;
