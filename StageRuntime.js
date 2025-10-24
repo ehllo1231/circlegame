@@ -11,6 +11,7 @@ export class StageRuntime {
     canvas,
     geometry,
     onPlayerHit,
+    backgroundTargets = [],
   } = {}) {
     this.scene = scene;
     this.stageController = stageController;
@@ -28,6 +29,9 @@ export class StageRuntime {
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages = new Set();
+    this.backgroundTargets = Array.isArray(backgroundTargets)
+      ? backgroundTargets.filter((target) => target && target.style)
+      : [];
   }
 
   updateGeometry({ centerX, centerY, orbitRadius, offscreenRadius } = {}) {
@@ -44,6 +48,7 @@ export class StageRuntime {
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages.clear();
+    this._applyBackgroundColor(null);
   }
 
   ensurePrologForStage(stage) {
@@ -151,6 +156,7 @@ export class StageRuntime {
     }
 
     const backgroundColor = this.stageController.getBackgroundColor('#000000');
+    this._applyBackgroundColor(backgroundColor);
     const backgroundOffset = this.stageController.getBackgroundOffset({ x: 0, y: 0 }) ?? { x: 0, y: 0 };
     const hasBackgroundOffset = Boolean(
       backgroundOffset && (backgroundOffset.x !== 0 || backgroundOffset.y !== 0),
@@ -337,6 +343,12 @@ export class StageRuntime {
     }
   }
 
+  setBackgroundTargets(targets = []) {
+    this.backgroundTargets = Array.isArray(targets)
+      ? targets.filter((target) => target && target.style)
+      : [];
+  }
+
   _normalizeStageId(stageId) {
     if (!stageId) return null;
     if (typeof stageId === 'string') return stageId;
@@ -348,5 +360,22 @@ export class StageRuntime {
     const normalized = this._normalizeStageId(stageId);
     if (!normalized) return false;
     return this.mutedStages.has(normalized);
+  }
+
+  _applyBackgroundColor(color) {
+    if (!this.backgroundTargets?.length) return;
+    if (!color) {
+      for (const target of this.backgroundTargets) {
+        if (target && target.style) {
+          target.style.backgroundColor = '';
+        }
+      }
+      return;
+    }
+    for (const target of this.backgroundTargets) {
+      if (target && target.style) {
+        target.style.backgroundColor = color;
+      }
+    }
   }
 }

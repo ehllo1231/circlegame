@@ -77,6 +77,7 @@ export class Game {
         offscreenRadius: this.offscreenRadius,
       },
       onPlayerHit: () => this._playEffect('playerSmash'),
+      backgroundTargets: this._collectGlobalBackgroundTargets(),
     });
 
     this.debugMode = false;
@@ -477,8 +478,11 @@ export class Game {
 
   _collectBackgroundElements() {
     const elements = [];
-    if (typeof document !== 'undefined' && document.body) {
-      elements.push(document.body);
+    if (typeof document !== 'undefined') {
+      if (document.documentElement) elements.push(document.documentElement);
+      if (document.body) {
+        elements.push(document.body);
+      }
     }
     if (this.canvas) elements.push(this.canvas);
     if (this.ui) {
@@ -486,6 +490,15 @@ export class Game {
       if (this.ui.gameOverScreen) elements.push(this.ui.gameOverScreen);
     }
     return elements;
+  }
+
+  _collectGlobalBackgroundTargets() {
+    const targets = [];
+    if (typeof document !== 'undefined') {
+      if (document.documentElement) targets.push(document.documentElement);
+      if (document.body) targets.push(document.body);
+    }
+    return targets;
   }
 
   _applyStageTheme(stageId, { immediate = false } = {}) {
