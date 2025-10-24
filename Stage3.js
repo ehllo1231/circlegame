@@ -1,5 +1,6 @@
 import { StageManager, StagePhase } from './StageManager.js';
-import { SPAWN, SNOW } from './Config.js';
+import { SPAWN, SNOW, STAGE2_PROLOG } from './Config.js';
+import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
 
 export class Stage3Prolog {
   constructor() {
@@ -8,6 +9,7 @@ export class Stage3Prolog {
     this.elapsed = 0;
     this.geometry = null;
     this.totalDurationSec = 0;
+    this.obstacles = [];
   }
 
   start(geometry) {
@@ -15,6 +17,7 @@ export class Stage3Prolog {
     this.completed = false;
     this.elapsed = 0;
     this.geometry = geometry || null;
+    this._buildObstacles();
   }
 
   update(dt = 0) {
@@ -37,7 +40,7 @@ export class Stage3Prolog {
   }
 
   getObstacles() {
-    return [];
+    return Array.isArray(this.obstacles) ? this.obstacles : [];
   }
 
   getBackgroundOffset() {
@@ -46,6 +49,50 @@ export class Stage3Prolog {
 
   getTotalDuration() {
     return this.totalDurationSec ?? 0;
+  }
+
+  _buildObstacles() {
+    const geom = this.geometry || {};
+    const orbitRadius = Number.isFinite(geom.orbitRadius) ? geom.orbitRadius : null;
+    const centerX = Number.isFinite(geom.centerX) ? geom.centerX : 0;
+    const centerY = Number.isFinite(geom.centerY) ? geom.centerY : 0;
+
+    const spikeCfg = STAGE2_PROLOG?.spike ?? {};
+    const length = typeof spikeCfg.length === 'number' ? spikeCfg.length : 37.5;
+    const width = typeof spikeCfg.width === 'number' ? spikeCfg.width : 24;
+    const color = typeof spikeCfg.color === 'string' ? spikeCfg.color : '#ff2d2d';
+
+    const rotationRad = Number.isFinite(STAGE2_PROLOG?.rotationAngleRad)
+      ? STAGE2_PROLOG.rotationAngleRad
+      : ((Number.isFinite(STAGE2_PROLOG?.rotationAngleDeg)
+          ? STAGE2_PROLOG.rotationAngleDeg
+          : 90) * Math.PI / 180);
+
+    const baseAngle = -Math.PI / 2;
+    const primaryAngle = baseAngle + rotationRad;
+    const secondaryAngle = baseAngle - rotationRad;
+    const radius = Number.isFinite(orbitRadius) ? orbitRadius : (geom.orbitRadius ?? 0);
+
+    const baseParams = {
+      radius,
+      baseWidth: width,
+      length,
+      color,
+      pointOutward: true,
+    };
+
+    const primary = new Stage2PrologObstacle({ ...baseParams, angle: primaryAngle });
+    const secondary = new Stage2PrologObstacle({ ...baseParams, angle: secondaryAngle });
+
+    const maskRadius = Number.isFinite(orbitRadius) ? orbitRadius : null;
+    primary.setMaskRadius(maskRadius);
+    secondary.setMaskRadius(maskRadius);
+    primary.ignoreCollision = false;
+    secondary.ignoreCollision = false;
+
+    this.obstacles = [primary, secondary];
+    this.centerX = centerX;
+    this.centerY = centerY;
   }
 }
 
@@ -118,7 +165,7 @@ export class Stage3 extends StageManager {
         new Stage3Phase3(),
         new Stage3Phase4(),
       ],
-      fadeFrom: '#200040',
+      fadeFrom: '#00032e',
       fadeTo: '#36005a',
       fadeDelaySec: 2,
       fadeDurationSec: 2,

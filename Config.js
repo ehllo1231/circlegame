@@ -141,6 +141,10 @@ export const STAGE_THEMES = {
     background: '#0f0020',
     fadeDurationSec: 0.8,
   },
+  stage3: {
+    background: '#00021f',
+    fadeDurationSec: 0.8,
+  },
 };
 
 // Input controls mapping (customize key codes here)

@@ -15,7 +15,7 @@ import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
 
-const STAGE2_PLAYER_START_ANGLE = Math.PI / 2;
+const PLAYER_START_ANGLE = Math.PI / 2;
 
 // Game - main controller
 export class Game {
@@ -167,17 +167,17 @@ export class Game {
     this.stageController.resetProgress(0);
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    const skipStage2Prolog = !!(stage && typeof stage.setSkipProlog === 'function' && this.selectedStage === 'stage2');
+    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function' && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(skipStage2Prolog);
+      stage.setSkipProlog(skipProlog);
     }
     if (stage) {
       this.scene.applyStageConfig(stage);
       this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
-    if (skipStage2Prolog) {
-      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    if (skipProlog) {
+      this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
     this.ui.hideOverlays();
     if (this.runtime) {
@@ -250,17 +250,17 @@ export class Game {
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    const skipStage2Prolog = !!(stage && typeof stage.setSkipProlog === 'function' && this.selectedStage === 'stage2');
+    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function' && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(skipStage2Prolog);
+      stage.setSkipProlog(skipProlog);
     }
     if (stage) {
       this.scene.applyStageConfig(stage);
       this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
-    if (skipStage2Prolog) {
-      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    if (skipProlog) {
+      this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
     this._applyStageTheme(this.selectedStage, { immediate: true });
 
@@ -305,13 +305,13 @@ export class Game {
     this.stageController.resetProgress(0);
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(stageId === 'stage2');
+      stage.setSkipProlog(stageId === 'stage2' || stageId === 'stage3');
     }
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
     this.scene.applyPlayerConfigFromConfig();
-    if (stageId === 'stage2') {
-      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    if (stageId === 'stage2' || stageId === 'stage3') {
+      this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
 
     this.score.reset();
@@ -396,14 +396,14 @@ export class Game {
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(this.selectedStage === 'stage2');
+      stage.setSkipProlog(this.selectedStage === 'stage2' || this.selectedStage === 'stage3');
     }
     if (stage) {
       this.scene.applyStageConfig(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
-    if (this.selectedStage === 'stage2') {
-      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    if (this.selectedStage === 'stage2' || this.selectedStage === 'stage3') {
+      this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this._applyStageTheme(this.selectedStage, { immediate: true });
