@@ -6,9 +6,10 @@ export class StageAudioManager {
     this.audioElements = new Map();
     this.currentStageId = null;
     this._offsetIndexMap = new Map();
+    this._forcedOffsets = new Map();
   }
 
-  playStage(stageId) {
+  playStage(stageId, options = {}) {
     if (!stageId) return;
     const cfg = this.config?.[stageId];
     if (!cfg || !cfg.src) return;
@@ -26,7 +27,9 @@ export class StageAudioManager {
     audio.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
     audio.loop = cfg.loop !== false;
 
-    const offset = this._resolveStartOffset(normalizedStage, cfg);
+    const forcedOption = Number.isFinite(options?.forceOffset) ? Math.max(0, options.forceOffset) : null;
+    const forcedPending = this._consumeForcedOffset(normalizedStage);
+    const offset = forcedOption ?? forcedPending ?? this._resolveStartOffset(normalizedStage, cfg);
     audio.__pendingOffset = offset;
     this._setCurrentTime(audio, offset);
 
@@ -63,7 +66,9 @@ export class StageAudioManager {
       const currentStageIds = Object.keys(this.config);
       for (const stageId of currentStageIds) {
         if (!Object.prototype.hasOwnProperty.call(newConfig, stageId)) {
-          this._offsetIndexMap.delete(this._normalizeStage(stageId));
+          const normalized = this._normalizeStage(stageId);
+          this._offsetIndexMap.delete(normalized);
+          this._forcedOffsets.delete(normalized);
         }
       }
     }
@@ -116,6 +121,24 @@ export class StageAudioManager {
     if (typeof stageId === 'string') return stageId;
     if (stageId && stageId.id) return stageId.id;
     return stageId;
+  }
+
+  setNextOffset(stageId, offsetSeconds) {
+    if (!stageId) return;
+    const normalizedStage = this._normalizeStage(stageId);
+    if (!Number.isFinite(offsetSeconds) || offsetSeconds < 0) {
+      this._forcedOffsets.delete(normalizedStage);
+      return;
+    }
+    this._forcedOffsets.set(normalizedStage, Math.max(0, offsetSeconds));
+  }
+
+  _consumeForcedOffset(stageId) {
+    if (!stageId) return null;
+    const value = this._forcedOffsets.get(stageId);
+    if (value == null) return null;
+    this._forcedOffsets.delete(stageId);
+    return value;
   }
 
   _playWithRetry(audio) {

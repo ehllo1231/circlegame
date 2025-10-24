@@ -257,6 +257,10 @@ export class StageRuntime {
       this.mutedStages.delete(this._normalizeStageId(previousStageId));
     }
     this.scene.resetAfterStageTransition();
+    const nextStageId = this.stageController.getActiveStageId();
+    if (previousStageId === 'stage1' && nextStageId === 'stage2' && this.audioManager && typeof this.audioManager.setNextOffset === 'function') {
+      this.audioManager.setNextOffset('stage2', 0);
+    }
     const stage = this.stageController.getActiveStage();
     if (stage) {
       if (typeof stage.setSkipProlog === 'function') {

@@ -345,7 +345,7 @@ export class Stage2 extends StageManager {
         new Stage2Phase4(),
       ],
       fadeFrom: '#0f0020',
-      fadeTo: '#200040',
+      fadeTo: '#000000',
       fadeDelaySec: 2,
       fadeDurationSec: 2,
       hideScoreDurationSec: 2,
