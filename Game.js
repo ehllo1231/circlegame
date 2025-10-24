@@ -14,6 +14,8 @@ import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
 
+const STAGE2_PLAYER_START_ANGLE = Math.PI / 2;
+
 // Game - main controller
 export class Game {
   constructor(canvas) {
@@ -163,18 +165,31 @@ export class Game {
     this.stageController.resetProgress(0);
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
+    const skipStage2Prolog = !!(stage && typeof stage.setSkipProlog === 'function' && this.selectedStage === 'stage2');
+    if (stage && typeof stage.setSkipProlog === 'function') {
+      stage.setSkipProlog(skipStage2Prolog);
+    }
     if (stage) {
       this.scene.applyStageConfig(stage);
       this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
+    if (skipStage2Prolog) {
+      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    }
     this.ui.hideOverlays();
     if (this.runtime) {
       this.runtime.resetTracking();
-      this.runtime.syncAudio();
+      if (!this.fastForwardNextStart) {
+        this.runtime.syncAudio();
+      }
     }
 
     if (this.fastForwardNextStart) {
+      const ffStageId = this.stageController.getActiveStageId();
+      if (ffStageId && this.runtime && typeof this.runtime.muteStage === 'function') {
+        this.runtime.muteStage(ffStageId);
+      }
       this.applyFastForwardStageEnd();
       this.fastForwardNextStart = false;
     }
@@ -233,11 +248,18 @@ export class Game {
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
+    const skipStage2Prolog = !!(stage && typeof stage.setSkipProlog === 'function' && this.selectedStage === 'stage2');
+    if (stage && typeof stage.setSkipProlog === 'function') {
+      stage.setSkipProlog(skipStage2Prolog);
+    }
     if (stage) {
       this.scene.applyStageConfig(stage);
       this.runtime.ensurePrologForStage(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
+    if (skipStage2Prolog) {
+      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    }
     this._applyStageTheme(this.selectedStage, { immediate: true });
 
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
@@ -280,9 +302,15 @@ export class Game {
     this.stageController.setStartingStage(stageId);
     this.stageController.resetProgress(0);
     const stage = this.stageController.getActiveStage();
+    if (stage && typeof stage.setSkipProlog === 'function') {
+      stage.setSkipProlog(stageId === 'stage2');
+    }
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
     this.scene.applyPlayerConfigFromConfig();
+    if (stageId === 'stage2') {
+      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    }
 
     this.score.reset();
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
@@ -321,6 +349,10 @@ export class Game {
   }
 
   applyFastForwardStageEnd() {
+    const currentStageId = this.stageController.getActiveStageId();
+    if (currentStageId && this.runtime && typeof this.runtime.muteStage === 'function') {
+      this.runtime.muteStage(currentStageId);
+    }
     const targetSeconds = this.stageController.fastForwardToStageEnd();
     if (Number.isFinite(targetSeconds)) {
       this.score.seconds = targetSeconds;
@@ -361,10 +393,16 @@ export class Game {
     this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
+    if (stage && typeof stage.setSkipProlog === 'function') {
+      stage.setSkipProlog(this.selectedStage === 'stage2');
+    }
     if (stage) {
       this.scene.applyStageConfig(stage);
     }
     this.scene.applyPlayerConfigFromConfig();
+    if (this.selectedStage === 'stage2') {
+      this.scene.setPlayerAngle(STAGE2_PLAYER_START_ANGLE);
+    }
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
     this._applyStageTheme(this.selectedStage, { immediate: true });
 

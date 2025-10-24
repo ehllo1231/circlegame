@@ -27,6 +27,7 @@ export class StageRuntime {
     this.currentStageId = this.stageController?.getActiveStageId?.() ?? null;
     this.currentDisplayScore = 0;
     this.lastTime = null;
+    this.mutedStages = new Set();
   }
 
   updateGeometry({ centerX, centerY, orbitRadius, offscreenRadius } = {}) {
@@ -42,6 +43,7 @@ export class StageRuntime {
     this.currentStageId = this.stageController?.getActiveStageId?.() ?? null;
     this.currentDisplayScore = 0;
     this.lastTime = null;
+    this.mutedStages.clear();
   }
 
   ensurePrologForStage(stage) {
@@ -248,11 +250,18 @@ export class StageRuntime {
   }
 
   _handleStageAdvance(currentSeconds) {
+    const previousStageId = this.stageController.getActiveStageId();
     const advanced = this.stageController.advance(currentSeconds);
     if (!advanced) return false;
+    if (previousStageId) {
+      this.mutedStages.delete(this._normalizeStageId(previousStageId));
+    }
     this.scene.resetAfterStageTransition();
     const stage = this.stageController.getActiveStage();
     if (stage) {
+      if (typeof stage.setSkipProlog === 'function') {
+        stage.setSkipProlog(false);
+      }
       this.scene.applyStageConfig(stage);
       this.ensurePrologForStage(stage);
     }
@@ -263,6 +272,10 @@ export class StageRuntime {
   _maybePlayStageMusic() {
     if (!this.audioManager) return;
     const stageId = this.stageController.getActiveStageId();
+    if (this._isStageMuted(stageId)) {
+      this.audioManager.stopStage(stageId);
+      return;
+    }
     if (stageId === 'stage1') {
       this.audioManager.playStage('stage1');
     } else if (this.audioManager.isPlaying('stage1')) {
@@ -308,5 +321,28 @@ export class StageRuntime {
     if (typeof this.offscreenRadius === 'number') return this.offscreenRadius;
     if (!this.canvas) return 0;
     return Math.hypot(this.canvas.width / 2, this.canvas.height / 2) + 40;
+  }
+
+  muteStage(stageId) {
+    if (!stageId) return;
+    const normalized = this._normalizeStageId(stageId);
+    if (!normalized) return;
+    this.mutedStages.add(normalized);
+    if (this.audioManager && this.audioManager.isPlaying(normalized)) {
+      this.audioManager.stopStage(normalized);
+    }
+  }
+
+  _normalizeStageId(stageId) {
+    if (!stageId) return null;
+    if (typeof stageId === 'string') return stageId;
+    if (stageId && stageId.id) return stageId.id;
+    return String(stageId);
+  }
+
+  _isStageMuted(stageId) {
+    const normalized = this._normalizeStageId(stageId);
+    if (!normalized) return false;
+    return this.mutedStages.has(normalized);
   }
 }

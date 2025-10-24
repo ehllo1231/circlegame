@@ -353,18 +353,22 @@ export class Stage2 extends StageManager {
 
     this.prolog = new Stage2Prolog();
     this._prologShown = false;
+    this._skipProlog = false;
   }
 
   update(secondsElapsed) {
-    const prologDuration = this.prolog && typeof this.prolog.getTotalDuration === 'function'
+    const skipProlog = !!this._skipProlog;
+    const prologDuration = (!skipProlog && this.prolog && typeof this.prolog.getTotalDuration === 'function')
       ? Math.max(0, this.prolog.getTotalDuration())
       : 0;
-    if (secondsElapsed < prologDuration) {
+    if (!skipProlog && secondsElapsed < prologDuration) {
       this.totalElapsed = 0;
       this.changed = false;
       return;
     }
-    const effectiveElapsed = Math.max(0, secondsElapsed - prologDuration);
+    const effectiveElapsed = skipProlog
+      ? Math.max(0, secondsElapsed)
+      : Math.max(0, secondsElapsed - prologDuration);
     super.update(effectiveElapsed);
   }
 
@@ -375,6 +379,18 @@ export class Stage2 extends StageManager {
 
   startProlog(geometry) {
     if (!this.prolog || typeof this.prolog.start !== 'function') return;
+    if (this._skipProlog) {
+      if (this._prologShown) return;
+      this._prologShown = true;
+      this.prolog.start(geometry);
+      const total = typeof this.prolog.getTotalDuration === 'function'
+        ? this.prolog.getTotalDuration()
+        : this.prolog.totalDurationSec ?? 0;
+      if (Number.isFinite(total) && total > 0) {
+        this.prolog.update(total);
+      }
+      return;
+    }
     if (this._prologShown) return;
     this._prologShown = true;
     this.prolog.start(geometry);
@@ -403,6 +419,19 @@ export class Stage2 extends StageManager {
       }
     }
     return super.getBackgroundOffset();
+  }
+
+  setSkipProlog(skip = false) {
+    const shouldSkip = !!skip;
+    if (this._skipProlog === shouldSkip) {
+      if (shouldSkip) {
+        this._prologShown = false;
+      }
+      return;
+    }
+    this._skipProlog = shouldSkip;
+    this._prologShown = false;
+    this.prolog = new Stage2Prolog();
   }
 }
 

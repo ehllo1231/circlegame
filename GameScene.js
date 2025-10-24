@@ -88,6 +88,13 @@ export class GameScene {
     }
   }
 
+  setPlayerAngle(angle) {
+    if (!this.player) return;
+    if (typeof angle === 'number' && Number.isFinite(angle)) {
+      this.player.angle = angle;
+    }
+  }
+
   updateFrame({
     dt = 1,
     debugMode = false,
