@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { ORBIT, PLAYER, STAGE_THEMES, AUDIO } from './Config.js';
+import { ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
@@ -12,6 +12,7 @@ import { StageThemeManager } from './StageThemeManager.js';
 import { StageBackgroundFader } from './StageBackgroundFader.js';
 import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
+import { SoundEffectManager } from './SoundEffectManager.js';
 
 // Game - main controller
 export class Game {
@@ -57,6 +58,7 @@ export class Game {
     this._applyStageTheme(this.selectedStage, { immediate: true });
 
     this.audioManager = new StageAudioManager({ config: AUDIO });
+    this.effectAudioManager = new SoundEffectManager({ config: EFFECTS });
 
     this.runtime = new StageRuntime({
       scene: this.scene,
@@ -72,6 +74,7 @@ export class Game {
         orbitRadius: this.orbitRadius,
         offscreenRadius: this.offscreenRadius,
       },
+      onPlayerHit: () => this._playEffect('playerSmash'),
     });
 
     this.debugMode = false;
@@ -218,6 +221,9 @@ export class Game {
     if (this.audioManager) {
       this.audioManager.updateConfig(AUDIO);
     }
+    if (this.effectAudioManager) {
+      this.effectAudioManager.updateConfig(EFFECTS);
+    }
     this._syncRadiiFromConfig();
 
     this.stageController.setStartingStage(this.selectedStage);
@@ -338,6 +344,9 @@ export class Game {
     if (this.audioManager) {
       this.audioManager.updateConfig(AUDIO);
     }
+    if (this.effectAudioManager) {
+      this.effectAudioManager.updateConfig(EFFECTS);
+    }
 
     this.gameStarted = false;
     this.gameOver = false;
@@ -421,6 +430,11 @@ export class Game {
     if (this.audioManager) {
       this.audioManager.stopAll();
     }
+  }
+
+  _playEffect(effectId) {
+    if (!effectId || !this.effectAudioManager) return;
+    this.effectAudioManager.play(effectId);
   }
 
   _collectBackgroundElements() {

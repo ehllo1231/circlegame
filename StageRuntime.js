@@ -10,6 +10,7 @@ export class StageRuntime {
     ctx,
     canvas,
     geometry,
+    onPlayerHit,
   } = {}) {
     this.scene = scene;
     this.stageController = stageController;
@@ -19,6 +20,7 @@ export class StageRuntime {
     this.ctx = ctx;
     this.canvas = canvas;
     this.updateGeometry(geometry);
+    this.onPlayerHit = typeof onPlayerHit === 'function' ? onPlayerHit : null;
 
     this.scoreBase = 0;
     this.stageElapsedOffset = 0;
@@ -175,6 +177,12 @@ export class StageRuntime {
     });
 
     if (playerHit) {
+      if (this.onPlayerHit) {
+        this.onPlayerHit({
+          stageId: activeStageId,
+          seconds: secondsElapsed,
+        });
+      }
       return { playerHit: true };
     }
 

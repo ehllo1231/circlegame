@@ -206,3 +206,11 @@ export const AUDIO = {
     startOffsets: [0, 40, 60],
   },
 };
+
+export const EFFECTS = {
+  playerSmash: {
+    src: './Effects/smash.mp3',
+    volume: 0.85,
+    preload: 'auto',
+  },
+};
