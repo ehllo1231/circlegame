@@ -57,6 +57,8 @@ export class StageRuntime {
       centerX: this.centerX,
       centerY: this.centerY,
       orbitRadius: this.orbitRadius,
+      viewWidth: this.canvas?.width ?? null,
+      viewHeight: this.canvas?.height ?? null,
     });
   }
 

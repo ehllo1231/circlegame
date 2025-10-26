@@ -247,7 +247,12 @@ export class Game {
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
-    this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
+    this.scene.setGeometry({
+      centerX: this.centerX,
+      centerY: this.centerY,
+      orbitRadius: this.orbitRadius,
+      playerRadius: this.playerRadius,
+    });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function' && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
@@ -392,7 +397,12 @@ export class Game {
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
-    this.scene.setGeometry({ orbitRadius: this.orbitRadius, playerRadius: this.playerRadius });
+    this.scene.setGeometry({
+      centerX: this.centerX,
+      centerY: this.centerY,
+      orbitRadius: this.orbitRadius,
+      playerRadius: this.playerRadius,
+    });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.setSkipProlog === 'function') {
@@ -434,6 +444,14 @@ export class Game {
     }
     if (typeof PLAYER?.radius === 'number') {
       this.playerRadius = PLAYER.radius;
+    }
+    if (this.scene) {
+      this.scene.setGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        playerRadius: this.playerRadius,
+      });
     }
     if (this.runtime) {
       this.runtime.updateGeometry({
@@ -511,6 +529,54 @@ export class Game {
       this.backgroundFader.setColorImmediate(theme.background);
     } else {
       this.backgroundFader.fadeTo(theme.background, theme.fadeDurationSec);
+    }
+  }
+
+  resizeCanvas({ width, height } = {}) {
+    const nextWidth = Number(width);
+    const nextHeight = Number(height);
+    if (!Number.isFinite(nextWidth) || !Number.isFinite(nextHeight)) return;
+    if (nextWidth <= 0 || nextHeight <= 0) return;
+
+    const changed = this.canvas.width !== nextWidth || this.canvas.height !== nextHeight;
+    if (!changed) return;
+
+    this.canvas.width = nextWidth;
+    this.canvas.height = nextHeight;
+
+    this.centerX = nextWidth / 2;
+    this.centerY = nextHeight / 2;
+    this.offscreenRadius = Math.hypot(nextWidth / 2, nextHeight / 2) + 40;
+
+    if (this.scene) {
+      this.scene.setGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        playerRadius: this.playerRadius,
+      });
+    }
+    if (this.runtime) {
+      this.runtime.updateGeometry({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        orbitRadius: this.orbitRadius,
+        offscreenRadius: this.offscreenRadius,
+      });
+      this.runtime.setBackgroundTargets(this._collectGlobalBackgroundTargets());
+    }
+    if (this.backgroundFader) {
+      this.backgroundFader.setElements(this._collectBackgroundElements());
+    }
+    const activeStage = this.stageController?.getActiveStage?.();
+    if (activeStage && typeof activeStage.updateViewport === 'function') {
+      activeStage.updateViewport({
+        centerX: this.centerX,
+        centerY: this.centerY,
+        viewWidth: nextWidth,
+        viewHeight: nextHeight,
+        orbitRadius: this.orbitRadius,
+      });
     }
   }
 

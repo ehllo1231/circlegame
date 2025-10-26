@@ -20,6 +20,8 @@ export class Stage3Prolog {
     this.lightningTimer = 0;
     this.centerX = 0;
     this.centerY = 0;
+    this.viewWidth = null;
+    this.viewHeight = null;
   }
 
   start(geometry) {
@@ -34,6 +36,8 @@ export class Stage3Prolog {
     this.completed = false;
     this.elapsed = 0;
     this.geometry = geometry || null;
+    this.viewWidth = Number.isFinite(geometry?.viewWidth) ? geometry.viewWidth : null;
+    this.viewHeight = Number.isFinite(geometry?.viewHeight) ? geometry.viewHeight : null;
     this._buildObstacles();
     this.lightnings.length = 0;
     this.lightningTimer = 0;
@@ -164,6 +168,77 @@ export class Stage3Prolog {
     this.lightningTimer = 0;
   }
 
+  updateViewport(geometry = {}) {
+    const nextCenterX = Number.isFinite(geometry.centerX) ? geometry.centerX : this.centerX;
+    const nextCenterY = Number.isFinite(geometry.centerY) ? geometry.centerY : this.centerY;
+    const nextViewWidth = Number.isFinite(geometry.viewWidth) ? geometry.viewWidth : this.viewWidth;
+    const nextViewHeight = Number.isFinite(geometry.viewHeight) ? geometry.viewHeight : this.viewHeight;
+    this.centerX = nextCenterX;
+    this.centerY = nextCenterY;
+    this.viewWidth = nextViewWidth;
+    this.viewHeight = nextViewHeight;
+
+    const maskRadius = Number.isFinite(geometry.orbitRadius) ? geometry.orbitRadius : null;
+    if (Array.isArray(this.obstacles)) {
+      for (const obstacle of this.obstacles) {
+        if (obstacle && typeof obstacle.setMaskRadius === 'function') {
+          obstacle.setMaskRadius(maskRadius);
+        }
+      }
+    }
+
+    if (this.lightningEnabled) {
+      if (Array.isArray(this.lightnings)) {
+        this.lightnings.length = 0;
+      }
+      this.lightningTimer = 0;
+      this._spawnLightning();
+    }
+  }
+
+  _hasViewportBounds() {
+    return Number.isFinite(this.viewWidth) && this.viewWidth > 0;
+  }
+
+  _computeEdgeStartPoint({ angle, tip, margin }) {
+    if (!tip || !this._hasViewportBounds()) return null;
+    const halfWidth = this.viewWidth / 2;
+    const offsetSetting = Number.isFinite(this.lightningConfig?.edgeOffset)
+      ? Math.max(0, this.lightningConfig.edgeOffset)
+      : 0;
+    const offset = offsetSetting;
+    const direction = Math.cos(angle) >= 0 ? 1 : -1;
+    const startX = this.centerX + direction * (halfWidth + offset);
+
+    const dx = tip.x - this.centerX;
+    const dy = tip.y - this.centerY;
+    let startY;
+    if (Math.abs(dx) < 1e-3) {
+      startY = tip.y;
+    } else {
+      const slope = dy / dx;
+      startY = tip.y + slope * (startX - tip.x);
+    }
+    if (!Number.isFinite(startY)) {
+      startY = tip.y;
+    }
+
+    if (Number.isFinite(this.viewHeight) && this.viewHeight > 0) {
+      const halfHeight = this.viewHeight / 2;
+      const limit = halfHeight + offset;
+      const minY = this.centerY - limit;
+      const maxY = this.centerY + limit;
+      startY = Math.max(minY, Math.min(maxY, startY));
+    }
+
+    const jitter = Math.max(0, Number(this.lightningConfig?.forkJitter) || 0);
+    if (jitter > 0) {
+      startY += (Math.random() - 0.5) * jitter * 0.6;
+    }
+
+    return { x: startX, y: startY };
+  }
+
   _spawnLightning() {
     if (!this.lightningEnabled || !Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
     const segments = Math.max(2, Math.round(Number(this.lightningConfig.segments) || 6));
@@ -180,10 +255,16 @@ export class Stage3Prolog {
       const baseRadius = obstacle.radius ?? 0;
       const length = obstacle.length ?? 0;
       const tipRadius = baseRadius - length;
-      const startRadius = baseRadius + Math.max(0, spawnDistance);
-      const start = this._pointOnAngle(angle, startRadius);
       const end = this._pointOnAngle(angle, tipRadius);
-      if (!Number.isFinite(start.x) || !Number.isFinite(start.y) || !Number.isFinite(end.x) || !Number.isFinite(end.y)) {
+      if (!Number.isFinite(end.x) || !Number.isFinite(end.y)) {
+        continue;
+      }
+      let start = this._computeEdgeStartPoint({ angle, tip: end, margin: spawnDistance });
+      if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.y)) {
+        const startRadius = baseRadius + Math.max(0, spawnDistance);
+        start = this._pointOnAngle(angle, startRadius);
+      }
+      if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.y)) {
         continue;
       }
       const points = [start];
@@ -352,6 +433,15 @@ export class Stage3 extends StageManager {
       return this.prolog.getBackgroundOffset();
     }
     return super.getBackgroundOffset();
+  }
+
+  updateViewport(geometry = {}) {
+    if (!this.prolog || typeof this.prolog.updateViewport !== 'function') return;
+    const { orbitRadius } = geometry;
+    this.prolog.updateViewport({
+      ...geometry,
+      orbitRadius: Number.isFinite(orbitRadius) ? orbitRadius : null,
+    });
   }
 
   setSkipProlog(skip = false) {

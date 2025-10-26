@@ -57,6 +57,12 @@ export class ObstacleManager {
         this._lastCorrAngleDeg = null;
     }
 
+    setGeometry({ centerX, centerY, orbitRadius }) {
+        if (typeof centerX === 'number') this.centerX = centerX;
+        if (typeof centerY === 'number') this.centerY = centerY;
+        if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
+    }
+
     refreshFromConfig() {
         // Re-read config values live (for debug panel)
         if (typeof SPAWN?.baseInterval === 'number') this.spawnInterval = SPAWN.baseInterval;

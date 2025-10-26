@@ -65,13 +65,32 @@
         import { Game } from './Game.js';
         import { CANVAS } from './Config.js';
 
-        // Initialize canvas size from config and start
         const canvas = document.getElementById('canvas');
-        if (CANVAS && typeof CANVAS.width === 'number' && typeof CANVAS.height === 'number') {
-            canvas.width = CANVAS.width;
-            canvas.height = CANVAS.height;
+
+        function computeCanvasSize() {
+            const minSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+            if (Number.isFinite(minSide) && minSide > 0) {
+                return minSide;
+            }
+            if (CANVAS && typeof CANVAS.width === 'number') {
+                return CANVAS.width;
+            }
+            return 900;
         }
+
+        const initialSize = computeCanvasSize();
+        canvas.width = initialSize;
+        canvas.height = initialSize;
+
         const game = new Game(canvas);
+
+        function handleResize() {
+            const size = computeCanvasSize();
+            game.resizeCanvas({ width: size, height: size });
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
     </script>
 </body>
 </html>

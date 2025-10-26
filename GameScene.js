@@ -17,10 +17,28 @@ export class GameScene {
     this._buildEntities();
   }
 
-  setGeometry({ orbitRadius, playerRadius }) {
+  setGeometry({ centerX, centerY, orbitRadius, playerRadius } = {}) {
+    if (typeof centerX === 'number') this.centerX = centerX;
+    if (typeof centerY === 'number') this.centerY = centerY;
     if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
     if (typeof playerRadius === 'number') this.playerRadius = playerRadius;
-    this._buildEntities();
+
+    if (!this.player || !this.obstacleManager) {
+      this._buildEntities();
+      return;
+    }
+
+    this.player.setGeometry({
+      centerX: this.centerX,
+      centerY: this.centerY,
+      orbitRadius: this.orbitRadius,
+      radius: this.playerRadius,
+    });
+    this.obstacleManager.setGeometry({
+      centerX: this.centerX,
+      centerY: this.centerY,
+      orbitRadius: this.orbitRadius,
+    });
   }
 
   resetForNewRun() {

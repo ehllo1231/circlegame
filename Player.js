@@ -28,6 +28,13 @@ export class Player {
     reverseDirection() {
         this.rotationDirection *= -1;
     }
+
+    setGeometry({ centerX, centerY, orbitRadius, radius }) {
+        if (typeof centerX === 'number') this.centerX = centerX;
+        if (typeof centerY === 'number') this.centerY = centerY;
+        if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
+        if (typeof radius === 'number') this.radius = radius;
+    }
     
     // 二쇱씤怨듭쓽 ?꾩옱 ?꾩튂 醫뚰몴 諛섑솚
     getPosition() {
