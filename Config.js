@@ -133,17 +133,21 @@ export const STAGE2_PROLOG = {
 };
 
 export const STAGE3_PROLOG = {
-  durationSec: 3,
   lightning: {
     enabled: true,
-    intervalSec: 1.3,
-    flashDurationSec: 0.22,
+    eventCount: 3,
+    intervalSec: 3,
+    flashDurationSec: 2,
     color: '#ffd860',
+    coreColor: '#fff7d1',
+    tailColor: '#ffffff',
     strokeWidth: 3,
-    spawnDistance: 220,
-    forkJitter: 36,
-    segments: 6,
+    spawnDistance: 260,
+    forkJitter: 42,
+    segments: 20,
     fadeExponent: 1.6,
+    branchDensity: 0.8,
+    branchDecay: 0.7,
   },
 };
 

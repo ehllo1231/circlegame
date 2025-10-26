@@ -8,13 +8,15 @@ export class Stage3Prolog {
     this.completed = false;
     this.elapsed = 0;
     this.geometry = null;
-    const cfg = STAGE3_PROLOG ?? {};
-    this.totalDurationSec = Number.isFinite(cfg.durationSec) && cfg.durationSec > 0 ? cfg.durationSec : 0;
-    this.lightningConfig = cfg.lightning ?? {};
-    this.lightningEnabled = this.lightningConfig.enabled !== false;
-    this.lightningInterval = Math.max(0.05, Number(this.lightningConfig.intervalSec) || 1.3);
-    this.lightningDuration = Math.max(0.01, Number(this.lightningConfig.flashDurationSec) || 0.22);
-    this.lightningFadeExp = Math.max(0.1, Number(this.lightningConfig.fadeExponent) || 1.6);
+    this.lightningConfig = {};
+    this.lightningEnabled = true;
+    this.lightningInterval = 1.3;
+    this.lightningDuration = 0.22;
+    this.lightningFadeExp = 1.6;
+    this.eventCount = 0;
+    this.eventsSpawned = 0;
+    this.totalDurationSec = 0;
+    this._applyLightningConfig(STAGE3_PROLOG ?? {});
     this.obstacles = [];
     this.lightnings = [];
     this.lightningTimer = 0;
@@ -25,13 +27,7 @@ export class Stage3Prolog {
   }
 
   start(geometry) {
-    const cfg = STAGE3_PROLOG ?? {};
-    this.totalDurationSec = Number.isFinite(cfg.durationSec) && cfg.durationSec > 0 ? cfg.durationSec : 0;
-    this.lightningConfig = cfg.lightning ?? this.lightningConfig ?? {};
-    this.lightningEnabled = this.lightningConfig.enabled !== false;
-    this.lightningInterval = Math.max(0.05, Number(this.lightningConfig.intervalSec) || 1.3);
-    this.lightningDuration = Math.max(0.01, Number(this.lightningConfig.flashDurationSec) || 0.22);
-    this.lightningFadeExp = Math.max(0.1, Number(this.lightningConfig.fadeExponent) || 1.6);
+    this._applyLightningConfig(STAGE3_PROLOG ?? {});
     this.started = true;
     this.completed = false;
     this.elapsed = 0;
@@ -41,16 +37,17 @@ export class Stage3Prolog {
     this._buildObstacles();
     this.lightnings.length = 0;
     this.lightningTimer = 0;
-    if (this.lightningEnabled) {
+    this.eventsSpawned = 0;
+    if (this.lightningEnabled && this.eventCount > 0) {
       this._spawnLightning();
     }
   }
 
   update(dt = 0) {
     if (!this.started) return;
-    if (!this.completed && this.lightningEnabled) {
+    if (!this.completed && this.lightningEnabled && this.eventCount > 0) {
       this.lightningTimer += dt;
-      while (this.lightningTimer >= this.lightningInterval) {
+      while (this.lightningTimer >= this.lightningInterval && this.eventsSpawned < this.eventCount) {
         this.lightningTimer -= this.lightningInterval;
         this._spawnLightning();
         if (!this.lightningEnabled) break;
@@ -81,17 +78,65 @@ export class Stage3Prolog {
     for (const bolt of this.lightnings) {
       const alpha = Math.max(0, Math.min(1, bolt.life / bolt.maxLife));
       const faded = Math.pow(alpha, this.lightningFadeExp);
-      ctx.globalAlpha = faded;
-      ctx.strokeStyle = bolt.color;
-      ctx.lineWidth = bolt.width;
       const pts = bolt.points;
       if (!pts || pts.length < 2) continue;
+
+      const head = pts[0];
+      const tail = pts[pts.length - 1];
+      const gradient = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
+      gradient.addColorStop(0, bolt.color);
+      gradient.addColorStop(0.55, bolt.coreColor);
+      gradient.addColorStop(1, bolt.tailColor);
+
+      ctx.globalAlpha = faded * 0.8;
+      ctx.shadowBlur = Math.max(12, bolt.width * 2.2);
+      ctx.shadowColor = bolt.color;
+      ctx.lineWidth = bolt.width * 1.6;
+      ctx.strokeStyle = bolt.color;
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
+      ctx.moveTo(head.x, head.y);
       for (let i = 1; i < pts.length; i += 1) {
         ctx.lineTo(pts[i].x, pts[i].y);
       }
       ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = faded;
+      ctx.lineWidth = bolt.width;
+      ctx.strokeStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(head.x, head.y);
+      for (let i = 1; i < pts.length; i += 1) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+
+      if (Array.isArray(bolt.branches) && bolt.branches.length > 0) {
+        for (const branch of bolt.branches) {
+          const branchPts = branch.points;
+          if (!branchPts || branchPts.length < 2) continue;
+          const branchHead = branchPts[0];
+          const branchTail = branchPts[branchPts.length - 1];
+          const branchGradient = ctx.createLinearGradient(
+            branchHead.x,
+            branchHead.y,
+            branchTail.x,
+            branchTail.y,
+          );
+          branchGradient.addColorStop(0, bolt.coreColor);
+          branchGradient.addColorStop(1, bolt.tailColor);
+
+          ctx.globalAlpha = faded * 0.6;
+          ctx.lineWidth = branch.width * 1.15;
+          ctx.strokeStyle = branchGradient;
+          ctx.beginPath();
+          ctx.moveTo(branchHead.x, branchHead.y);
+          for (let i = 1; i < branchPts.length; i += 1) {
+            ctx.lineTo(branchPts[i].x, branchPts[i].y);
+          }
+          ctx.stroke();
+        }
+      }
     }
     ctx.restore();
   }
@@ -158,6 +203,33 @@ export class Stage3Prolog {
     this.obstacles = [primary, secondary];
     this.centerX = centerX;
     this.centerY = centerY;
+  }
+
+  _applyLightningConfig(sourceConfig) {
+    const base = sourceConfig ?? {};
+    const lightning = base.lightning ?? this.lightningConfig ?? {};
+    this.lightningConfig = lightning;
+    this.lightningEnabled = lightning.enabled !== false;
+    this.eventCount = Math.max(0, Math.floor(Number(lightning.eventCount) || 3));
+    this.lightningInterval = Math.max(0.05, Number(lightning.intervalSec) || 1.3);
+    this.lightningDuration = Math.max(0.01, Number(lightning.flashDurationSec) || 0.22);
+    this.lightningFadeExp = Math.max(0.1, Number(lightning.fadeExponent) || 1.6);
+    this.totalDurationSec = this._computeTotalDuration();
+    if (this.eventCount <= 0 || !this.lightningEnabled) {
+      this.lightningEnabled = false;
+      this.totalDurationSec = 0;
+    }
+  }
+
+  _computeTotalDuration() {
+    if (!this.lightningEnabled) return 0;
+    if (!Number.isFinite(this.eventCount) || this.eventCount <= 0) return 0;
+    const interval = Math.max(0, this.lightningInterval);
+    const flash = Math.max(0, this.lightningDuration);
+    if (this.eventCount <= 1) {
+      return flash;
+    }
+    return (this.eventCount - 1) * interval + flash;
   }
 
   disableLightning() {
@@ -240,7 +312,8 @@ export class Stage3Prolog {
   }
 
   _spawnLightning() {
-    if (!this.lightningEnabled || !Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
+    if (!this.lightningEnabled || this.eventsSpawned >= this.eventCount) return;
+    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
     const segments = Math.max(2, Math.round(Number(this.lightningConfig.segments) || 6));
     const jitter = Math.max(0, Number(this.lightningConfig.forkJitter) || 36);
     const spawnDistance = Number.isFinite(this.lightningConfig.spawnDistance)
@@ -248,6 +321,10 @@ export class Stage3Prolog {
       : 220;
     const color = typeof this.lightningConfig.color === 'string' ? this.lightningConfig.color : '#ffd860';
     const width = Math.max(1, Number(this.lightningConfig.strokeWidth) || 3);
+    const coreColor = typeof this.lightningConfig.coreColor === 'string' ? this.lightningConfig.coreColor : '#fff2c0';
+    const tailColor = typeof this.lightningConfig.tailColor === 'string' ? this.lightningConfig.tailColor : '#ffffff';
+    const branchDensity = Math.max(0, Number(this.lightningConfig.branchDensity) || 0.35);
+    const branchDecay = Math.max(0.2, Math.min(1, Number(this.lightningConfig.branchDecay) || 0.6));
 
     for (const obstacle of this.obstacles) {
       if (!obstacle) continue;
@@ -281,11 +358,68 @@ export class Stage3Prolog {
       this.lightnings.push({
         points,
         color,
+        coreColor,
+        tailColor,
         width,
         life: this.lightningDuration,
         maxLife: this.lightningDuration,
+        branches: this._buildBranches(points, {
+          baseWidth: width,
+          density: branchDensity,
+          decay: branchDecay,
+          jitter,
+        }),
       });
     }
+    this.eventsSpawned += 1;
+  }
+
+  _buildBranches(points, { baseWidth, density, decay, jitter }) {
+    const branches = [];
+    if (!Array.isArray(points) || points.length < 3) return branches;
+    const total = points.length;
+    for (let i = 1; i < total - 1; i += 1) {
+      if (Math.random() > density) continue;
+      const origin = points[i];
+      const next = points[i + 1];
+      if (!origin || !next) continue;
+
+      const dirX = next.x - origin.x;
+      const dirY = next.y - origin.y;
+      const baseLen = Math.hypot(dirX, dirY);
+      if (baseLen <= 0.001) continue;
+      const normX = dirX / baseLen;
+      const normY = dirY / baseLen;
+
+      const perpX = -normY;
+      const perpY = normX;
+      const branchDir = Math.random() < 0.5 ? 1 : -1;
+      const branchLength = baseLen * (0.7 + Math.random() * 1.2);
+      const steps = Math.max(3, Math.round(4 + Math.random() * 3));
+
+      const branchPoints = [origin];
+      let currentX = origin.x;
+      let currentY = origin.y;
+      let remaining = branchLength;
+      let segmentWidth = baseWidth * 0.6;
+
+      for (let step = 1; step <= steps && remaining > 4; step += 1) {
+        const segLen = Math.min(remaining, branchLength / steps * (0.8 + Math.random() * 0.4));
+        remaining -= segLen;
+        const drift = (Math.random() - 0.5) * jitter * 0.4;
+        currentX += normX * segLen + perpX * drift * branchDir;
+        currentY += normY * segLen + perpY * drift * branchDir;
+        branchPoints.push({ x: currentX, y: currentY });
+        segmentWidth *= decay;
+      }
+      if (branchPoints.length > 1) {
+        branches.push({
+          points: branchPoints,
+          width: Math.max(1, segmentWidth),
+        });
+      }
+    }
+    return branches;
   }
 
   _pointOnAngle(angle, radius) {
