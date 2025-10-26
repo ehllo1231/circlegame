@@ -135,13 +135,13 @@ export const STAGE2_PROLOG = {
 export const STAGE3_PROLOG = {
   lightning: {
     enabled: true,
-    eventCount: 3,
+    eventCount: 2,
     intervalSec: 3,
-    flashDurationSec: 1.5,
+    flashDurationSec: 2,
     color: '#ffd860',
     coreColor: '#fff7d1',
     tailColor: '#ffffff',
-    strokeWidth: 3,
+    strokeWidth: 5,
     spawnDistance: 350,
     forkJitter: 20,
     segments: 14,
