@@ -141,9 +141,9 @@ export const STAGE3_PROLOG = {
     color: '#ffd860',
     coreColor: '#fff7d1',
     tailColor: '#ffffff',
-    strokeWidth: 5,
+    strokeWidth: 7,
     spawnDistance: 350,
-    forkJitter: 20,
+    forkJitter: 40,
     segments: 14,
     fadeExponent: 1.6,
     branchDensity: 0.9,
@@ -151,6 +151,17 @@ export const STAGE3_PROLOG = {
     branchSpreadDeg: 55,
     branchLengthMul: 1.5,
     branchJitterMul: 1.15,
+  },
+  backgroundFade: {
+    durationSec: 1.6,
+    easeExponent: 1.45,
+  },
+  spikeRotation: {
+    enabled: true,
+    totalAngleDeg: 180,
+    durationSec: 4,
+    easeExponent: 1,
+    direction: 'clockwise',
   },
 };
 

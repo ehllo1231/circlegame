@@ -4,18 +4,32 @@ import { Stage3Prolog } from './Stage3Prolog.js';
 
 const STAGE2_FINAL_BACKGROUND = '#000000';
 
+function applyStageRotation(context, rotationConfig) {
+  const manager = context?.stageManager;
+  if (manager && typeof manager.setStageRotationConfig === 'function') {
+    manager.setStageRotationConfig(rotationConfig);
+  }
+}
+
 class Stage3Phase1 extends StagePhase {
   constructor() {
     super({ name: 'stage3-phase1', durationSec: 10 });
   }
 
-  onEnter() {
-    SPAWN.baseInterval = 22;
-    SPAWN.multiCountWeights = [0.05, 0.08, 0.12, 0.2, 0.2, 0.18, 0.12, 0.05];
+  onEnter(context) {
+    SPAWN.baseInterval = 30;
+    SPAWN.multiCountWeights = [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05];
     SNOW.direction = 'down';
-    SNOW.spawnPerMin = 100;
-    SNOW.wind.baseX = 0.25;
-    SNOW.wind.oscAmp = 0.2;
+    SNOW.spawnPerMin = 0;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = 0.12;
+    SNOW.wind.oscAmp = 0.1;
+    applyStageRotation(context, {
+      enabled: true,
+      speedDegPerSec: 45,
+      direction: 'clockwise',
+    });
   }
 }
 
@@ -24,13 +38,20 @@ class Stage3Phase2 extends StagePhase {
     super({ name: 'stage3-phase2', durationSec: 20 });
   }
 
-  onEnter() {
-    SPAWN.baseInterval = 18;
-    SPAWN.multiCountWeights = [0.02, 0.06, 0.14, 0.24, 0.22, 0.18, 0.10, 0.04];
+  onEnter(context) {
+    SPAWN.baseInterval = 25;
+    SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
     SNOW.direction = 'down';
-    SNOW.spawnPerMin = 600;
-    SNOW.wind.baseX = -0.4;
-    SNOW.wind.oscAmp = 0.35;
+    SNOW.spawnPerMin = 300;
+    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.max = 2.0;
+    SNOW.wind.baseX = 0.12;
+    SNOW.wind.oscAmp = 0.1;
+    applyStageRotation(context, {
+      enabled: true,
+      speedDegPerSec: 45,
+      direction: 'counterclockwise',
+    });
   }
 }
 
@@ -39,13 +60,19 @@ class Stage3Phase3 extends StagePhase {
     super({ name: 'stage3-phase3', durationSec: 20 });
   }
 
-  onEnter() {
-    SPAWN.baseInterval = 15;
-    SPAWN.multiCountWeights = [0.0, 0.04, 0.12, 0.24, 0.24, 0.2, 0.12, 0.04];
+  onEnter(context) {
+    SPAWN.baseInterval = 17;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
     SNOW.direction = 'down';
-    SNOW.spawnPerMin = 2400;
-    SNOW.wind.baseX = 0.6;
-    SNOW.wind.oscAmp = 0.5;
+    SNOW.spawnPerMin = 2000;
+    SNOW.fallSpeed.min = 3;
+    SNOW.fallSpeed.max = 5;
+    SNOW.wind.baseX = 3;
+    applyStageRotation(context, {
+      enabled: true,
+      speedDegPerSec: 45,
+      direction: 'clockwise',
+    });
   }
 }
 
@@ -54,13 +81,19 @@ class Stage3Phase4 extends StagePhase {
     super({ name: 'stage3-phase4', durationSec: 10 });
   }
 
-  onEnter() {
-    SPAWN.baseInterval = 12;
-    SPAWN.multiCountWeights = [0.0, 0.02, 0.08, 0.2, 0.24, 0.22, 0.16, 0.08];
+  onEnter(context) {
+    SPAWN.baseInterval = 14;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
     SNOW.direction = 'down';
-    SNOW.spawnPerMin = 4800;
-    SNOW.wind.baseX = -0.75;
-    SNOW.wind.oscAmp = 0.6;
+    SNOW.spawnPerMin = 6000;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = -6;
+    applyStageRotation(context, {
+      enabled: true,
+      speedDegPerSec: 45,
+      direction: 'counterclockwise',
+    });
   }
 }
 
@@ -108,11 +141,7 @@ export class Stage3 extends StageManager {
     if (!this.prolog || typeof this.prolog.start !== 'function') return;
     if (this._skipProlog) {
       this._prologShown = true;
-      this.prolog.start(geometry);
-      this.prolog.completed = true;
-      if (typeof this.prolog.disableLightning === 'function') {
-        this.prolog.disableLightning();
-      }
+      this.prolog.start(geometry, { fastForward: true });
       return;
     }
     if (this._prologShown) return;
@@ -123,6 +152,11 @@ export class Stage3 extends StageManager {
   updateProlog(dtSeconds) {
     if (!this.prolog || !this._prologShown || typeof this.prolog.update !== 'function') return;
     this.prolog.update(dtSeconds);
+  }
+
+  setStageRotationConfig(config = {}) {
+    if (!this.prolog || typeof this.prolog.setStageRotation !== 'function') return;
+    this.prolog.setStageRotation(config);
   }
 
   isPrologActive() {
@@ -137,6 +171,13 @@ export class Stage3 extends StageManager {
 
   getBackgroundColor() {
     if (this.prolog && this._prologShown && !this.prolog.isComplete()) {
+      const stageColor = super.getBackgroundColor();
+      if (typeof this.prolog.getBackgroundColor === 'function') {
+        return this.prolog.getBackgroundColor({
+          fromColor: STAGE2_FINAL_BACKGROUND,
+          toColor: stageColor,
+        });
+      }
       return STAGE2_FINAL_BACKGROUND;
     }
     return super.getBackgroundColor();

@@ -224,7 +224,10 @@ export class StageRuntime {
     } else {
       let hideScore = this.stageController.shouldHideScore();
       if (stageFinished) hideScore = true;
-      if (activeStageId === 'stage2' && (prologActive || stageElapsedRaw <= 0)) hideScore = true;
+      if (
+        (activeStageId === 'stage2' || activeStageId === 'stage3')
+        && (prologActive || stageElapsedRaw <= 0)
+      ) hideScore = true;
       if (!hideScore && this.ui && typeof this.ui.drawScore === 'function') {
         this.ui.drawScore(
           this.ctx,
