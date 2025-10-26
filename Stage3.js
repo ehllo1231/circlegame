@@ -2,6 +2,8 @@ import { StageManager, StagePhase } from './StageManager.js';
 import { SPAWN, SNOW, STAGE2_PROLOG, STAGE3_PROLOG } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
 
+const STAGE2_FINAL_BACKGROUND = '#000000';
+
 export class Stage3Prolog {
   constructor() {
     this.started = false;
@@ -82,59 +84,57 @@ export class Stage3Prolog {
       if (!pts || pts.length < 2) continue;
 
       const head = pts[0];
-      const tail = pts[pts.length - 1];
-      const gradient = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
-      gradient.addColorStop(0, bolt.color);
-      gradient.addColorStop(0.55, bolt.coreColor);
-      gradient.addColorStop(1, bolt.tailColor);
-
       ctx.globalAlpha = faded * 0.8;
       ctx.shadowBlur = Math.max(12, bolt.width * 2.2);
       ctx.shadowColor = bolt.color;
       ctx.lineWidth = bolt.width * 1.6;
-      ctx.strokeStyle = bolt.color;
-      ctx.beginPath();
-      ctx.moveTo(head.x, head.y);
       for (let i = 1; i < pts.length; i += 1) {
-        ctx.lineTo(pts[i].x, pts[i].y);
+        const prev = pts[i - 1];
+        const current = pts[i];
+        const segmentGradient = ctx.createLinearGradient(prev.x, prev.y, current.x, current.y);
+        segmentGradient.addColorStop(0, bolt.color);
+        segmentGradient.addColorStop(1, bolt.coreColor);
+        ctx.strokeStyle = segmentGradient;
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(current.x, current.y);
+        ctx.stroke();
       }
-      ctx.stroke();
 
       ctx.shadowBlur = 0;
       ctx.globalAlpha = faded;
       ctx.lineWidth = bolt.width;
-      ctx.strokeStyle = gradient;
-      ctx.beginPath();
-      ctx.moveTo(head.x, head.y);
       for (let i = 1; i < pts.length; i += 1) {
-        ctx.lineTo(pts[i].x, pts[i].y);
+        const prev = pts[i - 1];
+        const current = pts[i];
+        const segmentGradient = ctx.createLinearGradient(prev.x, prev.y, current.x, current.y);
+        segmentGradient.addColorStop(0, bolt.coreColor);
+        segmentGradient.addColorStop(1, bolt.tailColor);
+        ctx.strokeStyle = segmentGradient;
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(current.x, current.y);
+        ctx.stroke();
       }
-      ctx.stroke();
 
       if (Array.isArray(bolt.branches) && bolt.branches.length > 0) {
         for (const branch of bolt.branches) {
           const branchPts = branch.points;
           if (!branchPts || branchPts.length < 2) continue;
-          const branchHead = branchPts[0];
-          const branchTail = branchPts[branchPts.length - 1];
-          const branchGradient = ctx.createLinearGradient(
-            branchHead.x,
-            branchHead.y,
-            branchTail.x,
-            branchTail.y,
-          );
-          branchGradient.addColorStop(0, bolt.coreColor);
-          branchGradient.addColorStop(1, bolt.tailColor);
-
           ctx.globalAlpha = faded * 0.6;
           ctx.lineWidth = branch.width * 1.15;
-          ctx.strokeStyle = branchGradient;
-          ctx.beginPath();
-          ctx.moveTo(branchHead.x, branchHead.y);
           for (let i = 1; i < branchPts.length; i += 1) {
-            ctx.lineTo(branchPts[i].x, branchPts[i].y);
+            const prev = branchPts[i - 1];
+            const current = branchPts[i];
+            const branchGradient = ctx.createLinearGradient(prev.x, prev.y, current.x, current.y);
+            branchGradient.addColorStop(0, bolt.coreColor);
+            branchGradient.addColorStop(1, bolt.tailColor);
+            ctx.strokeStyle = branchGradient;
+            ctx.beginPath();
+            ctx.moveTo(prev.x, prev.y);
+            ctx.lineTo(current.x, current.y);
+            ctx.stroke();
           }
-          ctx.stroke();
         }
       }
     }
@@ -323,8 +323,11 @@ export class Stage3Prolog {
     const width = Math.max(1, Number(this.lightningConfig.strokeWidth) || 3);
     const coreColor = typeof this.lightningConfig.coreColor === 'string' ? this.lightningConfig.coreColor : '#fff2c0';
     const tailColor = typeof this.lightningConfig.tailColor === 'string' ? this.lightningConfig.tailColor : '#ffffff';
-    const branchDensity = Math.max(0, Number(this.lightningConfig.branchDensity) || 0.35);
+    const branchDensity = Math.max(0, Math.min(1, Number(this.lightningConfig.branchDensity) || 0.35));
     const branchDecay = Math.max(0.2, Math.min(1, Number(this.lightningConfig.branchDecay) || 0.6));
+    const branchSpreadRad = Math.max(0, ((Number(this.lightningConfig.branchSpreadDeg) || 0) * Math.PI) / 180);
+    const branchLengthMul = Math.max(0.2, Number(this.lightningConfig.branchLengthMul) || 1);
+    const branchJitterMul = Math.max(0, Number(this.lightningConfig.branchJitterMul) || 1);
 
     for (const obstacle of this.obstacles) {
       if (!obstacle) continue;
@@ -344,15 +347,26 @@ export class Stage3Prolog {
       if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.y)) {
         continue;
       }
+      const axisX = end.x - start.x;
+      const axisY = end.y - start.y;
+      const axisLen = Math.hypot(axisX, axisY);
+      if (axisLen <= 0.0001) continue;
+      const normX = axisX / axisLen;
+      const normY = axisY / axisLen;
+      const perpX = -normY;
+      const perpY = normX;
+
       const points = [start];
       for (let i = 1; i < segments; i += 1) {
         const t = i / segments;
-        const lerpX = start.x + (end.x - start.x) * t;
-        const lerpY = start.y + (end.y - start.y) * t;
+        const along = axisLen * t;
+        const baseX = start.x + normX * along;
+        const baseY = start.y + normY * along;
         const falloff = 1 - t;
-        const offsetX = (Math.random() * 2 - 1) * jitter * falloff;
-        const offsetY = (Math.random() * 2 - 1) * jitter * falloff;
-        points.push({ x: lerpX + offsetX, y: lerpY + offsetY });
+        const offsetMag = (Math.random() * 2 - 1) * jitter * falloff;
+        const offsetX = perpX * offsetMag;
+        const offsetY = perpY * offsetMag;
+        points.push({ x: baseX + offsetX, y: baseY + offsetY });
       }
       points.push(end);
       this.lightnings.push({
@@ -368,13 +382,24 @@ export class Stage3Prolog {
           density: branchDensity,
           decay: branchDecay,
           jitter,
+          spreadRad: branchSpreadRad,
+          lengthMul: branchLengthMul,
+          jitterMul: branchJitterMul,
         }),
       });
     }
     this.eventsSpawned += 1;
   }
 
-  _buildBranches(points, { baseWidth, density, decay, jitter }) {
+  _buildBranches(points, {
+    baseWidth,
+    density,
+    decay,
+    jitter,
+    spreadRad,
+    lengthMul,
+    jitterMul,
+  }) {
     const branches = [];
     if (!Array.isArray(points) || points.length < 3) return branches;
     const total = points.length;
@@ -391,10 +416,15 @@ export class Stage3Prolog {
       const normX = dirX / baseLen;
       const normY = dirY / baseLen;
 
-      const perpX = -normY;
-      const perpY = normX;
       const branchDir = Math.random() < 0.5 ? 1 : -1;
-      const branchLength = baseLen * (0.7 + Math.random() * 1.2);
+      const angleOffset = spreadRad > 0 ? (Math.random() * spreadRad) * branchDir : 0;
+      const baseAngle = Math.atan2(normY, normX);
+      const finalAngle = baseAngle + angleOffset;
+      const branchNormX = Math.cos(finalAngle);
+      const branchNormY = Math.sin(finalAngle);
+      const branchPerpX = -branchNormY;
+      const branchPerpY = branchNormX;
+      const branchLength = baseLen * lengthMul * (0.7 + Math.random() * 1.2);
       const steps = Math.max(3, Math.round(4 + Math.random() * 3));
 
       const branchPoints = [origin];
@@ -406,9 +436,9 @@ export class Stage3Prolog {
       for (let step = 1; step <= steps && remaining > 4; step += 1) {
         const segLen = Math.min(remaining, branchLength / steps * (0.8 + Math.random() * 0.4));
         remaining -= segLen;
-        const drift = (Math.random() - 0.5) * jitter * 0.4;
-        currentX += normX * segLen + perpX * drift * branchDir;
-        currentY += normY * segLen + perpY * drift * branchDir;
+        const drift = (Math.random() - 0.5) * jitter * jitterMul * 0.5;
+        currentX += branchNormX * segLen + branchPerpX * drift;
+        currentY += branchNormY * segLen + branchPerpY * drift;
         branchPoints.push({ x: currentX, y: currentY });
         segmentWidth *= decay;
       }
@@ -560,6 +590,13 @@ export class Stage3 extends StageManager {
   getPrologObstacles() {
     if (!this.prolog || !this._prologShown) return [];
     return this.prolog.getObstacles();
+  }
+
+  getBackgroundColor() {
+    if (this.prolog && this._prologShown && !this.prolog.isComplete()) {
+      return STAGE2_FINAL_BACKGROUND;
+    }
+    return super.getBackgroundColor();
   }
 
   getBackgroundOffset() {
