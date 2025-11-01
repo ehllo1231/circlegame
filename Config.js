@@ -242,6 +242,13 @@ export const AUDIO = {
     preload: 'auto',
     startOffsets: [0, 40, 60],
   },
+  stage3: {
+    src: './Music/stage3.mp3',
+    volume: 0.6,
+    loop: true,
+    preload: 'auto',
+    startOffsets: [0, 40, 60],
+  },
 };
 
 export const EFFECTS = {
