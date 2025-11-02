@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "clean": "rimraf www",
+    "build:mkdir": "shx mkdir -p www",
+    "build:copy": "shx cp index.html www/index.html && shx cp *.js www/ && shx cp -r Assets www/Assets && shx cp -r Effects www/Effects && shx cp -r Music www/Music",
+    "build": "npm run clean && npm run build:mkdir && npm run build:copy",
+    "sync:android": "npm run build && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.4",
+    "rimraf": "^6.0.1",
+    "shx": "^0.3.4"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/core": "^7.4.4"
+  }
+}
