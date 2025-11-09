@@ -90,6 +90,7 @@ class StageAllClearOverlay {
     }
 
     const messageAlpha = this._getMessageAlpha();
+    this._lastMessageBaseline = null;
     if (messageAlpha > 0 && this.messageText) {
       ctx.save();
       ctx.globalAlpha = messageAlpha;
@@ -103,14 +104,17 @@ class StageAllClearOverlay {
       ctx.fillStyle = this.messageColor;
       const centerX = width / 2;
       const centerY = height / 2 + this.messageOffsetY;
-      wrapText({
+      const messageCenterY = centerY + this.messageOffsetY;
+      const metrics = drawTextBlock({
         ctx,
         text: this.messageText,
         x: centerX,
-        y: centerY,
+        y: messageCenterY,
         maxWidth: width * 0.8,
         lineHeight: this._computeLineHeight(ctx),
+        returnMetrics: true,
       });
+      this._lastMessageBaseline = metrics?.lastBaseline ?? messageCenterY;
       ctx.restore();
     }
 
@@ -126,12 +130,12 @@ class StageAllClearOverlay {
         ctx.shadowBlur = 8;
       }
       ctx.fillStyle = this.promptColor;
-      const promptY = height / 2 + this.promptOffsetY;
-      wrapText({
+      const promptBase = (this._lastMessageBaseline ?? (height / 2)) + this.promptOffsetY;
+      drawTextBlock({
         ctx,
         text: this.promptText,
         x: width / 2,
-        y: promptY,
+        y: promptBase,
         maxWidth: width * 0.8,
         lineHeight: Math.max(20, this._computeLineHeight(ctx) * 0.75),
       });
@@ -502,8 +506,16 @@ function colorWithAlpha(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${clamp01(alpha)})`;
 }
 
-function wrapText({ ctx, text, x, y, maxWidth, lineHeight }) {
-  if (!ctx || text == null) return;
+function drawTextBlock({
+  ctx,
+  text,
+  x,
+  y,
+  maxWidth,
+  lineHeight,
+  returnMetrics = false,
+}) {
+  if (!ctx || text == null) return null;
   const paragraphs = String(text).split(/\n/g);
   const lines = [];
   for (let i = 0; i < paragraphs.length; i += 1) {
@@ -530,8 +542,16 @@ function wrapText({ ctx, text, x, y, maxWidth, lineHeight }) {
   const totalHeight = lineHeight * (lines.length - 1);
   const startY = y - totalHeight / 2;
   let offsetY = 0;
+  let lastBaseline = startY;
   for (const content of lines) {
     ctx.fillText(content, x, startY + offsetY);
+    lastBaseline = startY + offsetY;
     offsetY += lineHeight;
   }
+  if (!returnMetrics) return null;
+  return {
+    lastBaseline,
+    totalHeight,
+    lines: lines.length,
+  };
 }

@@ -454,6 +454,7 @@ export class Game {
       });
       this.runtime.resetTracking();
     }
+    this._clearCanvasSurface();
 
     this._updateStageLocks();
     if (this.ui) {
@@ -467,6 +468,16 @@ export class Game {
         }
       }
     }
+  }
+
+  _clearCanvasSurface() {
+    if (!this.ctx || !this.canvas) return;
+    this.ctx.save?.();
+    if (this.ctx.setTransform) {
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.restore?.();
   }
 
   _syncRadiiFromConfig() {

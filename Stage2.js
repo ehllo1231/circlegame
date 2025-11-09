@@ -323,7 +323,7 @@ class Stage2Phase1 extends StagePhase {
     SPAWN.multiCountWeights = [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 0;
-    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.min = 1.2;
     SNOW.fallSpeed.max = 2.0;
     SNOW.wind.baseX = 0.12;
     SNOW.wind.oscAmp = 0.1;
@@ -340,7 +340,7 @@ class Stage2Phase2 extends StagePhase {
     SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 300;
-    SNOW.fallSpeed.min = 0.8;
+    SNOW.fallSpeed.min = 1.2;
     SNOW.fallSpeed.max = 2.0;
     SNOW.wind.baseX = -0.12;
     SNOW.wind.oscAmp = 0.1;

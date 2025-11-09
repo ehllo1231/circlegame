@@ -211,10 +211,10 @@ export const STAGE_ALL_CLEAR = {
   prompt: {
     text: 'Press any key to continue',
     font: '28px "Pretendard", "Noto Sans KR", Arial, sans-serif',
-    color: '#bfbfbf',
+    color: '#4d4d4d',
     shadowColor: 'rgba(0, 0, 0, 0.45)',
-    offsetY: 120,
-    delayAfterMessageSec: 1,
+    offsetY: 300,
+    delayAfterMessageSec: 2,
     fadeInDurationSec: 0.8,
   },
 };
