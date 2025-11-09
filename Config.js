@@ -13,8 +13,11 @@ export const SCORE = {
 
 // Canvas/game viewport size (configurable)
 export const CANVAS = {
-  width: 900,
-  height: 900,
+  width: 960,
+  height: 800,
+  aspectRatio: 1.3, // width / height
+  // Orbit radius as a fraction of the viewport's smaller side (radius = minSide * ratio)
+  orbitRadiusToMinSide: 0.15,
 };
 
 export const ORBIT = {
@@ -24,8 +27,8 @@ export const ORBIT = {
 };
 
 export const PLAYER = {
-  radius: 15,
-  angularSpeed: 0.04, // radians per frame (2x)
+  radius: 13,
+  angularSpeed: 0.041, // radians per frame (2x)
 };
 
 export const SPAWN = {
@@ -45,9 +48,9 @@ export const SPAWN = {
 };
 
 export const OBSTACLE = {
-  baseWidth: 24, // 1.5x of 16
-  length: 37.5,  // 1.5x of 25
-  baseSpeed: 6,          // 2x
+  baseWidth: 19.2, // 1.5x of 16
+  length: 30,  // 1.5x of 25
+  baseSpeed: 4.5,          // 2x
   speedMinMul: 0.9,
   speedMaxMul: 1.9,
   // Acceleration toward center (px/frame^2)
@@ -177,6 +180,42 @@ export const STAGE_THEMES = {
   stage3: {
     background: '#00032e',
     fadeDurationSec: 0.8,
+  },
+  stageAllClear: {
+    background: '#000000',
+    fadeDurationSec: 0.6,
+  },
+};
+
+export const STAGE_ALL_CLEAR = {
+  retractDelaySec: 0.2,
+  retractDurationSec: 2.1,
+  retractEaseExponent: 1.25,
+  disableCollisionBelowPx: 4,
+  targetInsetPx: 48,
+  removeAfterRetract: true,
+  fade: {
+    delaySec: 1,
+    durationSec: 5.0,
+    color: '#000000',
+  },
+  message: {
+    text: 'Congratulations!! You cleared all stages.\n\n Thank you for playing!',
+    font: '50px "Pretendard", "Noto Sans KR", Arial, sans-serif',
+    color: '#ffe600',
+    shadowColor: 'rgba(0, 0, 0, 0.7)',
+    offsetY: 0,
+    fadeInDelaySec: 0.4,
+    fadeInDurationSec: 1.2,
+  },
+  prompt: {
+    text: 'Press any key to continue',
+    font: '28px "Pretendard", "Noto Sans KR", Arial, sans-serif',
+    color: '#bfbfbf',
+    shadowColor: 'rgba(0, 0, 0, 0.45)',
+    offsetY: 120,
+    delayAfterMessageSec: 1,
+    fadeInDurationSec: 0.8,
   },
 };
 

@@ -7,6 +7,7 @@ import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
 import { Stage2 } from './Stage2.js';
 import { Stage3 } from './Stage3.js';
+import { StageAllClear, STAGE_ALL_CLEAR_ID } from './StageAllClear.js';
 import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
 import { StageThemeManager } from './StageThemeManager.js';
@@ -37,8 +38,13 @@ export class Game {
     this.ui = new UIController();
     this.input = new InputController();
 
-    this.stageMap = { stage1: Stage1, stage2: Stage2, stage3: Stage3 };
-    this.stageOrder = ['stage1', 'stage2', 'stage3'];
+    this.stageMap = {
+      stage1: Stage1,
+      stage2: Stage2,
+      stage3: Stage3,
+      [STAGE_ALL_CLEAR_ID]: StageAllClear,
+    };
+    this.stageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
     this.selectedStage = 'stage1';
 
     this.stageController = new StageOrchestrator({
@@ -157,6 +163,7 @@ export class Game {
         }
       },
       onFastForward: () => this.enableFastForwardDebug(),
+      onAnyKey: () => this._handleAnyKeyPress(),
     });
     const reverseTapTarget = typeof window !== 'undefined' ? window : this.canvas;
     this.input.attach({ reverseTapElement: reverseTapTarget });
@@ -358,6 +365,15 @@ export class Game {
     this.fastForwardNextStart = true;
   }
 
+  _handleAnyKeyPress() {
+    const activeStageId = this.stageController?.getActiveStageId?.();
+    if (activeStageId !== STAGE_ALL_CLEAR_ID) return;
+    const stage = this.stageController.getActiveStage();
+    if (stage && typeof stage.canAcceptContinue === 'function' && stage.canAcceptContinue()) {
+      this.returnToIntro();
+    }
+  }
+
   applyFastForwardStageEnd() {
     const currentStageId = this.stageController.getActiveStageId();
     if (currentStageId && this.runtime && typeof this.runtime.muteStage === 'function') {
@@ -374,6 +390,14 @@ export class Game {
   }
 
   returnToStageSelect() {
+    this._resetToMenu({ showIntro: false });
+  }
+
+  returnToIntro() {
+    this._resetToMenu({ showIntro: true });
+  }
+
+  _resetToMenu({ showIntro = false } = {}) {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
@@ -434,9 +458,13 @@ export class Game {
     this._updateStageLocks();
     if (this.ui) {
       this.ui.hideOverlays();
-      this.ui.showStageSelection();
-      if (typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+      if (showIntro && typeof this.ui.showIntro === 'function') {
+        this.ui.showIntro();
+      } else if (typeof this.ui.showStageSelection === 'function') {
+        this.ui.showStageSelection();
+        if (typeof this.ui.setStageSelection === 'function') {
+          this.ui.setStageSelection(this.selectedStage);
+        }
       }
     }
   }
@@ -591,30 +619,58 @@ export class Game {
   }
 
   _computeScaledOrbitRadius(scale = 1) {
+    const ratio = this._resolveOrbitRadiusRatio();
+    const currentSide = this._resolveCurrentMinViewportSide();
+    if (Number.isFinite(ratio) && ratio > 0 && Number.isFinite(currentSide) && currentSide > 0) {
+      return currentSide * ratio;
+    }
     const baseOrbit = typeof ORBIT?.radius === 'number' ? ORBIT.radius : 160;
-    const clamped = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
-    return baseOrbit * clamped;
+    const normalized = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    return baseOrbit * normalized;
   }
 
   _computeScaledPlayerRadius(scale = 1) {
     const basePlayer = typeof PLAYER?.radius === 'number' ? PLAYER.radius : 15;
-    const clamped = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
-    const scaled = basePlayer * clamped;
+    const normalized = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    const scaled = basePlayer * normalized;
     return Math.max(2.5, scaled);
   }
 
   _computeViewportScale() {
-    const referenceWidth = typeof CANVAS?.width === 'number' ? CANVAS.width : 900;
-    const referenceHeight = typeof CANVAS?.height === 'number' ? CANVAS.height : 900;
-    const referenceSide = Math.min(referenceWidth, referenceHeight);
+    const referenceSide = this._resolveReferenceViewportSide();
     if (!Number.isFinite(referenceSide) || referenceSide <= 0) return 1;
-    const width = Number.isFinite(this.canvas?.width) ? this.canvas.width : referenceWidth;
-    const height = Number.isFinite(this.canvas?.height) ? this.canvas.height : referenceHeight;
-    const currentSide = Math.min(width, height);
+    const currentSide = this._resolveCurrentMinViewportSide();
     if (!Number.isFinite(currentSide) || currentSide <= 0) return 1;
     const scale = currentSide / referenceSide;
     if (!Number.isFinite(scale) || scale <= 0) return 1;
-    return Math.min(scale, 1);
+    return scale;
+  }
+
+  _resolveReferenceViewportSide() {
+    const referenceWidth = typeof CANVAS?.width === 'number' ? CANVAS.width : 900;
+    const referenceHeight = typeof CANVAS?.height === 'number' ? CANVAS.height : 900;
+    const referenceSide = Math.min(referenceWidth, referenceHeight);
+    return Number.isFinite(referenceSide) && referenceSide > 0 ? referenceSide : null;
+  }
+
+  _resolveCurrentMinViewportSide() {
+    const fallbackWidth = typeof CANVAS?.width === 'number' ? CANVAS.width : 900;
+    const fallbackHeight = typeof CANVAS?.height === 'number' ? CANVAS.height : 900;
+    const width = Number.isFinite(this.canvas?.width) ? this.canvas.width : fallbackWidth;
+    const height = Number.isFinite(this.canvas?.height) ? this.canvas.height : fallbackHeight;
+    const currentSide = Math.min(width, height);
+    return Number.isFinite(currentSide) && currentSide > 0 ? currentSide : null;
+  }
+
+  _resolveOrbitRadiusRatio() {
+    if (Number.isFinite(CANVAS?.orbitRadiusToMinSide) && CANVAS.orbitRadiusToMinSide > 0) {
+      return CANVAS.orbitRadiusToMinSide;
+    }
+    const referenceSide = this._resolveReferenceViewportSide();
+    const baseOrbit = typeof ORBIT?.radius === 'number' ? ORBIT.radius : 160;
+    if (!Number.isFinite(referenceSide) || referenceSide <= 0) return null;
+    if (!Number.isFinite(baseOrbit) || baseOrbit <= 0) return null;
+    return baseOrbit / referenceSide;
   }
 
   _isStageUnlocked(stageId) {

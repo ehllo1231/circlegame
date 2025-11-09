@@ -8,6 +8,7 @@ export class InputController {
       reverse: null,
       debugToggle: null,
       fastForward: null,
+      anyKey: null,
     };
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onPointerDown = null;
@@ -15,12 +16,13 @@ export class InputController {
     this.reverseAnyKey = false; // deprecated; kept for backward compatibility
   }
 
-  bindHandlers({ onStart, onRestart, onReverse, onDebugToggle, onFastForward }) {
+  bindHandlers({ onStart, onRestart, onReverse, onDebugToggle, onFastForward, onAnyKey }) {
     this.handlers.start = onStart || null;
     this.handlers.restart = onRestart || null;
     this.handlers.reverse = onReverse || null;
     this.handlers.debugToggle = onDebugToggle || null;
     this.handlers.fastForward = onFastForward || null;
+    this.handlers.anyKey = onAnyKey || null;
   }
 
   attach({ reverseTapElement } = {}) {
@@ -83,6 +85,11 @@ export class InputController {
     if (code === 'F7' && this.handlers.fastForward) {
       this.handlers.fastForward();
       handled = true;
+    }
+    if (!handled && this.handlers.anyKey) {
+      this.handlers.anyKey({ code });
+    } else if (handled && this.handlers.anyKey) {
+      this.handlers.anyKey({ code });
     }
     if (handled) event.preventDefault();
   }

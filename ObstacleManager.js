@@ -8,7 +8,7 @@ export class ObstacleManager {
         this.centerY = centerY;
         this.orbitRadius = orbitRadius;
         this.obstacles = [];
-        this.scale = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
+        this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
 
         // Spawn interval and counter
         this.spawnInterval = (SPAWN && typeof SPAWN.baseInterval === 'number') ? SPAWN.baseInterval : 90;
@@ -69,7 +69,7 @@ export class ObstacleManager {
     }
 
     setScale(scale = 1) {
-        const nextScale = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
+        const nextScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
         if (nextScale === this.scale) return;
         const prevScale = this.scale > 0 ? this.scale : 1;
         this.scale = nextScale;

@@ -241,7 +241,7 @@ export class Stage2Prolog {
     }
     const ratio = orbitRadius / baseOrbit;
     if (!Number.isFinite(ratio) || ratio <= 0) return 1;
-    return Math.min(ratio, 1);
+    return ratio;
   }
 
   _applyConfig() {
@@ -319,7 +319,7 @@ class Stage2Phase1 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 30;
+    SPAWN.baseInterval = 40;
     SPAWN.multiCountWeights = [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 0;
@@ -336,7 +336,7 @@ class Stage2Phase2 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 25;
+    SPAWN.baseInterval = 28;
     SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 300;
@@ -353,7 +353,7 @@ class Stage2Phase3 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 17;
+    SPAWN.baseInterval = 23;
     SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.18, 0.22, 0.23, 0.18, 0.07];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 2000;
@@ -370,7 +370,7 @@ class Stage2Phase4 extends StagePhase {
   }
 
   onEnter() {
-    SPAWN.baseInterval = 14;
+    SPAWN.baseInterval = 19;
     SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
     SNOW.direction = 'up';
     SNOW.spawnPerMin = 6000;

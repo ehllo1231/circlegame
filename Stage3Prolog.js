@@ -316,7 +316,7 @@ export class Stage3Prolog {
     }
     const ratio = orbitRadius / baseOrbit;
     if (!Number.isFinite(ratio) || ratio <= 0) return 1;
-    return Math.min(ratio, 1);
+    return ratio;
   }
 
   _updateStageRotation(dtSeconds) {

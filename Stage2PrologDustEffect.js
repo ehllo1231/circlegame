@@ -78,7 +78,7 @@ export class Stage2PrologDustEffect {
   }
 
   setScale(scale = 1) {
-    const next = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
+    const next = Number.isFinite(scale) && scale > 0 ? scale : 1;
     this.scale = next;
   }
 

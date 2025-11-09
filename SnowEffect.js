@@ -2,7 +2,7 @@
 
 function normalizeScale(value) {
   if (!Number.isFinite(value) || value <= 0) return 1;
-  return Math.min(value, 1);
+  return value;
 }
 
 export class SnowEffect {

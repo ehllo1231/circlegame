@@ -17,7 +17,7 @@ class Stage3Phase1 extends StagePhase {
   }
 
   onEnter(context) {
-    SPAWN.baseInterval = 30;
+    SPAWN.baseInterval = 40;
     SPAWN.multiCountWeights = [0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.1, 0.05];
     SNOW.direction = 'down';
     SNOW.spawnPerMin = 0;
@@ -39,7 +39,7 @@ class Stage3Phase2 extends StagePhase {
   }
 
   onEnter(context) {
-    SPAWN.baseInterval = 25;
+    SPAWN.baseInterval = 28;
     SPAWN.multiCountWeights = [0.05, 0.07, 0.1, 0.2, 0.2, 0.2, 0.13, 0.05];
     SNOW.direction = 'down';
     SNOW.spawnPerMin = 300;
@@ -61,7 +61,7 @@ class Stage3Phase3 extends StagePhase {
   }
 
   onEnter(context) {
-    SPAWN.baseInterval = 17;
+    SPAWN.baseInterval = 23;
     SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
     SNOW.direction = 'down';
     SNOW.spawnPerMin = 2000;
@@ -82,7 +82,7 @@ class Stage3Phase4 extends StagePhase {
   }
 
   onEnter(context) {
-    SPAWN.baseInterval = 14;
+    SPAWN.baseInterval = 19;
     SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
     SNOW.direction = 'down';
     SNOW.spawnPerMin = 6000;
@@ -107,7 +107,7 @@ export class Stage3 extends StageManager {
         new Stage3Phase4(),
       ],
       fadeFrom: '#00032e',
-      fadeTo: '#36005a',
+      fadeTo: '#000000',
       fadeDelaySec: 2,
       fadeDurationSec: 2,
       hideScoreDurationSec: 2,

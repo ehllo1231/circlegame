@@ -67,26 +67,65 @@
 
         const canvas = document.getElementById('canvas');
 
+        function readPositiveNumber(value) {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+        }
+
+        function computeAspectRatio() {
+            const configured = readPositiveNumber(CANVAS && CANVAS.aspectRatio);
+            if (configured) return configured;
+            const widthFromConfig = readPositiveNumber(CANVAS && CANVAS.width);
+            const heightFromConfig = readPositiveNumber(CANVAS && CANVAS.height);
+            if (widthFromConfig && heightFromConfig) {
+                return widthFromConfig / heightFromConfig;
+            }
+            return 1;
+        }
+
         function computeCanvasSize() {
-            const minSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
-            if (Number.isFinite(minSide) && minSide > 0) {
-                return minSide;
+            const ratio = computeAspectRatio();
+            const viewportWidth = readPositiveNumber(window.innerWidth);
+            const viewportHeight = readPositiveNumber(window.innerHeight);
+
+            if (viewportWidth && viewportHeight) {
+                let width = viewportWidth;
+                let height = width / ratio;
+                if (height > viewportHeight) {
+                    height = viewportHeight;
+                    width = height * ratio;
+                }
+                return {
+                    width: Math.round(width),
+                    height: Math.round(height),
+                };
             }
-            if (CANVAS && typeof CANVAS.width === 'number') {
-                return CANVAS.width;
+
+            const configWidth = readPositiveNumber(CANVAS && CANVAS.width);
+            const configHeight = readPositiveNumber(CANVAS && CANVAS.height);
+            if (configWidth && configHeight) {
+                return {
+                    width: Math.round(configWidth),
+                    height: Math.round(configHeight),
+                };
             }
-            return 900;
+
+            const fallbackHeight = 900;
+            return {
+                width: Math.round(fallbackHeight * ratio),
+                height: fallbackHeight,
+            };
         }
 
         const initialSize = computeCanvasSize();
-        canvas.width = initialSize;
-        canvas.height = initialSize;
+        canvas.width = initialSize.width;
+        canvas.height = initialSize.height;
 
         const game = new Game(canvas);
 
         function handleResize() {
             const size = computeCanvasSize();
-            game.resizeCanvas({ width: size, height: size });
+            game.resizeCanvas(size);
         }
 
         window.addEventListener('resize', handleResize);

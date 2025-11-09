@@ -10,7 +10,7 @@ export class GameScene {
     this.centerY = centerY;
     this.orbitRadius = orbitRadius;
     this.playerRadius = playerRadius;
-    this.scale = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
+    this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
 
     this.playerHitFlash = 0;
     this._snowShouldDraw = false;
@@ -43,7 +43,7 @@ export class GameScene {
   }
 
   setScale(scale = 1) {
-    const nextScale = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 1) : 1;
+    const nextScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
     if (nextScale === this.scale) return;
     this.scale = nextScale;
     if (this.obstacleManager && typeof this.obstacleManager.setScale === 'function') {

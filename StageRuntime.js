@@ -1,4 +1,5 @@
 import { SNOW } from './Config.js';
+import { STAGE_ALL_CLEAR_ID } from './StageAllClear.js';
 
 export class StageRuntime {
   constructor({
@@ -95,6 +96,7 @@ export class StageRuntime {
     }
 
     const activeStageId = this.stageController.getActiveStageId();
+    const isAllClearStage = activeStageId === STAGE_ALL_CLEAR_ID;
     if (this.currentStageId == null) this.currentStageId = activeStageId;
     if (this.currentStageId !== activeStageId) {
       const previousStageId = this.currentStageId;
@@ -131,7 +133,9 @@ export class StageRuntime {
     }
 
     const activeStageInstance = this.stageController.getActiveStage();
-    if (activeStageInstance && typeof activeStageInstance.getTotalDuration === 'function') {
+    if (isAllClearStage) {
+      stageElapsedRaw = 0;
+    } else if (activeStageInstance && typeof activeStageInstance.getTotalDuration === 'function') {
       const totalDuration = activeStageInstance.getTotalDuration();
       if (this.stageController.isStageFinished()) {
         stageElapsedRaw = totalDuration;
@@ -164,6 +168,7 @@ export class StageRuntime {
     const snowActive = snowEnabled && elapsedForEffects >= snowStartAt && !prologActive;
     const allowSpawn = (!prologActive) && (debugMode ? true : this.stageController.canSpawn());
     const visibleScore = Math.max(0, Math.floor(stageElapsedRaw));
+    const rhythmPaused = prologActive || isAllClearStage;
 
     const { playerHit } = this.scene.updateFrame({
       dt,
@@ -176,7 +181,7 @@ export class StageRuntime {
       canvasWidth: this.canvas.width,
       canvasHeight: this.canvas.height,
       extraObstacles: prologObstacles,
-      rhythmPaused: prologActive,
+      rhythmPaused,
     });
 
     if (playerHit) {
@@ -201,7 +206,7 @@ export class StageRuntime {
       orbitRadius: this.orbitRadius,
       snowActive,
       extraObstacles: prologObstacles,
-      rhythmPaused: prologActive,
+      rhythmPaused,
     });
 
     if (activeStage && typeof activeStage.drawProlog === 'function') {
