@@ -17,7 +17,6 @@ export class SoundEffectManager {
     this.htmlPools = new Map();
     this.audioContext = null;
     this.useWebAudio = !!AudioContextClass;
-    this._pausedHtmlAudio = new Map();
     this.updateConfig(config);
   }
 
@@ -88,43 +87,6 @@ export class SoundEffectManager {
     for (const key of Array.from(this.htmlPools.keys())) {
       if (!normalizedKeys.has(key)) this.htmlPools.delete(key);
     }
-    this._pausedHtmlAudio.clear();
-  }
-
-  pauseAll() {
-    if (this.useWebAudio && this.audioContext && this.audioContext.state === 'running') {
-      try { this.audioContext.suspend(); } catch (_) { /* ignore */ }
-    }
-    this._pausedHtmlAudio.clear();
-    for (const pool of this.htmlPools.values()) {
-      if (!Array.isArray(pool)) continue;
-      for (const audio of pool) {
-        if (!audio || audio.paused) continue;
-        try {
-          this._pausedHtmlAudio.set(audio, audio.currentTime || 0);
-          audio.pause();
-        } catch (_) { /* ignore */ }
-      }
-    }
-  }
-
-  resumeAll() {
-    if (this.useWebAudio && this.audioContext && this.audioContext.state === 'suspended') {
-      try { this.audioContext.resume(); } catch (_) { /* ignore */ }
-    }
-    for (const [audio, time] of this._pausedHtmlAudio.entries()) {
-      if (!audio) continue;
-      try {
-        if (Number.isFinite(time)) {
-          audio.currentTime = Math.max(0, time);
-        }
-      } catch (_) { /* ignore */ }
-      const result = audio.play();
-      if (result && typeof result.catch === 'function') {
-        result.catch(() => {});
-      }
-    }
-    this._pausedHtmlAudio.clear();
   }
 
   _ensureAudioContext() {

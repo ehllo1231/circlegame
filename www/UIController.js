@@ -17,10 +17,6 @@ export class UIController {
     this.resetScoresButton = document.getElementById('resetScoresButton');
     this.stageSelectContainer = document.getElementById('stageSelect');
     this.stageSelectLabel = document.getElementById('stageSelectLabel');
-    this.pauseButton = document.getElementById('pauseButton');
-    this.pauseMenu = document.getElementById('pauseMenu');
-    this.pauseResumeButton = document.getElementById('pauseResumeButton');
-    this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
     this.selectedStageId = null;
     this.stageLocks = new Map();
     this.stageButtonMap = new Map();
@@ -29,8 +25,6 @@ export class UIController {
       if (stage) this.stageButtonMap.set(stage, btn);
     }
     this._introVisible = false;
-    this.hidePauseButton();
-    this.hidePauseMenu();
     this.applyUIConfig();
   }
 
@@ -40,7 +34,6 @@ export class UIController {
     this._applyIntroUI(uiConfig.intro ?? {}, commonButton);
     this._applyStageSelectUI(uiConfig.stageSelect ?? {}, commonButton);
     this._applyGameOverUI(uiConfig.gameOver ?? {}, commonButton);
-    this._applyPauseButtonUI(uiConfig.pauseButton ?? {});
   }
 
   _valueToPx(value) {
@@ -159,53 +152,7 @@ export class UIController {
     }, commonButton);
   }
 
-  _clamp01(value) {
-    if (!Number.isFinite(value)) return null;
-    if (value < 0) return 0;
-    if (value > 1) return 1;
-    return value;
-  }
-
-  _applyPauseButtonUI(cfg = {}) {
-    if (!this.pauseButton) return;
-    this._setPauseCustomProperty('--pause-btn-background', cfg.backgroundColor);
-    this._setPauseCustomProperty('--pause-btn-border', cfg.borderColor);
-    this._setPauseCustomProperty('--pause-btn-color', cfg.iconColor);
-    this._setPauseOpacity('--pause-btn-opacity', cfg.opacity);
-    this._setPauseOpacity('--pause-btn-hover-opacity', cfg.hoverOpacity);
-  }
-
-  _setPauseCustomProperty(propertyName, value) {
-    if (!this.pauseButton) return;
-    if (value == null || value === '') {
-      this.pauseButton.style.removeProperty(propertyName);
-      return;
-    }
-    this.pauseButton.style.setProperty(propertyName, value);
-  }
-
-  _setPauseOpacity(propertyName, value) {
-    if (!this.pauseButton) return;
-    const clamped = this._clamp01(value);
-    if (clamped == null) {
-      this.pauseButton.style.removeProperty(propertyName);
-      return;
-    }
-    this.pauseButton.style.setProperty(propertyName, clamped.toString());
-  }
-
-  bind({
-    onIntroStart,
-    onIntroStartComplete,
-    onStart,
-    onRestart,
-    onStageSelect,
-    onStageSelectScreen,
-    onResetScores,
-    onPause,
-    onResume,
-    onPauseStageSelect,
-  } = {}) {
+  bind({ onIntroStart, onIntroStartComplete, onStart, onRestart, onStageSelect, onStageSelectScreen, onResetScores } = {}) {
     if (this.gameStartButton) {
       this.gameStartButton.addEventListener('click', () => {
         if (onIntroStart) onIntroStart();
@@ -237,15 +184,6 @@ export class UIController {
         });
       });
     }
-    if (this.pauseButton && onPause) {
-      this.pauseButton.addEventListener('click', onPause);
-    }
-    if (this.pauseResumeButton && onResume) {
-      this.pauseResumeButton.addEventListener('click', onResume);
-    }
-    if (this.pauseStageSelectButton && onPauseStageSelect) {
-      this.pauseStageSelectButton.addEventListener('click', onPauseStageSelect);
-    }
   }
 
   hideOverlays() {
@@ -253,7 +191,6 @@ export class UIController {
     if (this.introScreen) this.introScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
-    this.hidePauseMenu();
   }
 
   showIntro() {
@@ -261,8 +198,6 @@ export class UIController {
     if (this.startScreen) this.startScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     if (this.introScreen) this.introScreen.style.display = 'flex';
-    this.hidePauseButton();
-    this.hidePauseMenu();
     if (this.stageSelectLabel) {
       this.setStageSelection(this.selectedStageId || 'stage1');
     }
@@ -273,8 +208,6 @@ export class UIController {
     if (this.introScreen) this.introScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'flex';
-    this.hidePauseButton();
-    this.hidePauseMenu();
   }
 
   isIntroVisible() {
@@ -315,8 +248,6 @@ export class UIController {
 
   showGameOver(finalScoreSeconds, highScore = null, isNew = false) {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
-    this.hidePauseButton();
-    this.hidePauseMenu();
     if (this.scoreDisplay) {
       const lines = [];
       if (isNew) lines.push('최고 점수!!');
@@ -360,21 +291,5 @@ export class UIController {
       ctx.textAlign = 'left';
       ctx.fillText(`${SCORE.label}: ${value}`, SCORE.position.x, SCORE.position.y);
     }
-  }
-
-  showPauseButton() {
-    if (this.pauseButton) this.pauseButton.style.display = 'inline-flex';
-  }
-
-  hidePauseButton() {
-    if (this.pauseButton) this.pauseButton.style.display = 'none';
-  }
-
-  showPauseMenu() {
-    if (this.pauseMenu) this.pauseMenu.style.display = 'flex';
-  }
-
-  hidePauseMenu() {
-    if (this.pauseMenu) this.pauseMenu.style.display = 'none';
   }
 }

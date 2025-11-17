@@ -7,7 +7,6 @@ export class StageAudioManager {
     this.currentStageId = null;
     this._offsetIndexMap = new Map();
     this._forcedOffsets = new Map();
-    this._pausedStages = new Map();
   }
 
   playStage(stageId, options = {}) {
@@ -55,34 +54,6 @@ export class StageAudioManager {
     if (this.currentStageId) {
       this.stopStage(this.currentStageId);
     }
-  }
-
-  pauseAll() {
-    this._pausedStages.clear();
-    for (const [stageId, audio] of this.audioElements.entries()) {
-      if (!audio || audio.paused) continue;
-      try {
-        this._pausedStages.set(stageId, audio.currentTime || 0);
-        audio.pause();
-      } catch (_) { /* ignore */ }
-    }
-  }
-
-  resumePaused() {
-    for (const [stageId, time] of this._pausedStages.entries()) {
-      const audio = this.audioElements.get(stageId);
-      if (!audio) continue;
-      try {
-        if (Number.isFinite(time)) {
-          audio.currentTime = Math.max(0, time);
-        }
-      } catch (_) { /* ignore */ }
-      const result = audio.play();
-      if (result && typeof result.catch === 'function') {
-        result.catch(() => {});
-      }
-    }
-    this._pausedStages.clear();
   }
 
   isPlaying(stageId) {
