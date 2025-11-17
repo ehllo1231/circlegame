@@ -88,6 +88,7 @@ export class Game {
       },
       onPlayerHit: () => this._playEffect('playerSmash'),
       backgroundTargets: this._collectGlobalBackgroundTargets(),
+      onStagePlayable: (stageId) => this._handleStagePlayable(stageId),
     });
 
     this.debugMode = false;
@@ -609,6 +610,39 @@ export class Game {
     return `orbit_high_score_${stageId}`;
   }
 
+  _getStageUnlockStorageKey(stageId) {
+    if (!stageId) return 'stage_unlocked_default';
+    return `stage_unlocked_${stageId}`;
+  }
+
+  _handleStagePlayable(stageId) {
+    if (!stageId) return;
+    if (stageId === 'stage2' || stageId === 'stage3') {
+      this._unlockStage(stageId);
+    }
+  }
+
+  _unlockStage(stageId) {
+    if (!stageId || stageId === 'stage1') return;
+    if (this._readStageUnlock(stageId)) return;
+    try {
+      localStorage.setItem(this._getStageUnlockStorageKey(stageId), '1');
+    } catch (_) {
+      // ignore storage errors
+    }
+    this._updateStageLocks();
+  }
+
+  _readStageUnlock(stageId) {
+    if (!stageId || stageId === 'stage1') return true;
+    try {
+      const value = localStorage.getItem(this._getStageUnlockStorageKey(stageId));
+      return value === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
   resetHighScores() {
     const keys = new Set(['orbit_high_score']);
     if (Array.isArray(this.stageOrder)) {
@@ -620,6 +654,8 @@ export class Game {
     for (const key of keys) {
       try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
     }
+    try { localStorage.removeItem(this._getStageUnlockStorageKey('stage2')); } catch (_) { /* ignore */ }
+    try { localStorage.removeItem(this._getStageUnlockStorageKey('stage3')); } catch (_) { /* ignore */ }
     this._updateStageLocks();
   }
 
@@ -782,41 +818,7 @@ export class Game {
   }
 
   _isStageUnlocked(stageId) {
-    if (!stageId || stageId === 'stage1') return true;
-    if (stageId === 'stage2') {
-      const key = this._getHighScoreStorageKey('stage1');
-      let high = 0;
-      try {
-        const stored = localStorage.getItem(key);
-        high = stored ? parseInt(stored, 10) : 0;
-        if (!Number.isFinite(high)) high = 0;
-      } catch (_) {
-        high = 0;
-      }
-      return high >= 60;
-    }
-    if (stageId === 'stage3') {
-      let stage2High = 0;
-      try {
-        const stored = localStorage.getItem(this._getHighScoreStorageKey('stage2'));
-        stage2High = stored ? parseInt(stored, 10) : 0;
-        if (!Number.isFinite(stage2High)) stage2High = 0;
-      } catch (_) {
-        stage2High = 0;
-      }
-
-      let stage1High = 0;
-      try {
-        const stored = localStorage.getItem(this._getHighScoreStorageKey('stage1'));
-        stage1High = stored ? parseInt(stored, 10) : 0;
-        if (!Number.isFinite(stage1High)) stage1High = 0;
-      } catch (_) {
-        stage1High = 0;
-      }
-
-      return stage2High >= 60 || stage1High >= 120;
-    }
-    return true;
+    return this._readStageUnlock(stageId);
   }
 
   _updateStageLocks() {

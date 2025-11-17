@@ -13,6 +13,7 @@ export class StageRuntime {
     geometry,
     onPlayerHit,
     backgroundTargets = [],
+    onStagePlayable,
   } = {}) {
     this.scene = scene;
     this.stageController = stageController;
@@ -23,6 +24,7 @@ export class StageRuntime {
     this.canvas = canvas;
     this.updateGeometry(geometry);
     this.onPlayerHit = typeof onPlayerHit === 'function' ? onPlayerHit : null;
+    this.onStagePlayable = typeof onStagePlayable === 'function' ? onStagePlayable : null;
 
     this.scoreBase = 0;
     this.stageElapsedOffset = 0;
@@ -30,6 +32,7 @@ export class StageRuntime {
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages = new Set();
+    this.playableStageNotified = new Set();
     this.backgroundTargets = Array.isArray(backgroundTargets)
       ? backgroundTargets.filter((target) => target && target.style)
       : [];
@@ -49,6 +52,7 @@ export class StageRuntime {
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages.clear();
+    this.playableStageNotified.clear();
     this._applyBackgroundColor(null);
   }
 
@@ -147,6 +151,12 @@ export class StageRuntime {
     }
     const displaySeconds = this.scoreBase + stageElapsedRaw;
     this.currentDisplayScore = displaySeconds;
+
+    this._notifyStagePlayableIfNeeded({
+      stageId: activeStageId,
+      prologActive,
+      stageElapsed: stageElapsedRaw,
+    });
 
     if (this.audioManager && this.audioManager.isPlaying('stage1')) {
       if (activeStageId !== 'stage1' || stageElapsedRaw >= 60) {
@@ -350,6 +360,19 @@ export class StageRuntime {
     this.ctx.textBaseline = 'middle';
     this.ctx.fillText('Debug Mode', this.centerX, this.centerY);
     this.ctx.restore();
+  }
+
+  _notifyStagePlayableIfNeeded({ stageId, prologActive, stageElapsed }) {
+    if (!this.onStagePlayable || !stageId) return;
+    if (prologActive) return;
+    if (stageElapsed <= 0) return;
+    if (this.playableStageNotified.has(stageId)) return;
+    this.playableStageNotified.add(stageId);
+    try {
+      this.onStagePlayable(stageId);
+    } catch (_) {
+      // ignore callback errors to avoid breaking runtime loop
+    }
   }
 
   _getStageTotalDuration(stageId) {
