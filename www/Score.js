@@ -10,6 +10,10 @@ export class Score {
     this._lastTime = null;
   }
 
+  resetReferenceTime() {
+    this._lastTime = null;
+  }
+
   update(now) {
     const timeNow = typeof now === 'number'
       ? now

@@ -40,6 +40,7 @@ export class InputController {
     this._onPointerDown = (event) => {
       const reverseHandler = this.handlers.reverse;
       if (!reverseHandler) return;
+      if (this._isEventFromUiBlocker(event)) return;
       const isTouch = event.pointerType === 'touch';
       // Allow secondary touches so multi-touch taps still reverse direction.
       if (!isTouch && typeof event.isPrimary === 'boolean' && !event.isPrimary) return;
@@ -96,5 +97,10 @@ export class InputController {
     if (handled) event.preventDefault();
   }
 
+  _isEventFromUiBlocker(event) {
+    if (!event || !event.target || typeof event.target.closest !== 'function') return false;
+    const blocker = event.target.closest('[data-prevent-reverse]');
+    return !!blocker;
+  }
   setReverseAnyKey(enabled) { this.reverseAnyKey = !!enabled; }
 }

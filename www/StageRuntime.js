@@ -52,6 +52,10 @@ export class StageRuntime {
     this._applyBackgroundColor(null);
   }
 
+  resetDeltaTime() {
+    this.lastTime = null;
+  }
+
   ensurePrologForStage(stage) {
     if (!stage || typeof stage.startProlog !== 'function') return;
     stage.startProlog({

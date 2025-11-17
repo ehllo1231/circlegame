@@ -69,16 +69,16 @@
         </div>
     </div>
 
-    <button id="pauseButton" aria-label="Pause">
+    <button id="pauseButton" aria-label="Pause" data-prevent-reverse="true">
         <span class="pause-icon" aria-hidden="true"></span>
         <span class="sr-only">Pause</span>
     </button>
-    <div id="pauseMenu">
+    <div id="pauseMenu" data-prevent-reverse="true">
         <div class="pause-card">
             <div class="pause-title">Paused</div>
             <div class="pause-actions">
-                <button id="pauseResumeButton">Resume</button>
-                <button id="pauseStageSelectButton">Stage Select</button>
+                <button id="pauseResumeButton" data-prevent-reverse="true">Resume</button>
+                <button id="pauseStageSelectButton" data-prevent-reverse="true">Stage Select</button>
             </div>
         </div>
     </div>
@@ -154,6 +154,7 @@
 
         window.addEventListener('resize', handleResize);
         handleResize();
+
     </script>
 </body>
 </html>

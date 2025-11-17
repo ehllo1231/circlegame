@@ -32,6 +32,7 @@ export class Game {
 
     this.gameStarted = false;
     this.gameOver = false;
+    this.isPaused = false;
     this.animationId = null;
     this.score = new Score();
 
@@ -143,9 +144,16 @@ export class Game {
       onStageSelect: (stageId) => this.setSelectedStage(stageId),
       onStageSelectScreen: () => this.returnToStageSelect(),
       onResetScores: () => this.resetHighScores(),
+      onPause: () => this.pauseGame(),
+      onResume: () => this.resumeGame(),
+      onPauseStageSelect: () => this.handlePauseStageSelect(),
     });
     this.input.bindHandlers({
       onStart: () => {
+        if (this.isPaused) {
+          this.resumeGame();
+          return;
+        }
         if (!this.gameStarted) {
           if (this.ui && typeof this.ui.isIntroVisible === 'function' && this.ui.isIntroVisible()) {
             this.ui.triggerIntroStart();
@@ -154,16 +162,29 @@ export class Game {
           this.startGame();
         }
       },
-      onRestart: () => { if (this.gameOver) this.restartGame(); },
-      onReverse: () => { if (this.gameStarted && !this.gameOver) this.scene.reversePlayerDirection(); },
+      onRestart: () => {
+        if (this.isPaused) return;
+        if (this.gameOver) this.restartGame();
+      },
+      onReverse: () => {
+        if (this.isPaused) return;
+        if (this.gameStarted && !this.gameOver) this.scene.reversePlayerDirection();
+      },
       onDebugToggle: () => {
+        if (this.isPaused) return;
         if (!this.gameStarted) {
           this.debugMode = !this.debugMode;
           this.debug.toggle(this.debugMode);
         }
       },
-      onFastForward: () => this.enableFastForwardDebug(),
-      onAnyKey: () => this._handleAnyKeyPress(),
+      onFastForward: () => {
+        if (this.isPaused) return;
+        this.enableFastForwardDebug();
+      },
+      onAnyKey: () => {
+        if (this.isPaused) return;
+        this._handleAnyKeyPress();
+      },
     });
     const reverseTapTarget = typeof window !== 'undefined' ? window : this.canvas;
     this.input.attach({ reverseTapElement: reverseTapTarget });
@@ -173,6 +194,7 @@ export class Game {
     this._stopStageMusic();
     this.gameStarted = true;
     this.gameOver = false;
+    this.isPaused = false;
     this.score.reset();
     this.stageController.resetProgress(0);
     this.scene.resetForNewRun();
@@ -189,7 +211,11 @@ export class Game {
     if (skipProlog) {
       this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
-    this.ui.hideOverlays();
+    if (this.ui) {
+      if (typeof this.ui.hideOverlays === 'function') this.ui.hideOverlays();
+      if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
+      if (typeof this.ui.showPauseButton === 'function') this.ui.showPauseButton();
+    }
     if (this.runtime) {
       this.runtime.resetTracking();
       if (!this.fastForwardNextStart) {
@@ -211,10 +237,15 @@ export class Game {
 
   gameOverScreenShow() {
     this.gameOver = true;
+    this.isPaused = false;
     this._stopStageMusic();
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
+    }
+    if (this.ui) {
+      if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
+      if (typeof this.ui.hidePauseButton === 'function') this.ui.hidePauseButton();
     }
     const displayScore = this.runtime ? this.runtime.getDisplayScore() : this.score.getSeconds();
     const finalScore = Math.floor(displayScore ?? this.score.getSeconds());
@@ -349,6 +380,10 @@ export class Game {
   }
 
   animate(now) {
+    if (this.isPaused) {
+      this.animationId = null;
+      return;
+    }
     if (!this.gameOver) {
       const { playerHit } = this.runtime.step(now, { debugMode: this.debugMode });
       if (playerHit) {
@@ -358,6 +393,65 @@ export class Game {
     }
 
     this.animationId = requestAnimationFrame((t) => this.animate(t));
+  }
+
+  pauseGame() {
+    if (!this.gameStarted || this.gameOver || this.isPaused) return;
+    this.isPaused = true;
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    if (this.audioManager && typeof this.audioManager.pauseAll === 'function') {
+      this.audioManager.pauseAll();
+    }
+    if (this.effectAudioManager && typeof this.effectAudioManager.pauseAll === 'function') {
+      this.effectAudioManager.pauseAll();
+    }
+    if (this.ui) {
+      if (typeof this.ui.hidePauseButton === 'function') this.ui.hidePauseButton();
+      if (typeof this.ui.showPauseMenu === 'function') this.ui.showPauseMenu();
+    }
+  }
+
+  resumeGame() {
+    if (!this.gameStarted || this.gameOver || !this.isPaused) return;
+    this.isPaused = false;
+    if (this.score && typeof this.score.resetReferenceTime === 'function') {
+      this.score.resetReferenceTime();
+    }
+    if (this.runtime && typeof this.runtime.resetDeltaTime === 'function') {
+      this.runtime.resetDeltaTime();
+    }
+    if (this.audioManager && typeof this.audioManager.resumePaused === 'function') {
+      this.audioManager.resumePaused();
+    } else if (this.runtime && typeof this.runtime.syncAudio === 'function') {
+      this.runtime.syncAudio();
+    }
+    if (this.effectAudioManager && typeof this.effectAudioManager.resumeAll === 'function') {
+      this.effectAudioManager.resumeAll();
+    }
+    if (this.ui) {
+      if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
+      if (typeof this.ui.showPauseButton === 'function') this.ui.showPauseButton();
+    }
+    this.animationId = requestAnimationFrame((t) => this.animate(t));
+  }
+
+  handlePauseStageSelect() {
+    if (!this.gameStarted || this.gameOver) {
+      this.returnToStageSelect();
+      return;
+    }
+    if (!this.isPaused) {
+      this.pauseGame();
+    }
+    this.isPaused = false;
+    if (this.ui) {
+      if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
+      if (typeof this.ui.hidePauseButton === 'function') this.ui.hidePauseButton();
+    }
+    this.returnToStageSelect();
   }
 
   enableFastForwardDebug() {
@@ -416,6 +510,7 @@ export class Game {
 
     this.gameStarted = false;
     this.gameOver = false;
+    this.isPaused = false;
     this.fastForwardNextStart = false;
     this.score.reset();
     this._syncRadiiFromConfig();
@@ -458,6 +553,8 @@ export class Game {
 
     this._updateStageLocks();
     if (this.ui) {
+      if (typeof this.ui.hidePauseButton === 'function') this.ui.hidePauseButton();
+      if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
       this.ui.hideOverlays();
       if (showIntro && typeof this.ui.showIntro === 'function') {
         this.ui.showIntro();

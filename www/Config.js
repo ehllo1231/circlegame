@@ -264,6 +264,13 @@ export const UI = {
   buttons: {
     borderRadiusPx: 8,
   },
+  pauseButton: {
+    backgroundColor: 'rgba(10,10,10,0.35)',
+    borderColor: 'rgba(255,255,255,0.25)',
+    iconColor: 'rgba(255,255,255,0.8)',
+    opacity: 0.55,
+    hoverOpacity: 0.85,
+  },
 };
 
 export const AUDIO = {

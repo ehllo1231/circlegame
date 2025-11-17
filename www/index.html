@@ -15,13 +15,23 @@
         .stage-button { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 22px; font: 16px Arial, sans-serif; cursor: pointer; border-radius: 6px; transition: all .2s ease; min-width: 140px; }
         .stage-button:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
         .stage-button.active { background: #fff; color: #000; box-shadow: 0 0 14px rgba(255,255,255,0.6); }
-        #gameStartButton, #startButton, #restartButton, #stageSelectButton, #resetScoresButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
-        #gameStartButton:hover, #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #resetScoresButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
+        #gameStartButton, #startButton, #restartButton, #stageSelectButton, #resetScoresButton, #pauseResumeButton, #pauseStageSelectButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
+        #gameStartButton:hover, #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #resetScoresButton:hover, #pauseResumeButton:hover, #pauseStageSelectButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
         /* Game over screen */
         #gameOverScreen { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameOverTitle { font: bold 48px Arial, sans-serif; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
         #scoreDisplay { font: 24px Arial, sans-serif; color: #fff; margin-bottom: 10px; text-align: center; }
         #gameOverActions { display: flex; gap: 16px; }
+        /* Pause UI */
+        #pauseButton { position: absolute; top: 20px; right: 20px; z-index: 6; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); padding: 8px; border-radius: 999px; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease; display: none; width: 40px; height: 40px; align-items: center; justify-content: center; opacity: var(--pause-btn-opacity, 0.6); }
+        #pauseButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); }
+        #pauseButton .pause-icon { position: relative; width: 16px; height: 18px; display: inline-flex; justify-content: space-between; }
+        #pauseButton .pause-icon::before, #pauseButton .pause-icon::after { content: ''; width: 5px; height: 100%; background: currentColor; border-radius: 2px; display: block; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        #pauseMenu { position: absolute; inset: 0; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); z-index: 12; }
+        #pauseMenu .pause-card { background: rgba(12,12,12,0.9); padding: 24px 36px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+        #pauseMenu .pause-title { font: bold 28px Arial, sans-serif; color: #fff; }
+        #pauseMenu .pause-actions { display: flex; gap: 16px; }
     </style>
 </head>
 <body>
@@ -56,6 +66,20 @@
         <div id="gameOverActions">
             <button id="restartButton">Restart</button>
             <button id="stageSelectButton">Stage Select</button>
+        </div>
+    </div>
+
+    <button id="pauseButton" aria-label="Pause" data-prevent-reverse="true">
+        <span class="pause-icon" aria-hidden="true"></span>
+        <span class="sr-only">Pause</span>
+    </button>
+    <div id="pauseMenu" data-prevent-reverse="true">
+        <div class="pause-card">
+            <div class="pause-title">Paused</div>
+            <div class="pause-actions">
+                <button id="pauseResumeButton" data-prevent-reverse="true">Resume</button>
+                <button id="pauseStageSelectButton" data-prevent-reverse="true">Stage Select</button>
+            </div>
         </div>
     </div>
 
@@ -130,6 +154,7 @@
 
         window.addEventListener('resize', handleResize);
         handleResize();
+
     </script>
 </body>
 </html>
