@@ -617,6 +617,24 @@ export class Game {
     return `orbit_high_score_${stageId}`;
   }
 
+  _removeLocalStorageKeys(predicate) {
+    if (typeof localStorage === 'undefined' || typeof predicate !== 'function') return;
+    const toRemove = [];
+    try {
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key && predicate(key)) {
+          toRemove.push(key);
+        }
+      }
+    } catch (_) {
+      return;
+    }
+    toRemove.forEach((key) => {
+      try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
+    });
+  }
+
   _getStageUnlockStorageKey(stageId) {
     if (!stageId) return 'stage_unlocked_default';
     return `stage_unlocked_${stageId}`;
@@ -676,20 +694,14 @@ export class Game {
   }
 
   resetHighScores() {
-    const keys = new Set(['orbit_high_score']);
-    if (Array.isArray(this.stageOrder)) {
-      this.stageOrder.forEach((id) => {
-        if (id === 'stage1') return;
-        keys.add(this._getHighScoreStorageKey(id));
-      });
-    }
-    for (const key of keys) {
-      try { localStorage.removeItem(key); } catch (_) { /* ignore */ }
-    }
-    try { localStorage.removeItem(this._getStageUnlockStorageKey('stage2')); } catch (_) { /* ignore */ }
-    try { localStorage.removeItem(this._getStageUnlockStorageKey('stage3')); } catch (_) { /* ignore */ }
+    this._removeLocalStorageKeys((key) => key && key.startsWith('orbit_high_score'));
+    this._removeLocalStorageKeys((key) => key && key.startsWith('stage_unlocked_'));
     this._updateStageLocks();
     this.setSelectedStage('stage1');
+    if (this.score) {
+      this.score.reset();
+      this.score.setMaxSeconds(this.stageController.getTotalDuration());
+    }
   }
 
   _stopStageMusic() {
