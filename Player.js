@@ -46,51 +46,97 @@ export class Player {
     
     // ?μ븷臾쇨낵??異⑸룎 ?먯젙
     checkCollisionWithObstacle(obstacle) {
+        if (!obstacle) return false;
+        const vertices = this._computeObstacleTriangle(obstacle);
+        if (!vertices) return false;
+        const { tip, baseLeft, baseRight } = vertices;
         const playerPos = this.getPosition();
-        const playerRadius = this.radius;
-        
-        // ?μ븷臾쇱쓽 媛??먮뱾怨쇱쓽 嫄곕━ 怨꾩궛
-        const obstacleAngle = obstacle.angle;
-        const obstacleRadius = obstacle.radius;
-        const obstacleLength = obstacle.length;
-        const obstacleBaseWidth = obstacle.baseWidth;
-        
-        // ?μ븷臾쇱쓽 ????醫뚰몴 怨꾩궛 (以묒떖 湲곗?)
-        const centerX = this.centerX;
-        const centerY = this.centerY;
-        
-        const obstacleCenterX = centerX + Math.cos(obstacleAngle) * obstacleRadius;
-        const obstacleCenterY = centerY + Math.sin(obstacleAngle) * obstacleRadius;
-        
-        const obstacleTipX = centerX + Math.cos(obstacleAngle) * (obstacleRadius - obstacleLength);
-        const obstacleTipY = centerY + Math.sin(obstacleAngle) * (obstacleRadius - obstacleLength);
-        
-        const obstacleBase1X = centerX + Math.cos(obstacleAngle + Math.PI/2) * (obstacleBaseWidth/2) + Math.cos(obstacleAngle) * obstacleRadius;
-        const obstacleBase1Y = centerY + Math.sin(obstacleAngle + Math.PI/2) * (obstacleBaseWidth/2) + Math.sin(obstacleAngle) * obstacleRadius;
-        
-        const obstacleBase2X = centerX + Math.cos(obstacleAngle - Math.PI/2) * (obstacleBaseWidth/2) + Math.cos(obstacleAngle) * obstacleRadius;
-        const obstacleBase2Y = centerY + Math.sin(obstacleAngle - Math.PI/2) * (obstacleBaseWidth/2) + Math.sin(obstacleAngle) * obstacleRadius;
-        
-        // ?먭낵 ?먯쓽 異⑸룎 ?먯젙 (媛꾨떒??諛⑸쾿)
-        const points = [
-            {x: obstacleCenterX, y: obstacleCenterY},
-            {x: obstacleTipX, y: obstacleTipY},
-            {x: obstacleBase1X, y: obstacleBase1Y},
-            {x: obstacleBase2X, y: obstacleBase2Y}
+        const radius = Math.max(1, this.radius);
+
+        if (this._pointInTriangle(playerPos, tip, baseLeft, baseRight)) {
+            return true;
+        }
+
+        const segments = [
+            [tip, baseLeft],
+            [tip, baseRight],
+            [baseLeft, baseRight],
         ];
-        
-        for (const point of points) {
-            const distance = Math.sqrt(
-                Math.pow(playerPos.x - point.x, 2) + 
-                Math.pow(playerPos.y - point.y, 2)
-            );
-            
-            if (distance < playerRadius + 5) { // 5???ъ쑀媛?
+        for (const [a, b] of segments) {
+            const dist = this._distancePointToSegment(playerPos, a, b);
+            if (dist <= radius) {
                 return true;
             }
         }
-        
         return false;
+    }
+
+    _computeObstacleTriangle(obstacle) {
+        const angle = obstacle.angle;
+        const radius = obstacle.radius;
+        const length = obstacle.length;
+        const baseWidth = obstacle.baseWidth;
+        if (!Number.isFinite(angle) || !Number.isFinite(radius) || !Number.isFinite(length) || !Number.isFinite(baseWidth)) {
+            return null;
+        }
+        const centerX = this.centerX;
+        const centerY = this.centerY;
+        const tipRadius = radius - length;
+        const tip = {
+            x: centerX + Math.cos(angle) * tipRadius,
+            y: centerY + Math.sin(angle) * tipRadius,
+        };
+        const halfBase = baseWidth / 2;
+        const normalAngle = angle + Math.PI / 2;
+        const baseCenterX = centerX + Math.cos(angle) * radius;
+        const baseCenterY = centerY + Math.sin(angle) * radius;
+        const baseLeft = {
+            x: baseCenterX + Math.cos(normalAngle) * halfBase,
+            y: baseCenterY + Math.sin(normalAngle) * halfBase,
+        };
+        const baseRight = {
+            x: baseCenterX - Math.cos(normalAngle) * halfBase,
+            y: baseCenterY - Math.sin(normalAngle) * halfBase,
+        };
+        if (!this._isFinitePoint(tip) || !this._isFinitePoint(baseLeft) || !this._isFinitePoint(baseRight)) {
+            return null;
+        }
+        return { tip, baseLeft, baseRight };
+    }
+
+    _isFinitePoint(point) {
+        return point && Number.isFinite(point.x) && Number.isFinite(point.y);
+    }
+
+    _pointInTriangle(p, a, b, c) {
+        const v0 = { x: c.x - a.x, y: c.y - a.y };
+        const v1 = { x: b.x - a.x, y: b.y - a.y };
+        const v2 = { x: p.x - a.x, y: p.y - a.y };
+        const dot00 = v0.x * v0.x + v0.y * v0.y;
+        const dot01 = v0.x * v1.x + v0.y * v1.y;
+        const dot02 = v0.x * v2.x + v0.y * v2.y;
+        const dot11 = v1.x * v1.x + v1.y * v1.y;
+        const dot12 = v1.x * v2.x + v1.y * v2.y;
+        const denom = (dot00 * dot11) - (dot01 * dot01);
+        if (denom === 0) return false;
+        const invDenom = 1 / denom;
+        const u = ((dot11 * dot02) - (dot01 * dot12)) * invDenom;
+        const v = ((dot00 * dot12) - (dot01 * dot02)) * invDenom;
+        return (u >= 0) && (v >= 0) && (u + v <= 1);
+    }
+
+    _distancePointToSegment(point, a, b) {
+        const ab = { x: b.x - a.x, y: b.y - a.y };
+        const lengthSq = ab.x * ab.x + ab.y * ab.y;
+        if (lengthSq === 0) {
+            return Math.hypot(point.x - a.x, point.y - a.y);
+        }
+        const ap = { x: point.x - a.x, y: point.y - a.y };
+        let t = (ap.x * ab.x + ap.y * ab.y) / lengthSq;
+        t = Math.max(0, Math.min(1, t));
+        const projX = a.x + ab.x * t;
+        const projY = a.y + ab.y * t;
+        return Math.hypot(point.x - projX, point.y - projY);
     }
 }
 

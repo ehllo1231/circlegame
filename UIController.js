@@ -32,6 +32,10 @@ export class UIController {
     this.isMuted = false;
     this.stageLocks = new Map();
     this.stageButtonMap = new Map();
+    this._gameOverOverlayVisible = false;
+    this._gameOverOverlayHidden = false;
+    this._gameOverPeekReturnHandler = null;
+    this._gameOverPeekAttachTimer = null;
     for (const btn of this.stageButtons) {
       const stage = btn?.dataset?.stage;
       if (stage) this.stageButtonMap.set(stage, btn);
@@ -293,6 +297,14 @@ export class UIController {
         onConfirmReset();
       });
     }
+    if (this.gameOverScreen) {
+      this.gameOverScreen.addEventListener('click', (event) => {
+        if (!this._gameOverOverlayVisible) return;
+        const isButton = event.target?.closest?.('button');
+        if (isButton) return;
+        this._temporarilyHideGameOverOverlay();
+      });
+    }
   }
 
   hideOverlays() {
@@ -300,6 +312,9 @@ export class UIController {
     if (this.introScreen) this.introScreen.style.display = 'none';
     if (this.startScreen) this.startScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
+    this._gameOverOverlayVisible = false;
+    this._gameOverOverlayHidden = false;
+    this._detachGameOverPeekRestore();
     this.hidePauseMenu();
     this.hideSettingsModal();
     this.hideResetConfirmModal();
@@ -366,6 +381,9 @@ export class UIController {
 
   showGameOver(finalScoreSeconds, highScore = null, isNew = false) {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
+    this._gameOverOverlayVisible = true;
+    this._gameOverOverlayHidden = false;
+    this._detachGameOverPeekRestore();
     this.hidePauseButton();
     this.hidePauseMenu();
     if (this.scoreDisplay) {
@@ -500,5 +518,45 @@ export class UIController {
     this.isMuted = !!isMuted;
     if (!this.muteToggleButton) return;
     this.muteToggleButton.textContent = this.isMuted ? 'Unmute Audio' : 'Mute Audio';
+  }
+
+  _temporarilyHideGameOverOverlay() {
+    if (!this.gameOverScreen) return;
+    if (!this._gameOverOverlayVisible || this._gameOverOverlayHidden) return;
+    this._gameOverOverlayHidden = true;
+    this.gameOverScreen.style.display = 'none';
+    this._scheduleGameOverPeekRestore();
+  }
+
+  _restoreGameOverOverlay() {
+    if (!this.gameOverScreen) return;
+    if (!this._gameOverOverlayVisible || !this._gameOverOverlayHidden) return;
+    this._gameOverOverlayHidden = false;
+    this.gameOverScreen.style.display = 'flex';
+    this._detachGameOverPeekRestore();
+  }
+
+  _scheduleGameOverPeekRestore() {
+    this._detachGameOverPeekRestore();
+    const root = typeof window !== 'undefined' ? window : null;
+    if (!root) return;
+    this._gameOverPeekReturnHandler = () => {
+      this._restoreGameOverOverlay();
+    };
+    this._gameOverPeekAttachTimer = root.setTimeout(() => {
+      root.addEventListener('pointerdown', this._gameOverPeekReturnHandler, { once: true });
+    }, 0);
+  }
+
+  _detachGameOverPeekRestore() {
+    const root = typeof window !== 'undefined' ? window : null;
+    if (this._gameOverPeekAttachTimer != null) {
+      clearTimeout(this._gameOverPeekAttachTimer);
+      this._gameOverPeekAttachTimer = null;
+    }
+    if (root && this._gameOverPeekReturnHandler) {
+      root.removeEventListener('pointerdown', this._gameOverPeekReturnHandler);
+    }
+    this._gameOverPeekReturnHandler = null;
   }
 }
