@@ -9,6 +9,16 @@ export const SCORE = {
   centerScale: 0.33,      // font size = orbitRadius * centerScale
   minFontPx: 16,          // minimum font size in px
   fontFamily: 'Arial',
+  highlight: {
+    enabled: true,
+    color: '#ffd85e',
+    glowColor: 'rgba(255,230,120,0.85)',
+    shadowBlurPx: 22,
+    minAlpha: 0.55,
+    maxAlpha: 1,
+    pulseSpeedHz: 2.4,
+    scaleBoost: 0.08,
+  },
 };
 
 // Canvas/game viewport size (configurable)

@@ -14,6 +14,8 @@ export class StageRuntime {
     onPlayerHit,
     backgroundTargets = [],
     onStagePlayable,
+    highScoreProvider,
+    scoreHighlightConfig = {},
   } = {}) {
     this.scene = scene;
     this.stageController = stageController;
@@ -36,6 +38,21 @@ export class StageRuntime {
     this.backgroundTargets = Array.isArray(backgroundTargets)
       ? backgroundTargets.filter((target) => target && target.style)
       : [];
+    this.highScoreProvider = typeof highScoreProvider === 'function' ? highScoreProvider : null;
+    this.scoreHighlightOptions = {
+      enabled: scoreHighlightConfig?.enabled !== false,
+      pulseSpeedHz: Number.isFinite(scoreHighlightConfig?.pulseSpeedHz)
+        ? Math.max(0, scoreHighlightConfig.pulseSpeedHz)
+        : 2,
+      durationSec: Number.isFinite(scoreHighlightConfig?.durationSec)
+        ? Math.max(0, scoreHighlightConfig.durationSec)
+        : 0.5,
+    };
+    this.highlightState = { active: false, timer: 0, intensity: 0, elapsed: 0 };
+    this.currentHighScoreStageId = null;
+    this.currentHighScoreValue = 0;
+    this.highlightTriggered = false;
+    this._syncHighScoreForStage(this.currentStageId);
   }
 
   updateGeometry({ centerX, centerY, orbitRadius, offscreenRadius } = {}) {
@@ -54,6 +71,7 @@ export class StageRuntime {
     this.mutedStages.clear();
     this.playableStageNotified.clear();
     this._applyBackgroundColor(null);
+    this._syncHighScoreForStage(this.currentStageId);
   }
 
   resetDeltaTime() {
@@ -116,6 +134,7 @@ export class StageRuntime {
       if (this.audioManager && previousStageId === 'stage1' && this.audioManager.isPlaying('stage1')) {
         this.audioManager.stopStage('stage1');
       }
+      this._syncHighScoreForStage(activeStageId);
     }
 
     const prologActiveStage = this.stageController.getActiveStage();
@@ -151,6 +170,7 @@ export class StageRuntime {
     }
     const displaySeconds = this.scoreBase + stageElapsedRaw;
     this.currentDisplayScore = displaySeconds;
+    this._updateHighlightState(displaySeconds, activeStageId, dtSeconds);
 
     this._notifyStagePlayableIfNeeded({
       stageId: activeStageId,
@@ -247,6 +267,7 @@ export class StageRuntime {
           this.centerX,
           this.centerY,
           this.orbitRadius,
+          { highlight: this._getHighlightRenderState() },
         );
       }
     }
@@ -264,6 +285,84 @@ export class StageRuntime {
 
   getCurrentStageId() {
     return this.currentStageId;
+  }
+
+  _getHighlightRenderState() {
+    if (!this._isHighlightEnabled()) {
+      return { active: false, intensity: 0 };
+    }
+    return {
+      active: !!this.highlightState.active,
+      intensity: this._clamp01(this.highlightState.intensity ?? 0),
+    };
+  }
+
+  _updateHighlightState(displaySeconds, stageId, dtSeconds) {
+    if (!this._isHighlightEnabled() || !this._isHighlightStage(stageId)) {
+      this._resetHighlightState();
+      this.highlightTriggered = false;
+      return;
+    }
+    if (this.currentHighScoreStageId !== stageId) {
+      this._syncHighScoreForStage(stageId);
+    }
+    const target = this.currentHighScoreValue ?? 0;
+    if (!this.highlightTriggered && displaySeconds > target) {
+      this.highlightTriggered = true;
+      this.highlightState.active = true;
+      this.highlightState.timer = 0;
+      this.highlightState.elapsed = 0;
+    }
+    if (this.highlightState.active) {
+      const speed = this.scoreHighlightOptions?.pulseSpeedHz > 0
+        ? this.scoreHighlightOptions.pulseSpeedHz
+        : 2;
+      const omega = speed * Math.PI * 2;
+      this.highlightState.timer += dtSeconds * omega;
+      const wave = (Math.sin(this.highlightState.timer) + 1) / 2;
+      this.highlightState.intensity = wave;
+      this.highlightState.elapsed += dtSeconds;
+      const maxDuration = this.scoreHighlightOptions?.durationSec;
+      if (maxDuration > 0 && this.highlightState.elapsed >= maxDuration) {
+        this._resetHighlightState();
+      }
+    } else {
+      this.highlightState.intensity = 0;
+    }
+  }
+
+  _syncHighScoreForStage(stageId) {
+    this.currentHighScoreStageId = stageId || null;
+    if (!this.highScoreProvider || !this._isHighlightStage(stageId)) {
+      this.currentHighScoreValue = 0;
+      this.highlightTriggered = false;
+      this._resetHighlightState();
+      return;
+    }
+    const value = this.highScoreProvider(stageId);
+    const numeric = Number.isFinite(value) ? value : 0;
+    this.currentHighScoreValue = Math.max(0, numeric);
+    this.highlightTriggered = false;
+    this._resetHighlightState();
+  }
+
+  _resetHighlightState() {
+    this.highlightState = { active: false, timer: 0, intensity: 0, elapsed: 0 };
+  }
+
+  _isHighlightEnabled() {
+    return !!(this.scoreHighlightOptions?.enabled && this.highScoreProvider);
+  }
+
+  _isHighlightStage(stageId) {
+    return !!(stageId && stageId !== STAGE_ALL_CLEAR_ID);
+  }
+
+  _clamp01(value) {
+    if (!Number.isFinite(value)) return 0;
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value;
   }
 
   _computeDelta(now) {

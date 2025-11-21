@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS } from './Config.js';
+import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
@@ -92,6 +92,8 @@ export class Game {
       onPlayerHit: () => this._playEffect('playerSmash'),
       backgroundTargets: this._collectGlobalBackgroundTargets(),
       onStagePlayable: (stageId) => this._handleStagePlayable(stageId),
+      highScoreProvider: (stageId) => this._readHighScore(stageId),
+      scoreHighlightConfig: SCORE?.highlight ?? {},
     });
 
     this.debugMode = false;
@@ -256,21 +258,13 @@ export class Game {
     }
     const displayScore = this.runtime ? this.runtime.getDisplayScore() : this.score.getSeconds();
     const finalScore = Math.floor(displayScore ?? this.score.getSeconds());
-    const stageId = this.stageController?.getStartingStageId?.() ?? 'default';
-    const highKey = this._getHighScoreStorageKey(stageId);
-    let high = 0;
-    try {
-      const stored = localStorage.getItem(highKey);
-      high = stored ? parseInt(stored, 10) : 0;
-      if (!Number.isFinite(high)) high = 0;
-    } catch (_) {
-      high = 0;
-    }
+    const stageId = this.stageController?.getStartingStageId?.() ?? 'stage1';
+    let high = this._readHighScore(stageId);
     let isNew = false;
     if (high < 0) high = 0;
     if (finalScore > high) {
       high = finalScore;
-      try { localStorage.setItem(highKey, String(high)); } catch (_) { /* ignore */ }
+      this._saveHighScore(stageId, high);
       isNew = true;
     }
     this._updateStageLocks();
@@ -615,6 +609,28 @@ export class Game {
       return 'orbit_high_score';
     }
     return `orbit_high_score_${stageId}`;
+  }
+
+  _readHighScore(stageId) {
+    const key = this._getHighScoreStorageKey(stageId);
+    try {
+      const stored = localStorage.getItem(key);
+      const parsed = stored ? parseInt(stored, 10) : 0;
+      if (!Number.isFinite(parsed)) return 0;
+      return Math.max(0, parsed);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  _saveHighScore(stageId, value) {
+    const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    const key = this._getHighScoreStorageKey(stageId);
+    try {
+      localStorage.setItem(key, String(normalized));
+    } catch (_) {
+      // ignore storage errors
+    }
   }
 
   _removeLocalStorageKeys(predicate) {

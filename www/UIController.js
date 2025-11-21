@@ -392,25 +392,76 @@ export class UIController {
     return !!this.stageLocks.get(stageId);
   }
 
-  drawScore(ctx, seconds, centerX, centerY, orbitRadius) {
+  drawScore(ctx, seconds, centerX, centerY, orbitRadius, options = {}) {
     const value = Math.floor(seconds).toString();
+    const highlightStyle = this._buildScoreHighlightStyle(options.highlight);
     if (SCORE.useCenter && typeof centerX === 'number' && typeof centerY === 'number' && typeof orbitRadius === 'number') {
-      const sizePx = Math.max(SCORE.minFontPx ?? 16, Math.floor(orbitRadius * (SCORE.centerScale ?? 0.33)));
+      const baseSize = Math.max(SCORE.minFontPx ?? 16, Math.floor(orbitRadius * (SCORE.centerScale ?? 0.33)));
+      const highlightScale = highlightStyle.active
+        ? 1 + ((highlightStyle.scaleBoost ?? 0) * highlightStyle.intensity)
+        : 1;
+      const sizePx = Math.max(1, Math.round(baseSize * highlightScale));
       ctx.save();
-      ctx.fillStyle = `rgba(255,255,255,${SCORE.centerAlpha ?? 0.35})`;
+      if (highlightStyle.active) {
+        ctx.fillStyle = highlightStyle.color;
+        ctx.globalAlpha = highlightStyle.alpha ?? 1;
+        ctx.shadowColor = highlightStyle.glowColor;
+        ctx.shadowBlur = highlightStyle.shadowBlur ?? 0;
+      } else {
+        ctx.fillStyle = `rgba(255,255,255,${SCORE.centerAlpha ?? 0.35})`;
+      }
       ctx.font = `${sizePx}px ${SCORE.fontFamily || 'Arial'}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(value, centerX, centerY);
       ctx.restore();
     } else {
-      // Fallback to corner display with label
-      ctx.fillStyle = '#ffffff';
+      ctx.save();
+      if (highlightStyle.active) {
+        ctx.fillStyle = highlightStyle.color;
+        ctx.globalAlpha = highlightStyle.alpha ?? 1;
+        ctx.shadowColor = highlightStyle.glowColor;
+        ctx.shadowBlur = highlightStyle.shadowBlur ?? 0;
+      } else {
+        ctx.fillStyle = '#ffffff';
+      }
       ctx.font = SCORE.font;
       ctx.textBaseline = 'top';
       ctx.textAlign = 'left';
       ctx.fillText(`${SCORE.label}: ${value}`, SCORE.position.x, SCORE.position.y);
+      ctx.restore();
     }
+  }
+
+  _buildScoreHighlightStyle(state = {}) {
+    const cfg = SCORE.highlight ?? {};
+    const enabled = cfg.enabled !== false && state && state.active;
+    if (!enabled) {
+      return { active: false, intensity: 0 };
+    }
+    const intensity = this._clamp01(typeof state.intensity === 'number' ? state.intensity : 0) ?? 0;
+    const minAlpha = this._clamp01(cfg.minAlpha);
+    const maxAlpha = this._clamp01(cfg.maxAlpha);
+    const baseMin = (minAlpha != null ? minAlpha : this._clamp01(SCORE.centerAlpha ?? 0.35)) ?? 0.35;
+    const baseMax = (maxAlpha != null ? maxAlpha : 1);
+    const alpha = this._lerp(baseMin, baseMax, intensity);
+    return {
+      active: true,
+      intensity,
+      alpha,
+      color: cfg.color ?? '#ffd85e',
+      glowColor: cfg.glowColor ?? cfg.color ?? '#ffd85e',
+      shadowBlur: Math.max(0, cfg.shadowBlurPx ?? 18),
+      scaleBoost: Math.max(0, cfg.scaleBoost ?? 0),
+    };
+  }
+
+  _lerp(a = 0, b = 1, t = 0) {
+    if (!Number.isFinite(a)) a = 0;
+    if (!Number.isFinite(b)) b = 1;
+    const clampedT = this._clamp01(t);
+    const normalizedT = clampedT != null ? clampedT : 0;
+    return a + (b - a) * normalizedT;
   }
 
   showPauseButton() {

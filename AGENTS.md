@@ -120,6 +120,8 @@
   the concrete phase scripts and how they tweak
   Config on each onEnter/onExit.
 
+  - Source of truth: modify files in the main source tree only; never edit the mirrored `www/` build outputs (used for Android) directly.
+
 # Code Styles
 # Design Principles
   - Follow SOLID strictly
@@ -142,4 +144,3 @@
   - Configuration, not code: Move env-specific values to config; avoid magic numbers.
   - Immutability by default where practical; avoid shared mutable state.
   - Error handling: Fail fast, return typed/structured errors, and log context (who/what/when). 
-
