@@ -18,10 +18,12 @@ export class SoundEffectManager {
     this.audioContext = null;
     this.useWebAudio = !!AudioContextClass;
     this._pausedHtmlAudio = new Map();
+    this.muted = false;
     this.updateConfig(config);
   }
 
   play(name) {
+    if (this.muted) return;
     if (!name) return;
     const cfg = this.config?.[name];
     if (!cfg || !cfg.src) return;
@@ -204,10 +206,30 @@ export class SoundEffectManager {
     const audio = new Audio(cfg.src);
     audio.preload = cfg.preload ?? 'auto';
     audio.volume = clampVolume(cfg.volume ?? 1);
+    audio.muted = this.muted;
     if (audio.preload === 'auto') {
       try { audio.load(); } catch (_) { /* ignore */ }
     }
     return audio;
+  }
+
+  setMuted(muted) {
+    const next = !!muted;
+    this.muted = next;
+    if (this.muted) {
+      this.pauseAll();
+      this._pausedHtmlAudio.clear();
+    }
+    for (const pool of this.htmlPools.values()) {
+      if (!Array.isArray(pool)) continue;
+      for (const audio of pool) {
+        if (!audio) continue;
+        audio.muted = this.muted;
+      }
+    }
+    if (!this.muted && this.useWebAudio && this.audioContext && this.audioContext.state === 'suspended') {
+      try { this.audioContext.resume(); } catch (_) { /* ignore */ }
+    }
   }
 
   _normalizeKey(name) {

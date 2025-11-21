@@ -71,6 +71,9 @@ export class Game {
 
     this.audioManager = new StageAudioManager({ config: AUDIO });
     this.effectAudioManager = new SoundEffectManager({ config: EFFECTS });
+    this.audioMuted = false;
+    this._applyAudioMuteState();
+    this._syncSettingsUI();
 
     this.runtime = new StageRuntime({
       scene: this.scene,
@@ -144,7 +147,10 @@ export class Game {
       onRestart: () => this.restartGame(),
       onStageSelect: (stageId) => this.setSelectedStage(stageId),
       onStageSelectScreen: () => this.returnToStageSelect(),
-      onResetScores: () => this.resetHighScores(),
+      onOpenSettings: () => this._syncSettingsUI(),
+      onCloseSettings: () => this._syncSettingsUI(),
+      onToggleMute: () => this.toggleAudioMute(),
+      onConfirmReset: () => this.resetHighScores(),
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
       onPauseStageSelect: () => this.handlePauseStageSelect(),
@@ -424,14 +430,15 @@ export class Game {
     if (this.runtime && typeof this.runtime.resetDeltaTime === 'function') {
       this.runtime.resetDeltaTime();
     }
-    if (this.audioManager && typeof this.audioManager.resumePaused === 'function') {
+    if (!this.audioMuted && this.audioManager && typeof this.audioManager.resumePaused === 'function') {
       this.audioManager.resumePaused();
     } else if (this.runtime && typeof this.runtime.syncAudio === 'function') {
       this.runtime.syncAudio();
     }
-    if (this.effectAudioManager && typeof this.effectAudioManager.resumeAll === 'function') {
+    if (!this.audioMuted && this.effectAudioManager && typeof this.effectAudioManager.resumeAll === 'function') {
       this.effectAudioManager.resumeAll();
     }
+    this._applyAudioMuteState();
     if (this.ui) {
       if (typeof this.ui.hidePauseMenu === 'function') this.ui.hidePauseMenu();
       if (typeof this.ui.showPauseButton === 'function') this.ui.showPauseButton();
@@ -643,6 +650,31 @@ export class Game {
     }
   }
 
+  toggleAudioMute() {
+    this.setAudioMuted(!this.audioMuted);
+  }
+
+  setAudioMuted(muted) {
+    this.audioMuted = !!muted;
+    this._applyAudioMuteState();
+    this._syncSettingsUI();
+  }
+
+  _applyAudioMuteState() {
+    if (this.audioManager && typeof this.audioManager.setMuted === 'function') {
+      this.audioManager.setMuted(this.audioMuted);
+    }
+    if (this.effectAudioManager && typeof this.effectAudioManager.setMuted === 'function') {
+      this.effectAudioManager.setMuted(this.audioMuted);
+    }
+  }
+
+  _syncSettingsUI() {
+    if (this.ui && typeof this.ui.setMuteState === 'function') {
+      this.ui.setMuteState(this.audioMuted);
+    }
+  }
+
   resetHighScores() {
     const keys = new Set(['orbit_high_score']);
     if (Array.isArray(this.stageOrder)) {
@@ -657,6 +689,7 @@ export class Game {
     try { localStorage.removeItem(this._getStageUnlockStorageKey('stage2')); } catch (_) { /* ignore */ }
     try { localStorage.removeItem(this._getStageUnlockStorageKey('stage3')); } catch (_) { /* ignore */ }
     this._updateStageLocks();
+    this.setSelectedStage('stage1');
   }
 
   _stopStageMusic() {

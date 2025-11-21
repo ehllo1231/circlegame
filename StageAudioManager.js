@@ -8,6 +8,7 @@ export class StageAudioManager {
     this._offsetIndexMap = new Map();
     this._forcedOffsets = new Map();
     this._pausedStages = new Map();
+    this.muted = false;
   }
 
   playStage(stageId, options = {}) {
@@ -27,6 +28,7 @@ export class StageAudioManager {
     const volume = Number(cfg.volume);
     audio.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
     audio.loop = cfg.loop !== false;
+    audio.muted = this.muted;
 
     const forcedOption = Number.isFinite(options?.forceOffset) ? Math.max(0, options.forceOffset) : null;
     const forcedPending = this._consumeForcedOffset(normalizedStage);
@@ -132,6 +134,7 @@ export class StageAudioManager {
     if (audio.preload === 'auto') {
       try { audio.load(); } catch (_) { /* ignore */ }
     }
+    audio.muted = this.muted;
     audio.__cfgSrc = cfg.src;
     this.audioElements.set(normalizedStage, audio);
     return audio;
@@ -150,6 +153,14 @@ export class StageAudioManager {
     if (typeof stageId === 'string') return stageId;
     if (stageId && stageId.id) return stageId.id;
     return stageId;
+  }
+
+  setMuted(muted) {
+    this.muted = !!muted;
+    for (const audio of this.audioElements.values()) {
+      if (!audio) continue;
+      audio.muted = this.muted;
+    }
   }
 
   setNextOffset(stageId, offsetSeconds) {

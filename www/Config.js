@@ -15,9 +15,9 @@ export const SCORE = {
 export const CANVAS = {
   width: 960,
   height: 800,
-  aspectRatio: 1.3, // width / height
+  aspectRatio: 1.5, // width / height
   // Orbit radius as a fraction of the viewport's smaller side (radius = minSide * ratio)
-  orbitRadiusToMinSide: 0.15,
+  orbitRadiusToMinSide: 0.14,
 };
 
 export const ORBIT = {
@@ -28,7 +28,7 @@ export const ORBIT = {
 
 export const PLAYER = {
   radius: 13,
-  angularSpeed: 0.041, // radians per frame (2x)
+  angularSpeed: 0.042, // radians per frame (2x)
 };
 
 export const SPAWN = {
@@ -248,8 +248,8 @@ export const UI = {
     startButtonFontSizePx: 18,
     startButtonPaddingPx: { vertical: 15, horizontal: 30 },
     startButtonMarginTopPx: 16,
-    resetButtonFontSizePx: 18,
-    resetButtonPaddingPx: { vertical: 15, horizontal: 30 },
+    settingsButtonSizePx: 46,
+    settingsIconSizePx: 30,
   },
   gameOver: {
     titleFontSizePx: 48,

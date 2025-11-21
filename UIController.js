@@ -14,14 +14,22 @@ export class UIController {
     this.gameOverActions = document.getElementById('gameOverActions');
     this.stageButtons = Array.from(document.querySelectorAll('.stage-button'));
     this.stageSelectButton = document.getElementById('stageSelectButton');
-    this.resetScoresButton = document.getElementById('resetScoresButton');
     this.stageSelectContainer = document.getElementById('stageSelect');
     this.stageSelectLabel = document.getElementById('stageSelectLabel');
     this.pauseButton = document.getElementById('pauseButton');
     this.pauseMenu = document.getElementById('pauseMenu');
     this.pauseResumeButton = document.getElementById('pauseResumeButton');
     this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
+    this.settingsButton = document.getElementById('settingsButton');
+    this.settingsModal = document.getElementById('settingsModal');
+    this.settingsResetButton = document.getElementById('settingsResetButton');
+    this.closeSettingsButton = document.getElementById('closeSettingsButton');
+    this.muteToggleButton = document.getElementById('muteToggleButton');
+    this.resetConfirmModal = document.getElementById('resetConfirmModal');
+    this.confirmResetButton = document.getElementById('confirmResetButton');
+    this.cancelResetButton = document.getElementById('cancelResetButton');
     this.selectedStageId = null;
+    this.isMuted = false;
     this.stageLocks = new Map();
     this.stageButtonMap = new Map();
     for (const btn of this.stageButtons) {
@@ -41,6 +49,7 @@ export class UIController {
     this._applyStageSelectUI(uiConfig.stageSelect ?? {}, commonButton);
     this._applyGameOverUI(uiConfig.gameOver ?? {}, commonButton);
     this._applyPauseButtonUI(uiConfig.pauseButton ?? {});
+    this._applySettingsButtonUI(uiConfig.stageSelect ?? {});
   }
 
   _valueToPx(value) {
@@ -122,12 +131,17 @@ export class UIController {
     if (this.startButton) {
       this._setStyleValue(this.startButton, 'marginTop', cfg.startButtonMarginTopPx ?? cfg.startButtonMarginTop);
     }
+  }
 
-    this._applyButtonStyle(this.resetScoresButton, {
-      fontSizePx: cfg.resetButtonFontSizePx ?? cfg.resetButtonFontSize ?? cfg.buttonFontSizePx ?? cfg.buttonFontSize,
-      buttonPaddingPx: cfg.resetButtonPaddingPx ?? cfg.resetButtonPadding ?? cfg.buttonPaddingPx ?? cfg.buttonPadding,
-      borderRadiusPx: cfg.buttonRadiusPx,
-    }, commonButton);
+  _applySettingsButtonUI(cfg = {}) {
+    const size = this._valueToPx(cfg.settingsButtonSizePx ?? cfg.settingsButtonSize);
+    const iconSize = this._valueToPx(cfg.settingsIconSizePx ?? cfg.settingsIconSize);
+    if (this.settingsButton && size) {
+      this.settingsButton.style.setProperty('--settings-btn-size', size);
+    }
+    if (this.settingsButton && iconSize) {
+      this.settingsButton.style.setProperty('--settings-icon-size', iconSize);
+    }
   }
 
   _applyGameOverUI(cfg, commonButton) {
@@ -201,7 +215,10 @@ export class UIController {
     onRestart,
     onStageSelect,
     onStageSelectScreen,
-    onResetScores,
+    onOpenSettings,
+    onCloseSettings,
+    onToggleMute,
+    onConfirmReset,
     onPause,
     onResume,
     onPauseStageSelect,
@@ -221,9 +238,6 @@ export class UIController {
     }
     if (this.stageSelectButton && onStageSelectScreen) {
       this.stageSelectButton.addEventListener('click', onStageSelectScreen);
-    }
-    if (this.resetScoresButton && onResetScores) {
-      this.resetScoresButton.addEventListener('click', onResetScores);
     }
     if (this.stageButtons.length > 0 && onStageSelect) {
       this.stageButtons.forEach((btn) => {
@@ -246,6 +260,39 @@ export class UIController {
     if (this.pauseStageSelectButton && onPauseStageSelect) {
       this.pauseStageSelectButton.addEventListener('click', onPauseStageSelect);
     }
+    if (this.settingsButton) {
+      this.settingsButton.addEventListener('click', () => {
+        if (onOpenSettings) onOpenSettings();
+        this.hideResetConfirmModal();
+        this.showSettingsModal();
+      });
+    }
+    if (this.closeSettingsButton) {
+      this.closeSettingsButton.addEventListener('click', () => {
+        this.hideSettingsModal();
+        if (onCloseSettings) onCloseSettings();
+      });
+    }
+    if (this.muteToggleButton && onToggleMute) {
+      this.muteToggleButton.addEventListener('click', onToggleMute);
+    }
+    if (this.settingsResetButton) {
+      this.settingsResetButton.addEventListener('click', () => {
+        this.showResetConfirmModal();
+      });
+    }
+    if (this.cancelResetButton) {
+      this.cancelResetButton.addEventListener('click', () => {
+        this.hideResetConfirmModal();
+      });
+    }
+    if (this.confirmResetButton && onConfirmReset) {
+      this.confirmResetButton.addEventListener('click', () => {
+        this.hideResetConfirmModal();
+        this.hideSettingsModal();
+        onConfirmReset();
+      });
+    }
   }
 
   hideOverlays() {
@@ -254,6 +301,8 @@ export class UIController {
     if (this.startScreen) this.startScreen.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     this.hidePauseMenu();
+    this.hideSettingsModal();
+    this.hideResetConfirmModal();
   }
 
   showIntro() {
@@ -275,6 +324,8 @@ export class UIController {
     if (this.startScreen) this.startScreen.style.display = 'flex';
     this.hidePauseButton();
     this.hidePauseMenu();
+    this.hideSettingsModal();
+    this.hideResetConfirmModal();
   }
 
   isIntroVisible() {
@@ -376,5 +427,27 @@ export class UIController {
 
   hidePauseMenu() {
     if (this.pauseMenu) this.pauseMenu.style.display = 'none';
+  }
+
+  showSettingsModal() {
+    if (this.settingsModal) this.settingsModal.style.display = 'flex';
+  }
+
+  hideSettingsModal() {
+    if (this.settingsModal) this.settingsModal.style.display = 'none';
+  }
+
+  showResetConfirmModal() {
+    if (this.resetConfirmModal) this.resetConfirmModal.style.display = 'flex';
+  }
+
+  hideResetConfirmModal() {
+    if (this.resetConfirmModal) this.resetConfirmModal.style.display = 'none';
+  }
+
+  setMuteState(isMuted) {
+    this.isMuted = !!isMuted;
+    if (!this.muteToggleButton) return;
+    this.muteToggleButton.textContent = this.isMuted ? 'Unmute Audio' : 'Mute Audio';
   }
 }

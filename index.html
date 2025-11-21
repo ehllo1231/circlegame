@@ -15,8 +15,8 @@
         .stage-button { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 22px; font: 16px Arial, sans-serif; cursor: pointer; border-radius: 6px; transition: all .2s ease; min-width: 140px; }
         .stage-button:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
         .stage-button.active { background: #fff; color: #000; box-shadow: 0 0 14px rgba(255,255,255,0.6); }
-        #gameStartButton, #startButton, #restartButton, #stageSelectButton, #resetScoresButton, #pauseResumeButton, #pauseStageSelectButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
-        #gameStartButton:hover, #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #resetScoresButton:hover, #pauseResumeButton:hover, #pauseStageSelectButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
+        #gameStartButton, #startButton, #restartButton, #stageSelectButton, #pauseResumeButton, #pauseStageSelectButton { background: #fff; color: #000; border: none; padding: 15px 30px; font: bold 18px Arial, sans-serif; cursor: pointer; border-radius: 8px; transition: all .3s ease; }
+        #gameStartButton:hover, #startButton:hover, #restartButton:hover, #stageSelectButton:hover, #pauseResumeButton:hover, #pauseStageSelectButton:hover { background: #ccc; transform: scale(1.05); box-shadow: 0 0 20px #fff; }
         /* Game over screen */
         #gameOverScreen { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameOverTitle { font: bold 48px Arial, sans-serif; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
@@ -32,6 +32,24 @@
         #pauseMenu .pause-card { background: rgba(12,12,12,0.9); padding: 24px 36px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
         #pauseMenu .pause-title { font: bold 28px Arial, sans-serif; color: #fff; }
         #pauseMenu .pause-actions { display: flex; gap: 16px; }
+        /* Settings */
+        #settingsButton { position: absolute; right: 24px; bottom: 24px; z-index: 12; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); width: var(--settings-btn-size, 46px); height: var(--settings-btn-size, 46px); border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; opacity: var(--pause-btn-opacity, 0.65); backdrop-filter: blur(6px); }
+        #settingsButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+        #settingsButton .settings-icon { width: var(--settings-icon-size, 18px); height: var(--settings-icon-size, 18px); display: inline-flex; align-items: center; justify-content: center; }
+        #settingsButton .settings-icon img,
+        #settingsButton .settings-icon svg { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 6px rgba(0,0,0,0.35)); }
+        #settingsButton .settings-icon svg { fill: currentColor; }
+        .modal-overlay { position: absolute; inset: 0; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); z-index: 16; padding: 16px; }
+        .modal-card { position: relative; background: rgba(12,12,12,0.92); padding: 24px 28px; border-radius: 16px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 10px 36px rgba(0,0,0,0.35); min-width: 260px; max-width: 400px; align-items: stretch; }
+        .modal-title { font: bold 28px Arial, sans-serif; color: #fff; text-align: center; }
+        .modal-body { color: #d0d0d0; font: 15px Arial, sans-serif; line-height: 1.5; text-align: center; }
+        .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+        .modal-button { background: #fff; color: #000; border: 1px solid #fff; padding: 12px 16px; font: 600 16px Arial, sans-serif; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .modal-button:hover { background: #e2e2e2; transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.25); }
+        .modal-button.primary { background: #fff; color: #000; border-color: #fff; }
+        .modal-button.primary:hover { background: #dcdcdc; }
+        .modal-close { position: absolute; top: 8px; right: 10px; padding: 4px; background: transparent; border: none; color: rgba(255,255,255,0.85); font: bold 24px Arial, sans-serif; cursor: pointer; line-height: 1; transition: transform 0.2s ease, color 0.2s ease; }
+        .modal-close:hover { color: #fff; transform: scale(1.1); }
     </style>
 </head>
 <body>
@@ -56,7 +74,36 @@
             </div>
         </div>
         <button id="startButton">Start Game</button>
-        <button id="resetScoresButton" style="position:absolute; right:24px; bottom:24px;">Reset Records</button>
+        <button id="settingsButton" aria-label="Open settings">
+            <span class="settings-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.05 7.05 0 0 0-1.7-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.62.24-1.2.56-1.7.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.63l2.11 1.65c-.05.32-.07.65-.07.98s.02.66.07.98L2.06 14.63a.5.5 0 0 0-.12.63l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.5.42 1.08.74 1.7.98l.38 2.65c.05.24.27.42.5.42h4c.24 0 .45-.18.5-.42l.38-2.65c.62-.24 1.2-.56 1.7-.98l2.49 1c.23.1.5 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.63l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
+                </svg>
+            </span>
+            <span class="sr-only">Settings</span>
+        </button>
+    </div>
+
+    <div id="settingsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modal-card">
+            <button id="closeSettingsButton" class="modal-close" aria-label="Close settings">&times;</button>
+            <div class="modal-title" id="settingsTitle">Settings</div>
+            <div class="modal-actions">
+                <button id="muteToggleButton" class="modal-button">Mute Audio</button>
+                <button id="settingsResetButton" class="modal-button">Reset Records</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resetConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle">
+        <div class="modal-card">
+            <div class="modal-title" id="resetConfirmTitle">Reset Records?</div>
+            <div class="modal-body">Are you sure you want to delete all saved records?</div>
+            <div class="modal-row-actions">
+                <button id="confirmResetButton" class="modal-button primary">Delete</button>
+                <button id="cancelResetButton" class="modal-button">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Game over screen -->
