@@ -165,6 +165,11 @@ export const STAGE3_PROLOG = {
     branchSpreadDeg: 55,
     branchLengthMul: 1.5,
     branchJitterMul: 1.15,
+    maxTargetsPerEvent: 4,
+    maxBranchDepth: 2,
+    maxBranchCount: 28,
+    maxBranchSegments: 6,
+    branchSplitChance: 0.55,
   },
   backgroundFade: {
     durationSec: 1.6,

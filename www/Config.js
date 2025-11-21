@@ -18,6 +18,7 @@ export const SCORE = {
     maxAlpha: 1,
     pulseSpeedHz: 2.4,
     scaleBoost: 0.08,
+    durationSec: 0.5,
   },
 };
 

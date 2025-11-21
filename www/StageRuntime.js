@@ -44,10 +44,14 @@ export class StageRuntime {
       pulseSpeedHz: Number.isFinite(scoreHighlightConfig?.pulseSpeedHz)
         ? Math.max(0, scoreHighlightConfig.pulseSpeedHz)
         : 2,
+      durationSec: Number.isFinite(scoreHighlightConfig?.durationSec)
+        ? Math.max(0, scoreHighlightConfig.durationSec)
+        : 0.5,
     };
-    this.highlightState = { active: false, timer: 0, intensity: 0 };
+    this.highlightState = { active: false, timer: 0, intensity: 0, elapsed: 0 };
     this.currentHighScoreStageId = null;
     this.currentHighScoreValue = 0;
+    this.highlightTriggered = false;
     this._syncHighScoreForStage(this.currentStageId);
   }
 
@@ -296,17 +300,18 @@ export class StageRuntime {
   _updateHighlightState(displaySeconds, stageId, dtSeconds) {
     if (!this._isHighlightEnabled() || !this._isHighlightStage(stageId)) {
       this._resetHighlightState();
+      this.highlightTriggered = false;
       return;
     }
     if (this.currentHighScoreStageId !== stageId) {
       this._syncHighScoreForStage(stageId);
     }
-    if (!this.highlightState.active) {
-      const target = this.currentHighScoreValue ?? 0;
-      if (displaySeconds > target) {
-        this.highlightState.active = true;
-        this.highlightState.timer = 0;
-      }
+    const target = this.currentHighScoreValue ?? 0;
+    if (!this.highlightTriggered && displaySeconds > target) {
+      this.highlightTriggered = true;
+      this.highlightState.active = true;
+      this.highlightState.timer = 0;
+      this.highlightState.elapsed = 0;
     }
     if (this.highlightState.active) {
       const speed = this.scoreHighlightOptions?.pulseSpeedHz > 0
@@ -316,6 +321,11 @@ export class StageRuntime {
       this.highlightState.timer += dtSeconds * omega;
       const wave = (Math.sin(this.highlightState.timer) + 1) / 2;
       this.highlightState.intensity = wave;
+      this.highlightState.elapsed += dtSeconds;
+      const maxDuration = this.scoreHighlightOptions?.durationSec;
+      if (maxDuration > 0 && this.highlightState.elapsed >= maxDuration) {
+        this._resetHighlightState();
+      }
     } else {
       this.highlightState.intensity = 0;
     }
@@ -325,17 +335,19 @@ export class StageRuntime {
     this.currentHighScoreStageId = stageId || null;
     if (!this.highScoreProvider || !this._isHighlightStage(stageId)) {
       this.currentHighScoreValue = 0;
+      this.highlightTriggered = false;
       this._resetHighlightState();
       return;
     }
     const value = this.highScoreProvider(stageId);
     const numeric = Number.isFinite(value) ? value : 0;
     this.currentHighScoreValue = Math.max(0, numeric);
+    this.highlightTriggered = false;
     this._resetHighlightState();
   }
 
   _resetHighlightState() {
-    this.highlightState = { active: false, timer: 0, intensity: 0 };
+    this.highlightState = { active: false, timer: 0, intensity: 0, elapsed: 0 };
   }
 
   _isHighlightEnabled() {

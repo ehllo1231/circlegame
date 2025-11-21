@@ -20,6 +20,11 @@ export class Stage3PrologLightning {
     this.branchSpreadRad = 0;
     this.branchLengthMul = 1;
     this.branchJitterMul = 1;
+    this.maxTargetsPerEvent = 4;
+    this.maxBranchDepth = 2;
+    this.maxBranchCount = 20;
+    this.maxBranchSegments = 6;
+    this.branchSplitChance = 0.4;
 
     this.obstacles = [];
     this.centerX = 0;
@@ -61,6 +66,11 @@ export class Stage3PrologLightning {
     this.branchSpreadRad = Math.max(0, ((Number(cfg.branchSpreadDeg) || 0) * Math.PI) / 180);
     this.branchLengthMul = Math.max(0.2, Number(cfg.branchLengthMul) || 1);
     this.branchJitterMul = Math.max(0, Number(cfg.branchJitterMul) || 1);
+    this.maxTargetsPerEvent = Math.max(1, Math.round(Number(cfg.maxTargetsPerEvent) || 4));
+    this.maxBranchDepth = Math.max(0, Math.round(Number(cfg.maxBranchDepth) || 2));
+    this.maxBranchCount = Math.max(0, Math.round(Number(cfg.maxBranchCount) || 20));
+    this.maxBranchSegments = Math.max(3, Math.round(Number(cfg.maxBranchSegments) || 6));
+    this.branchSplitChance = Math.max(0, Math.min(1, Number(cfg.branchSplitChance) || 0.4));
     this._applyScale();
   }
 
@@ -155,16 +165,11 @@ export class Stage3PrologLightning {
     for (const bolt of this.lightnings) {
       const alpha = Math.max(0, Math.min(1, bolt.life / bolt.maxLife));
       const faded = Math.pow(alpha, this.fadeExponent);
-      const points = bolt.points;
-      if (!points || points.length < 2) continue;
-
-      const head = points[0];
-      const tail = points[points.length - 1];
-      const path = new Path2D();
-      path.moveTo(head.x, head.y);
-      for (let i = 1; i < points.length; i += 1) {
-        path.lineTo(points[i].x, points[i].y);
-      }
+      const path = bolt.path ?? this._buildPath(bolt.points);
+      if (!path) continue;
+      const head = bolt.head ?? bolt.points?.[0];
+      const tail = bolt.tail ?? bolt.points?.[bolt.points.length - 1];
+      if (!head || !tail) continue;
 
       const glow = ctx.createLinearGradient(head.x, head.y, tail.x, tail.y);
       glow.addColorStop(0, hexToRgba(bolt.color, 0.22));
@@ -198,25 +203,18 @@ export class Stage3PrologLightning {
 
       ctx.globalAlpha = faded * 0.23;
       ctx.lineWidth = Math.max(1, bolt.width * 0.26);
-      const dash = bolt.width * (0.7 + Math.random() * 0.5);
-      ctx.setLineDash([dash, dash * (1.25 + Math.random() * 0.5)]);
-      ctx.lineDashOffset = Math.random() * dash;
+      this._applyDash(ctx, bolt.dash);
       ctx.strokeStyle = hexToRgba(bolt.tailColor, 0.6);
       ctx.stroke(path);
-      ctx.setLineDash([]);
-      ctx.lineDashOffset = 0;
+      this._clearDash(ctx);
 
       if (Array.isArray(bolt.branches)) {
         for (const branch of bolt.branches) {
-          const branchPoints = branch.points;
-          if (!branchPoints || branchPoints.length < 2) continue;
-          const branchHead = branchPoints[0];
-          const branchTail = branchPoints[branchPoints.length - 1];
-          const branchPath = new Path2D();
-          branchPath.moveTo(branchHead.x, branchHead.y);
-          for (let i = 1; i < branchPoints.length; i += 1) {
-            branchPath.lineTo(branchPoints[i].x, branchPoints[i].y);
-          }
+          const branchPath = branch.path ?? this._buildPath(branch.points);
+          if (!branchPath) continue;
+          const branchHead = branch.head ?? branch.points?.[0];
+          const branchTail = branch.tail ?? branch.points?.[branch.points.length - 1];
+          if (!branchHead || !branchTail) continue;
 
           const branchGlow = ctx.createLinearGradient(branchHead.x, branchHead.y, branchTail.x, branchTail.y);
           branchGlow.addColorStop(0, hexToRgba(bolt.coreColor, 0.08));
@@ -250,13 +248,10 @@ export class Stage3PrologLightning {
 
           ctx.globalAlpha = faded * 0.14;
           ctx.lineWidth = Math.max(1, branch.width * 0.2);
-          const branchDash = branch.width * (0.85 + Math.random() * 0.5);
-          ctx.setLineDash([branchDash, branchDash * (1.3 + Math.random() * 0.6)]);
-          ctx.lineDashOffset = Math.random() * branchDash;
+          this._applyDash(ctx, branch.dash);
           ctx.strokeStyle = hexToRgba(bolt.tailColor, 0.5);
           ctx.stroke(branchPath);
-          ctx.setLineDash([]);
-          ctx.lineDashOffset = 0;
+          this._clearDash(ctx);
         }
       }
     }
@@ -304,8 +299,9 @@ export class Stage3PrologLightning {
 
   _spawnLightning() {
     if (!this.enabled || this.eventsSpawned >= this.eventCount) return;
-    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
-    for (const obstacle of this.obstacles) {
+    const targets = this._selectObstacleTargets();
+    if (targets.length === 0) return;
+    for (const obstacle of targets) {
       if (!obstacle) continue;
       const angle = obstacle.angle ?? 0;
       const baseRadius = obstacle.radius ?? 0;
@@ -342,72 +338,178 @@ export class Stage3PrologLightning {
         points.push({ x: baseX + offsetX, y: baseY + offsetY });
       }
       points.push(end);
+      const width = this.strokeWidth;
       this.lightnings.push({
         points,
+        path: this._buildPath(points),
+        head: points[0],
+        tail: points[points.length - 1],
         color: this.color,
         coreColor: this.coreColor,
         tailColor: this.tailColor,
-        width: this.strokeWidth,
+        width,
         life: this.flashDurationSec,
         maxLife: this.flashDurationSec,
-        branches: this._buildBranches(points),
+        dash: this._createDashPattern(width),
+        branches: this._buildBranches(points, width),
       });
     }
     this.eventsSpawned += 1;
   }
 
-  _buildBranches(points) {
+  _buildBranches(points, baseWidth) {
     const branches = [];
-    if (!Array.isArray(points) || points.length < 3) return branches;
+    if (!Array.isArray(points) || points.length < 3 || this.maxBranchCount <= 0) return branches;
+
+    const seeds = [];
     for (let i = 1; i < points.length - 1; i += 1) {
       if (Math.random() > this.branchDensity) continue;
       const origin = points[i];
       const next = points[i + 1];
       if (!origin || !next) continue;
-
       const dirX = next.x - origin.x;
       const dirY = next.y - origin.y;
-      const baseLen = Math.hypot(dirX, dirY);
-      if (baseLen <= 0.001) continue;
-      const normX = dirX / baseLen;
-      const normY = dirY / baseLen;
+      const len = Math.hypot(dirX, dirY);
+      if (len <= 0.001) continue;
+      seeds.push({
+        origin,
+        dirX: dirX / len,
+        dirY: dirY / len,
+        baseLen: len,
+        depth: 0,
+        width: baseWidth * 0.6,
+      });
+    }
 
-      const dir = Math.random() < 0.5 ? 1 : -1;
-      const angleOffset = this.branchSpreadRad > 0 ? Math.random() * this.branchSpreadRad * dir : 0;
-      const baseAngle = Math.atan2(normY, normX);
-      const finalAngle = baseAngle + angleOffset;
-      const branchNormX = Math.cos(finalAngle);
-      const branchNormY = Math.sin(finalAngle);
-      const branchPerpX = -branchNormY;
-      const branchPerpY = branchNormX;
+    if (!seeds.length) return branches;
+    this._shuffle(seeds);
+    const queue = seeds.slice(0, Math.min(seeds.length, this.maxBranchCount));
 
-      const branchLength = baseLen * this.branchLengthMul * (0.7 + Math.random() * 1.2);
-      const steps = Math.max(3, Math.round(4 + Math.random() * 3));
-
-      const branchPoints = [origin];
-      let currentX = origin.x;
-      let currentY = origin.y;
-      let remaining = branchLength;
-      let segmentWidth = this.strokeWidth * 0.6;
-
-      for (let step = 1; step <= steps && remaining > 4; step += 1) {
-        const segmentLength = Math.min(remaining, branchLength / steps * (0.8 + Math.random() * 0.4));
-        remaining -= segmentLength;
-        const drift = (Math.random() - 0.5) * this.forkJitter * this.branchJitterMul * 0.5;
-        currentX += branchNormX * segmentLength + branchPerpX * drift;
-        currentY += branchNormY * segmentLength + branchPerpY * drift;
-        branchPoints.push({ x: currentX, y: currentY });
-        segmentWidth *= this.branchDecay;
-      }
-
-      if (branchPoints.length > 1) {
-        branches.push({
-          points: branchPoints,
-          width: Math.max(1, segmentWidth),
-        });
+    while (queue.length && branches.length < this.maxBranchCount) {
+      const seed = queue.shift();
+      const branch = this._generateBranch(seed);
+      if (!branch) continue;
+      branches.push(branch);
+      if (seed.depth >= this.maxBranchDepth) continue;
+      if (Math.random() > this.branchSplitChance) continue;
+      const split = this._createSplitSeed(branch, seed.depth + 1);
+      if (split) {
+        queue.push(split);
       }
     }
     return branches;
+  }
+
+  _generateBranch(seed) {
+    const origin = seed.origin;
+    if (!origin) return null;
+    const baseAngle = Math.atan2(seed.dirY, seed.dirX);
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const angleOffset = this.branchSpreadRad > 0 ? Math.random() * this.branchSpreadRad * dir : 0;
+    const finalAngle = baseAngle + angleOffset;
+    const branchNormX = Math.cos(finalAngle);
+    const branchNormY = Math.sin(finalAngle);
+    const branchPerpX = -branchNormY;
+    const branchPerpY = branchNormX;
+
+    const branchLength = seed.baseLen * this.branchLengthMul * (0.7 + Math.random() * 1.1);
+    const steps = Math.min(this.maxBranchSegments, Math.max(3, Math.round(4 + Math.random() * 3)));
+
+    const branchPoints = [origin];
+    let currentX = origin.x;
+    let currentY = origin.y;
+    let remaining = branchLength;
+    let segmentWidth = seed.width;
+
+    for (let step = 1; step <= steps && remaining > 3; step += 1) {
+      const segmentLength = Math.min(remaining, branchLength / steps * (0.8 + Math.random() * 0.4));
+      remaining -= segmentLength;
+      const drift = (Math.random() - 0.5) * this.forkJitter * this.branchJitterMul * 0.45;
+      currentX += branchNormX * segmentLength + branchPerpX * drift;
+      currentY += branchNormY * segmentLength + branchPerpY * drift;
+      branchPoints.push({ x: currentX, y: currentY });
+      segmentWidth *= this.branchDecay;
+    }
+
+    if (branchPoints.length <= 1) return null;
+    const width = Math.max(1, segmentWidth);
+    return {
+      points: branchPoints,
+      path: this._buildPath(branchPoints),
+      head: branchPoints[0],
+      tail: branchPoints[branchPoints.length - 1],
+      width,
+      dash: this._createDashPattern(width * 0.85),
+      depth: seed.depth,
+    };
+  }
+
+  _createSplitSeed(branch, depth) {
+    if (!branch?.points || branch.points.length < 3) return null;
+    const index = Math.min(branch.points.length - 2, Math.max(1, Math.floor(Math.random() * branch.points.length)));
+    const origin = branch.points[index];
+    const prev = branch.points[index - 1];
+    if (!origin || !prev) return null;
+    const dirX = origin.x - prev.x;
+    const dirY = origin.y - prev.y;
+    const len = Math.hypot(dirX, dirY);
+    if (len <= 0.001) return null;
+    return {
+      origin,
+      dirX: dirX / len,
+      dirY: dirY / len,
+      baseLen: len,
+      depth,
+      width: Math.max(1, branch.width * this.branchDecay),
+    };
+  }
+
+  _selectObstacleTargets() {
+    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) return [];
+    const pool = this.obstacles.filter(Boolean);
+    if (!pool.length) return [];
+    this._shuffle(pool);
+    return pool.slice(0, Math.min(this.maxTargetsPerEvent, pool.length));
+  }
+
+  _buildPath(points = []) {
+    if (!Array.isArray(points) || points.length < 2) return null;
+    const path = new Path2D();
+    path.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i += 1) {
+      const point = points[i];
+      if (!point) continue;
+      path.lineTo(point.x, point.y);
+    }
+    return path;
+  }
+
+  _createDashPattern(width) {
+    if (!Number.isFinite(width) || width <= 0) return null;
+    const dash = width * (0.7 + Math.random() * 0.5);
+    const gap = dash * (1.25 + Math.random() * 0.5);
+    return {
+      pattern: [dash, gap],
+      offset: Math.random() * dash,
+    };
+  }
+
+  _applyDash(ctx, dash) {
+    if (!dash || !Array.isArray(dash.pattern)) return;
+    ctx.setLineDash(dash.pattern);
+    ctx.lineDashOffset = dash.offset || 0;
+  }
+
+  _clearDash(ctx) {
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+  }
+
+  _shuffle(list = []) {
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
   }
 
   _pointOnAngle(angle, radius) {
