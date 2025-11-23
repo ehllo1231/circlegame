@@ -158,6 +158,31 @@ export const STAGE3_PROLOG = {
     easeExponent: 1,
     direction: 'clockwise',
   },
+  lightning: {
+    enabled: true,
+    revealDurationSec: 0.1,
+    holdDurationSec: 3,
+    fadeOutDurationSec: 0.28,
+    coreColor: '#fff6b3',
+    glowColor: 'rgba(255, 211, 77, 0.55)',
+    coreThickness: 5,
+    branchThickness: 3,
+    glowBlurPx: 14,
+    strikeCount: 2,
+    strikeDelaySec: 2,
+    startInsetPx: 18,
+    startYOffsetRangePx: 120,
+    jitterPx: 28,
+    jitterDecay: 0.6,
+    maxDepth: 4,
+    branch: {
+      enabled: true,
+      splitChance: 0.7,
+      maxPerBolt: 15,
+      maxDepth: 4,
+      lengthDecay: 0.7,
+    },
+  },
 };
 
 export const STAGE_THEMES = {

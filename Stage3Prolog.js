@@ -2,6 +2,7 @@ import { STAGE2_PROLOG, STAGE3_PROLOG, ORBIT } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
 import { Stage3PrologBackgroundFade } from './Effects/Stage3PrologBackgroundFade.js';
 import { Stage3PrologSpikeRotator } from './Effects/Stage3PrologSpikeRotator.js';
+import { Stage3PrologLightningEffect } from './Effects/Stage3PrologLightning.js';
 
 export class Stage3Prolog {
   constructor() {
@@ -17,15 +18,22 @@ export class Stage3Prolog {
 
     this.backgroundFade = new Stage3PrologBackgroundFade();
     this.spikeRotator = new Stage3PrologSpikeRotator();
+    this.lightningEffect = new Stage3PrologLightningEffect();
 
     this.stageRotationEnabled = false;
     this.stageRotationSpeedRadPerSec = 0;
     this.stageRotationDirection = -1;
 
     this.totalDurationSec = 0;
+    this.lightningStrikeCount = 1;
+    this.lightningStrikesCompleted = 0;
+    this.lightningActive = false;
+    this.lightningDelaySec = 0;
+    this.lightningDelayRemaining = 0;
 
     this._applyConfig(STAGE3_PROLOG ?? {});
     this.scale = 1;
+    this.backgroundFadeStarted = false;
   }
 
   start(geometry, { fastForward = false } = {}) {
@@ -39,11 +47,17 @@ export class Stage3Prolog {
     this._syncControllers();
 
     this.backgroundFade.reset();
-    this.backgroundFade.start();
+    this.backgroundFadeStarted = false;
     this.spikeRotator.reset();
+    this.lightningEffect.reset();
+    this.lightningStrikesCompleted = 0;
+    this.lightningActive = false;
+    this.lightningDelayRemaining = 0;
 
     if (fastForward) {
       this._fastForward();
+    } else {
+      this._maybeStartNextLightning();
     }
   }
 
@@ -52,7 +66,33 @@ export class Stage3Prolog {
     const dt = Number.isFinite(dtSeconds) && dtSeconds > 0 ? dtSeconds : 0;
 
     if (!this.completed) {
-      this.backgroundFade.update(dt);
+      if (!this.lightningActive && this.lightningStrikesCompleted < this.lightningStrikeCount) {
+        if (this.lightningDelayRemaining > 0) {
+          this.lightningDelayRemaining = Math.max(0, this.lightningDelayRemaining - dt);
+        }
+      }
+      if (!this.lightningActive) {
+        this._maybeStartNextLightning();
+      }
+      if (this.lightningActive && !this.lightningEffect.isComplete()) {
+        this.lightningEffect.update(dt);
+      }
+      if (this.lightningActive && this.lightningEffect.isComplete()) {
+        this.lightningActive = false;
+        this.lightningStrikesCompleted += 1;
+        this.lightningDelayRemaining = this._getStrikeDelay();
+      }
+
+      const allLightningDone = this.lightningStrikesCompleted >= this.lightningStrikeCount;
+
+      if (allLightningDone && !this.backgroundFadeStarted) {
+        this.backgroundFade.start();
+        this.backgroundFadeStarted = true;
+      }
+
+      if (this.backgroundFadeStarted) {
+        this.backgroundFade.update(dt);
+      }
       if (!this.spikeRotator.hasStarted() && this.backgroundFade.isComplete()) {
         this.spikeRotator.start();
       }
@@ -60,7 +100,7 @@ export class Stage3Prolog {
 
       const fadeDone = this.backgroundFade.isComplete();
       const rotationDone = this.spikeRotator.isComplete();
-      if (fadeDone && rotationDone) {
+      if (fadeDone && rotationDone && allLightningDone) {
         this.completed = true;
       }
     }
@@ -70,6 +110,9 @@ export class Stage3Prolog {
 
   draw(ctx) {
     if (!ctx) return;
+    if (this.lightningActive) {
+      this.lightningEffect.draw(ctx);
+    }
   }
 
   isComplete() {
@@ -105,6 +148,12 @@ export class Stage3Prolog {
     this._applyGeometry(geometry);
     const width = (this._spikeBaseWidth ?? 24) * this.scale;
     const length = (this._spikeBaseLength ?? 37.5) * this.scale;
+    if (this.lightningEffect) {
+      this.lightningEffect.setViewport({
+        viewWidth: this.viewWidth,
+        viewHeight: this.viewHeight,
+      });
+    }
     if (Array.isArray(this.obstacles)) {
       const maskRadius = Number.isFinite(geometry.orbitRadius) ? geometry.orbitRadius : null;
       for (const obstacle of this.obstacles) {
@@ -161,9 +210,17 @@ export class Stage3Prolog {
   }
 
   _fastForward() {
-    if (!this.backgroundFade.hasStarted()) {
+    if (!this.lightningActive && this.lightningStrikesCompleted < this.lightningStrikeCount) {
+      this._maybeStartNextLightning();
+    }
+    this.lightningEffect.fastForward();
+    this.lightningStrikesCompleted = this.lightningStrikeCount;
+    this.lightningActive = false;
+    this.lightningDelayRemaining = 0;
+    if (!this.backgroundFadeStarted && !this.backgroundFade.hasStarted()) {
       this.backgroundFade.start();
     }
+    this.backgroundFadeStarted = true;
     this.backgroundFade.fastForward();
     this.spikeRotator.fastForward();
     this.completed = true;
@@ -173,6 +230,9 @@ export class Stage3Prolog {
     const cfg = config ?? {};
     this.backgroundFade.configure(cfg.backgroundFade);
     this.spikeRotator.configure(cfg.spikeRotation);
+    this.lightningEffect.configure(cfg.lightning);
+    this.lightningStrikeCount = this._sanitizeStrikeCount(cfg?.lightning?.strikeCount);
+    this.lightningDelaySec = this._sanitizeDelay(cfg?.lightning?.strikeDelaySec);
     this._recomputeTotalDuration();
   }
 
@@ -242,7 +302,10 @@ export class Stage3Prolog {
       ? Math.max(0, this.backgroundFade.durationSec)
       : 0;
     const rotationDuration = this.spikeRotator.getTotalDuration();
-    this.totalDurationSec = Math.max(0, fadeDuration + rotationDuration);
+    const lightningDurationPerStrike = this.lightningEffect.getTotalDuration();
+    const lightningDuration = lightningDurationPerStrike * Math.max(1, this.lightningStrikeCount);
+    const delayDuration = Math.max(0, this.lightningStrikeCount - 1) * this.lightningDelaySec;
+    this.totalDurationSec = Math.max(0, fadeDuration + rotationDuration + lightningDuration + delayDuration);
   }
 
   _normalizeDirection(direction) {
@@ -288,5 +351,69 @@ export class Stage3Prolog {
       const current = Number.isFinite(obstacle.angle) ? obstacle.angle : 0;
       obstacle.angle = current + delta;
     }
+  }
+
+  _maybeStartNextLightning() {
+    if (!this.lightningEffect) return;
+    if (this.lightningActive) return;
+    if (this.lightningStrikesCompleted >= this.lightningStrikeCount) return;
+    if (this.lightningDelayRemaining > 1e-4) return;
+    this.lightningEffect.reset();
+    const targets = this._resolveSpikeTargets();
+    this.lightningEffect.setViewport({
+      viewWidth: this.viewWidth,
+      viewHeight: this.viewHeight,
+    });
+    this.lightningEffect.start({
+      leftTarget: targets.left,
+      rightTarget: targets.right,
+      viewWidth: this.viewWidth,
+      viewHeight: this.viewHeight,
+      centerY: this.centerY,
+    });
+    this.lightningActive = true;
+  }
+
+  _resolveSpikeTargets() {
+    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) {
+      return { left: null, right: null };
+    }
+    const points = [];
+    for (const obstacle of this.obstacles) {
+      if (!obstacle) continue;
+      const angle = Number.isFinite(obstacle.angle) ? obstacle.angle : 0;
+      const radius = Number.isFinite(obstacle.radius) ? obstacle.radius : 0;
+      const length = Number.isFinite(obstacle.length) ? obstacle.length : 0;
+      const tipRadius = radius - length;
+      const x = this.centerX + tipRadius * Math.cos(angle);
+      const y = this.centerY + tipRadius * Math.sin(angle);
+      points.push({ x, y });
+    }
+    if (points.length === 0) {
+      return { left: null, right: null };
+    }
+    points.sort((a, b) => a.x - b.x);
+    const left = points[0];
+    const right = points.length > 1 ? points[points.length - 1] : null;
+    return { left, right };
+  }
+
+  _sanitizeStrikeCount(count) {
+    if (!Number.isFinite(count)) return 1;
+    const n = Math.floor(count);
+    if (n < 1) return 1;
+    if (n > 10) return 10;
+    return n;
+  }
+
+  _sanitizeDelay(delay) {
+    const value = Number(delay);
+    if (!Number.isFinite(value) || value < 0) return 0;
+    if (value > 5) return 5;
+    return value;
+  }
+
+  _getStrikeDelay() {
+    return this.lightningDelaySec;
   }
 }
