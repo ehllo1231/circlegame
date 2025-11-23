@@ -147,30 +147,6 @@ export const STAGE2_PROLOG = {
 };
 
 export const STAGE3_PROLOG = {
-  lightning: {
-    enabled: true,
-    eventCount: 2,
-    intervalSec: 3,
-    flashDurationSec: 2,
-    color: '#ffd860',
-    coreColor: '#fff7d1',
-    tailColor: '#ffffff',
-    strokeWidth: 7,
-    spawnDistance: 350,
-    forkJitter: 40,
-    segments: 14,
-    fadeExponent: 1.6,
-    branchDensity: 0.9,
-    branchDecay: 1,
-    branchSpreadDeg: 55,
-    branchLengthMul: 1.5,
-    branchJitterMul: 1.15,
-    maxTargetsPerEvent: 4,
-    maxBranchDepth: 2,
-    maxBranchCount: 28,
-    maxBranchSegments: 6,
-    branchSplitChance: 0.55,
-  },
   backgroundFade: {
     durationSec: 1.6,
     easeExponent: 1.45,

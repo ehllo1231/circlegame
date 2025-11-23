@@ -1,6 +1,5 @@
 import { STAGE2_PROLOG, STAGE3_PROLOG, ORBIT } from './Config.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
-import { Stage3PrologLightning } from './Effects/Stage3PrologLightning.js';
 import { Stage3PrologBackgroundFade } from './Effects/Stage3PrologBackgroundFade.js';
 import { Stage3PrologSpikeRotator } from './Effects/Stage3PrologSpikeRotator.js';
 
@@ -16,7 +15,6 @@ export class Stage3Prolog {
     this.viewWidth = null;
     this.viewHeight = null;
 
-    this.lightning = new Stage3PrologLightning();
     this.backgroundFade = new Stage3PrologBackgroundFade();
     this.spikeRotator = new Stage3PrologSpikeRotator();
 
@@ -40,11 +38,8 @@ export class Stage3Prolog {
     this._buildObstacles();
     this._syncControllers();
 
-    this.lightning.start();
     this.backgroundFade.reset();
-    if (!this.lightning.isEnabled() || this.lightning.isComplete()) {
-      this.backgroundFade.start();
-    }
+    this.backgroundFade.start();
     this.spikeRotator.reset();
 
     if (fastForward) {
@@ -57,21 +52,15 @@ export class Stage3Prolog {
     const dt = Number.isFinite(dtSeconds) && dtSeconds > 0 ? dtSeconds : 0;
 
     if (!this.completed) {
-      this.lightning.update(dt);
-      if (!this.backgroundFade.hasStarted() && this.lightning.isComplete()) {
-        this.backgroundFade.start();
-      }
-
       this.backgroundFade.update(dt);
       if (!this.spikeRotator.hasStarted() && this.backgroundFade.isComplete()) {
         this.spikeRotator.start();
       }
       this.spikeRotator.update(dt);
 
-      const lightningDone = this.lightning.isComplete();
       const fadeDone = this.backgroundFade.isComplete();
       const rotationDone = this.spikeRotator.isComplete();
-      if (lightningDone && fadeDone && rotationDone) {
+      if (fadeDone && rotationDone) {
         this.completed = true;
       }
     }
@@ -81,7 +70,6 @@ export class Stage3Prolog {
 
   draw(ctx) {
     if (!ctx) return;
-    this.lightning.draw(ctx);
   }
 
   isComplete() {
@@ -112,13 +100,6 @@ export class Stage3Prolog {
     return this.totalDurationSec ?? 0;
   }
 
-  disableLightning() {
-    this.lightning.disable();
-    if (!this.backgroundFade.hasStarted()) {
-      this.backgroundFade.start();
-    }
-  }
-
   updateViewport(geometry = {}) {
     if (!this.started) return;
     this._applyGeometry(geometry);
@@ -134,17 +115,6 @@ export class Stage3Prolog {
         obstacle.baseWidth = width;
         obstacle.length = length;
       }
-    }
-    this.lightning.setObstacles(this.obstacles);
-    this.lightning.setViewport({
-      centerX: this.centerX,
-      centerY: this.centerY,
-      viewWidth: this.viewWidth,
-      viewHeight: this.viewHeight,
-    });
-    if (this.lightning.isEnabled() && !this.completed) {
-      this.lightning.reset();
-      this.lightning.start();
     }
     if (!this.completed) {
       this.spikeRotator.attachObstacles(this.obstacles);
@@ -191,7 +161,6 @@ export class Stage3Prolog {
   }
 
   _fastForward() {
-    this.lightning.fastForward();
     if (!this.backgroundFade.hasStarted()) {
       this.backgroundFade.start();
     }
@@ -202,7 +171,6 @@ export class Stage3Prolog {
 
   _applyConfig(config) {
     const cfg = config ?? {};
-    this.lightning.configure(cfg.lightning);
     this.backgroundFade.configure(cfg.backgroundFade);
     this.spikeRotator.configure(cfg.spikeRotation);
     this._recomputeTotalDuration();
@@ -215,15 +183,6 @@ export class Stage3Prolog {
     this.viewWidth = Number.isFinite(geom.viewWidth) ? geom.viewWidth : this.viewWidth;
     this.viewHeight = Number.isFinite(geom.viewHeight) ? geom.viewHeight : this.viewHeight;
     this.scale = this._resolveScale(geom);
-    if (this.lightning && typeof this.lightning.setScale === 'function') {
-      this.lightning.setScale(this.scale);
-    }
-    this.lightning.setViewport({
-      centerX: this.centerX,
-      centerY: this.centerY,
-      viewWidth: this.viewWidth,
-      viewHeight: this.viewHeight,
-    });
   }
 
   _buildObstacles() {
@@ -275,17 +234,15 @@ export class Stage3Prolog {
   }
 
   _syncControllers() {
-    this.lightning.setObstacles(this.obstacles);
     this.spikeRotator.attachObstacles(this.obstacles);
   }
 
   _recomputeTotalDuration() {
-    const lightningDuration = this.lightning.getTotalDuration();
     const fadeDuration = Number.isFinite(this.backgroundFade.durationSec)
       ? Math.max(0, this.backgroundFade.durationSec)
       : 0;
     const rotationDuration = this.spikeRotator.getTotalDuration();
-    this.totalDurationSec = Math.max(0, lightningDuration + fadeDuration + rotationDuration);
+    this.totalDurationSec = Math.max(0, fadeDuration + rotationDuration);
   }
 
   _normalizeDirection(direction) {
