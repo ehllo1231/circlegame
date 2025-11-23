@@ -12,6 +12,8 @@ export class UIController {
     this.scoreDisplay = document.getElementById('scoreDisplay');
     this.gameOverTitle = document.getElementById('gameOverTitle');
     this.gameOverActions = document.getElementById('gameOverActions');
+    this.gameOverPeekButton = document.getElementById('gameOverPeekButton');
+    this.gameOverPeekLabel = this.gameOverPeekButton?.querySelector('.sr-only') ?? null;
     this.stageButtons = Array.from(document.querySelectorAll('.stage-button'));
     this.stageSelectButton = document.getElementById('stageSelectButton');
     this.stageSelectContainer = document.getElementById('stageSelect');
@@ -34,8 +36,7 @@ export class UIController {
     this.stageButtonMap = new Map();
     this._gameOverOverlayVisible = false;
     this._gameOverOverlayHidden = false;
-    this._gameOverPeekReturnHandler = null;
-    this._gameOverPeekAttachTimer = null;
+    this._gameOverPeekActive = false;
     for (const btn of this.stageButtons) {
       const stage = btn?.dataset?.stage;
       if (stage) this.stageButtonMap.set(stage, btn);
@@ -43,6 +44,8 @@ export class UIController {
     this._introVisible = false;
     this.hidePauseButton();
     this.hidePauseMenu();
+    this._setGameOverPeekButtonVisible(false);
+    this._updateGameOverPeekButtonState(false);
     this.applyUIConfig();
   }
 
@@ -297,12 +300,10 @@ export class UIController {
         onConfirmReset();
       });
     }
-    if (this.gameOverScreen) {
-      this.gameOverScreen.addEventListener('pointerup', (event) => {
-        if (!this._gameOverOverlayVisible) return;
-        const isButton = event.target?.closest?.('button');
-        if (isButton) return;
-        this._temporarilyHideGameOverOverlay();
+    if (this.gameOverPeekButton) {
+      this.gameOverPeekButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.toggleGameOverPeek();
       });
     }
   }
@@ -314,7 +315,8 @@ export class UIController {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     this._gameOverOverlayVisible = false;
     this._gameOverOverlayHidden = false;
-    this._detachGameOverPeekRestore();
+    this._setGameOverPeekButtonVisible(false);
+    this._updateGameOverPeekButtonState(false);
     this.hidePauseMenu();
     this.hideSettingsModal();
     this.hideResetConfirmModal();
@@ -327,6 +329,8 @@ export class UIController {
     if (this.introScreen) this.introScreen.style.display = 'flex';
     this.hidePauseButton();
     this.hidePauseMenu();
+    this._setGameOverPeekButtonVisible(false);
+    this._updateGameOverPeekButtonState(false);
     if (this.stageSelectLabel) {
       this.setStageSelection(this.selectedStageId || 'stage1');
     }
@@ -339,6 +343,8 @@ export class UIController {
     if (this.startScreen) this.startScreen.style.display = 'flex';
     this.hidePauseButton();
     this.hidePauseMenu();
+    this._setGameOverPeekButtonVisible(false);
+    this._updateGameOverPeekButtonState(false);
     this.hideSettingsModal();
     this.hideResetConfirmModal();
   }
@@ -383,9 +389,10 @@ export class UIController {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
     this._gameOverOverlayVisible = true;
     this._gameOverOverlayHidden = false;
-    this._detachGameOverPeekRestore();
     this.hidePauseButton();
     this.hidePauseMenu();
+    this._setGameOverPeekButtonVisible(true);
+    this._updateGameOverPeekButtonState(false);
     if (this.scoreDisplay) {
       const lines = [];
       if (isNew) lines.push('최고 점수!!');
@@ -525,7 +532,7 @@ export class UIController {
     if (!this._gameOverOverlayVisible || this._gameOverOverlayHidden) return;
     this._gameOverOverlayHidden = true;
     this.gameOverScreen.style.display = 'none';
-    this._scheduleGameOverPeekRestore();
+    this._updateGameOverPeekButtonState(true);
   }
 
   _restoreGameOverOverlay() {
@@ -533,24 +540,29 @@ export class UIController {
     if (!this._gameOverOverlayVisible || !this._gameOverOverlayHidden) return;
     this._gameOverOverlayHidden = false;
     this.gameOverScreen.style.display = 'flex';
-    this._detachGameOverPeekRestore();
+    this._updateGameOverPeekButtonState(false);
   }
 
-  _scheduleGameOverPeekRestore() {
-    this._detachGameOverPeekRestore();
-    const root = typeof window !== 'undefined' ? window : null;
-    if (!root) return;
-    this._gameOverPeekReturnHandler = () => {
+  toggleGameOverPeek() {
+    if (!this._gameOverOverlayVisible) return;
+    if (this._gameOverOverlayHidden) {
       this._restoreGameOverOverlay();
-    };
-    root.addEventListener('pointerup', this._gameOverPeekReturnHandler, { once: true });
+    } else {
+      this._temporarilyHideGameOverOverlay();
+    }
   }
 
-  _detachGameOverPeekRestore() {
-    const root = typeof window !== 'undefined' ? window : null;
-    if (root && this._gameOverPeekReturnHandler) {
-      root.removeEventListener('pointerup', this._gameOverPeekReturnHandler);
-    }
-    this._gameOverPeekReturnHandler = null;
+  _setGameOverPeekButtonVisible(visible) {
+    if (!this.gameOverPeekButton) return;
+    this.gameOverPeekButton.style.display = visible ? 'inline-flex' : 'none';
+  }
+
+  _updateGameOverPeekButtonState(active) {
+    if (!this.gameOverPeekButton) return;
+    const isActive = !!active;
+    this.gameOverPeekButton.classList.toggle('active', isActive);
+    this.gameOverPeekButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    const label = isActive ? '게임 오버 화면 보기' : '피격 장면 보기';
+    if (this.gameOverPeekLabel) this.gameOverPeekLabel.textContent = label;
   }
 }

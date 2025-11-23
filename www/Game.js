@@ -72,6 +72,7 @@ export class Game {
     this.audioManager = new StageAudioManager({ config: AUDIO });
     this.effectAudioManager = new SoundEffectManager({ config: EFFECTS });
     this.audioMuted = false;
+    this.highScoreMemory = new Map();
     this._applyAudioMuteState();
     this._syncSettingsUI();
 
@@ -613,23 +614,39 @@ export class Game {
 
   _readHighScore(stageId) {
     const key = this._getHighScoreStorageKey(stageId);
+    const legacyKey = (!stageId || stageId === 'stage1') ? 'orbit_high_score_stage1' : null;
+    const memoryValue = this.highScoreMemory.get(key) ?? 0;
     try {
       const stored = localStorage.getItem(key);
       const parsed = stored ? parseInt(stored, 10) : 0;
-      if (!Number.isFinite(parsed)) return 0;
-      return Math.max(0, parsed);
+      const legacy = legacyKey ? parseInt(localStorage.getItem(legacyKey) ?? '0', 10) : 0;
+      const best = Math.max(
+        Number.isFinite(parsed) ? parsed : 0,
+        Number.isFinite(legacy) ? legacy : 0,
+        Number.isFinite(memoryValue) ? memoryValue : 0,
+      );
+      return Math.max(0, best);
     } catch (_) {
-      return 0;
+      return Math.max(0, Number.isFinite(memoryValue) ? memoryValue : 0);
     }
   }
 
   _saveHighScore(stageId, value) {
+    const normalizedStageId = stageId || 'stage1';
     const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-    const key = this._getHighScoreStorageKey(stageId);
+    const key = this._getHighScoreStorageKey(normalizedStageId);
+    this.highScoreMemory.set(key, Math.max(normalized, this.highScoreMemory.get(key) ?? 0));
     try {
       localStorage.setItem(key, String(normalized));
+      if (!stageId || stageId === 'stage1') {
+        // Keep legacy key in sync for older builds that may still read it.
+        localStorage.setItem('orbit_high_score_stage1', String(normalized));
+      }
     } catch (_) {
       // ignore storage errors
+    }
+    if (this.runtime && typeof this.runtime.notifyHighScoreUpdated === 'function') {
+      this.runtime.notifyHighScoreUpdated(normalizedStageId, normalized);
     }
   }
 
@@ -712,11 +729,17 @@ export class Game {
   resetHighScores() {
     this._removeLocalStorageKeys((key) => key && key.startsWith('orbit_high_score'));
     this._removeLocalStorageKeys((key) => key && key.startsWith('stage_unlocked_'));
+    this.highScoreMemory.clear();
     this._updateStageLocks();
     this.setSelectedStage('stage1');
     if (this.score) {
       this.score.reset();
       this.score.setMaxSeconds(this.stageController.getTotalDuration());
+    }
+    if (this.runtime && typeof this.runtime.notifyHighScoreUpdated === 'function') {
+      ['stage1', 'stage2', 'stage3'].forEach((stageId) => {
+        this.runtime.notifyHighScoreUpdated(stageId, 0);
+      });
     }
   }
 

@@ -31,6 +31,7 @@ export class StageRuntime {
     this.scoreBase = 0;
     this.stageElapsedOffset = 0;
     this.currentStageId = this.stageController?.getActiveStageId?.() ?? null;
+    this.highlightStageId = this._resolveHighlightStageId();
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages = new Set();
@@ -53,7 +54,7 @@ export class StageRuntime {
     this.currentHighScoreValue = 0;
     this.highlightTriggered = false;
     this.pendingHighScoreValues = new Map();
-    this._syncHighScoreForStage(this.currentStageId);
+    this._syncHighScoreForStage(this.highlightStageId);
   }
 
   updateGeometry({ centerX, centerY, orbitRadius, offscreenRadius } = {}) {
@@ -67,12 +68,13 @@ export class StageRuntime {
     this.scoreBase = 0;
     this.stageElapsedOffset = 0;
     this.currentStageId = this.stageController?.getActiveStageId?.() ?? null;
+    this.highlightStageId = this._resolveHighlightStageId();
     this.currentDisplayScore = 0;
     this.lastTime = null;
     this.mutedStages.clear();
     this.playableStageNotified.clear();
     this._applyBackgroundColor(null);
-    this._syncHighScoreForStage(this.currentStageId);
+    this._syncHighScoreForStage(this.highlightStageId);
   }
 
   resetDeltaTime() {
@@ -135,7 +137,6 @@ export class StageRuntime {
       if (this.audioManager && previousStageId === 'stage1' && this.audioManager.isPlaying('stage1')) {
         this.audioManager.stopStage('stage1');
       }
-      this._syncHighScoreForStage(activeStageId);
     }
 
     const prologActiveStage = this.stageController.getActiveStage();
@@ -171,7 +172,7 @@ export class StageRuntime {
     }
     const displaySeconds = this.scoreBase + stageElapsedRaw;
     this.currentDisplayScore = displaySeconds;
-    this._updateHighlightState(displaySeconds, activeStageId, dtSeconds);
+    this._updateHighlightState(displaySeconds, dtSeconds);
 
     this._notifyStagePlayableIfNeeded({
       stageId: activeStageId,
@@ -298,7 +299,8 @@ export class StageRuntime {
     };
   }
 
-  _updateHighlightState(displaySeconds, stageId, dtSeconds) {
+  _updateHighlightState(displaySeconds, dtSeconds) {
+    const stageId = this.highlightStageId;
     if (!this._isHighlightEnabled() || !this._isHighlightStage(stageId)) {
       this._resetHighlightState();
       this.highlightTriggered = false;
@@ -308,7 +310,8 @@ export class StageRuntime {
       this._syncHighScoreForStage(stageId);
     }
     const target = this.currentHighScoreValue ?? 0;
-    if (!this.highlightTriggered && displaySeconds > target) {
+    const visibleScore = Math.floor(Math.max(0, displaySeconds));
+    if (!this.highlightTriggered && visibleScore > target) {
       this.highlightTriggered = true;
       this.highlightState.active = true;
       this.highlightState.timer = 0;
@@ -365,12 +368,21 @@ export class StageRuntime {
     return !!(stageId && stageId !== STAGE_ALL_CLEAR_ID);
   }
 
+  _resolveHighlightStageId() {
+    const startingStageId = this.stageController?.getStartingStageId?.();
+    const normalizedStarting = this._normalizeStageId(startingStageId);
+    if (normalizedStarting) return normalizedStarting;
+    const activeStageId = this.stageController?.getActiveStageId?.();
+    return this._normalizeStageId(activeStageId);
+  }
+
   notifyHighScoreUpdated(stageId, value) {
     if (!this._isHighlightStage(stageId)) return;
     const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
     this.pendingHighScoreValues.set(stageId, normalized);
-    if (stageId === this.currentStageId) {
+    if (stageId === this.highlightStageId) {
       this.currentHighScoreValue = normalized;
+      this.currentHighScoreStageId = stageId;
       this.highlightTriggered = false;
       this._resetHighlightState();
     }

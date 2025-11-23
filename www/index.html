@@ -27,6 +27,12 @@
         #pauseButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); }
         #pauseButton .pause-icon { position: relative; width: 16px; height: 18px; display: inline-flex; justify-content: space-between; }
         #pauseButton .pause-icon::before, #pauseButton .pause-icon::after { content: ''; width: 5px; height: 100%; background: currentColor; border-radius: 2px; display: block; }
+        #gameOverPeekButton { position: absolute; top: 20px; right: 20px; z-index: 14; background: rgba(10,10,10,0.45); color: rgba(255,255,255,0.88); border: 1px solid rgba(255,255,255,0.35); padding: 8px 10px; border-radius: 999px; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; display: none; align-items: center; justify-content: center; opacity: 0.92; box-shadow: 0 8px 24px rgba(0,0,0,0.35); backdrop-filter: blur(6px); }
+        #gameOverPeekButton:hover { transform: translateY(-1px); opacity: 1; box-shadow: 0 10px 28px rgba(0,0,0,0.4); }
+        #gameOverPeekButton.active { background: rgba(235,235,235,0.95); color: #050505; border-color: rgba(0,0,0,0.4); }
+        #gameOverPeekButton .peek-icon { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; }
+        #gameOverPeekButton .peek-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: rgba(255,255,255,0.08); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        #gameOverPeekButton.active .peek-icon svg { fill: rgba(0,0,0,0.05); }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
         #pauseMenu { position: absolute; inset: 0; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); z-index: 12; }
         #pauseMenu .pause-card { background: rgba(12,12,12,0.9); padding: 24px 36px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
@@ -117,6 +123,15 @@
             <button id="stageSelectButton">Stage Select</button>
         </div>
     </div>
+    <button id="gameOverPeekButton" aria-label="피격 장면 보기" aria-pressed="false" data-prevent-reverse="true">
+        <span class="peek-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M2.5 12c2.5-4 6-6.5 9.5-6.5s7 2.5 9.5 6.5c-2.5 4-6 6.5-9.5 6.5S5 16 2.5 12Z" />
+                <circle cx="12" cy="12" r="3.2" />
+            </svg>
+        </span>
+        <span class="sr-only">피격 장면 보기</span>
+    </button>
 
     <button id="pauseButton" aria-label="Pause" data-prevent-reverse="true">
         <span class="pause-icon" aria-hidden="true"></span>
