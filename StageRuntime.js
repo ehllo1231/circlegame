@@ -52,6 +52,7 @@ export class StageRuntime {
     this.currentHighScoreStageId = null;
     this.currentHighScoreValue = 0;
     this.highlightTriggered = false;
+    this.pendingHighScoreValues = new Map();
     this._syncHighScoreForStage(this.currentStageId);
   }
 
@@ -339,8 +340,14 @@ export class StageRuntime {
       this._resetHighlightState();
       return;
     }
-    const value = this.highScoreProvider(stageId);
-    const numeric = Number.isFinite(value) ? value : 0;
+    let numeric = 0;
+    if (this.pendingHighScoreValues.has(stageId)) {
+      numeric = this.pendingHighScoreValues.get(stageId);
+      this.pendingHighScoreValues.delete(stageId);
+    } else {
+      const value = this.highScoreProvider(stageId);
+      numeric = Number.isFinite(value) ? value : 0;
+    }
     this.currentHighScoreValue = Math.max(0, numeric);
     this.highlightTriggered = false;
     this._resetHighlightState();
@@ -356,6 +363,17 @@ export class StageRuntime {
 
   _isHighlightStage(stageId) {
     return !!(stageId && stageId !== STAGE_ALL_CLEAR_ID);
+  }
+
+  notifyHighScoreUpdated(stageId, value) {
+    if (!this._isHighlightStage(stageId)) return;
+    const normalized = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    this.pendingHighScoreValues.set(stageId, normalized);
+    if (stageId === this.currentStageId) {
+      this.currentHighScoreValue = normalized;
+      this.highlightTriggered = false;
+      this._resetHighlightState();
+    }
   }
 
   _clamp01(value) {

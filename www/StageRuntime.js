@@ -218,16 +218,6 @@ export class StageRuntime {
       rhythmPaused,
     });
 
-    if (playerHit) {
-      if (this.onPlayerHit) {
-        this.onPlayerHit({
-          stageId: activeStageId,
-          seconds: secondsElapsed,
-        });
-      }
-      return { playerHit: true };
-    }
-
     if (hasBackgroundOffset) {
       this.ctx.save();
       this.ctx.translate(backgroundOffset.x, backgroundOffset.y);
@@ -274,6 +264,16 @@ export class StageRuntime {
 
     if (hasBackgroundOffset) {
       this.ctx.restore();
+    }
+
+    if (playerHit) {
+      if (this.onPlayerHit) {
+        this.onPlayerHit({
+          stageId: activeStageId,
+          seconds: secondsElapsed,
+        });
+      }
+      return { playerHit: true };
     }
 
     return { playerHit: false };
