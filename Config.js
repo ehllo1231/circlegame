@@ -161,8 +161,8 @@ export const STAGE3_PROLOG = {
   lightning: {
     enabled: true,
     revealDurationSec: 0.1,
-    holdDurationSec: 3,
-    fadeOutDurationSec: 0.28,
+    holdDurationSec: 2,
+    fadeOutDurationSec: 0.2,
     coreColor: '#fff6b3',
     glowColor: 'rgba(255, 211, 77, 0.55)',
     coreThickness: 5,
@@ -177,10 +177,10 @@ export const STAGE3_PROLOG = {
     maxDepth: 4,
     branch: {
       enabled: true,
-      splitChance: 0.7,
-      maxPerBolt: 15,
-      maxDepth: 4,
-      lengthDecay: 0.7,
+      splitChance: 0.56,
+      maxPerBolt: 10,
+      maxDepth: 8,
+      lengthDecay: 0.6,
     },
   },
 };
