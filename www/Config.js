@@ -110,6 +110,36 @@ export const SNOW = {
   },
 };
 
+export const EXTRA_STAGE = {
+  labelSuffix: ' EX',
+  snowPreview: {
+    enabled: true,             // show snow when an EX stage is selected on the menu
+    spawnMultiplier: 1,        // scales SNOW.spawnPerMin for menu preview
+    snow: {                    // global default overrides for EX-preview snow
+      alpha: 0.16,
+      direction: 'down',
+      spawnPerMin: 2000,
+      size: { min: 3, max: 5 },
+      fallSpeed: { min: 3, max: 5 },
+      wind: {
+        baseX: 3,
+        oscAmp: 0.12,
+        oscPeriodSec: 6,
+      },
+    },
+    perStage: {                // stage-specific overrides for EX preview
+      stage1: {
+      },
+      stage2: {
+        direction: 'up',
+      },
+      stage3: {
+        wind: { baseX: -3, oscAmp: 0.10, oscPeriodSec: 6 },
+      },
+    },
+  },
+};
+
 export const STAGE2_PROLOG = {
   radiusDurationSec: 3,
   pauseBetweenSec: 1,
@@ -230,7 +260,7 @@ export const STAGE_ALL_CLEAR = {
     font: '28px "Pretendard", "Noto Sans KR", Arial, sans-serif',
     color: '#4d4d4d',
     shadowColor: 'rgba(0, 0, 0, 0.45)',
-    offsetY: 300,
+    offsetY: 100,
     delayAfterMessageSec: 2,
     fadeInDurationSec: 0.8,
   },

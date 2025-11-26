@@ -1,6 +1,6 @@
 import { StageManager } from './StageManager.js';
 import { Stage2PrologObstacle } from './Stage2PrologObstacle.js';
-import { STAGE2_PROLOG, ORBIT, STAGE_ALL_CLEAR } from './Config.js';
+import { STAGE2_PROLOG, ORBIT, STAGE_ALL_CLEAR, CANVAS } from './Config.js';
 
 export const STAGE_ALL_CLEAR_ID = 'stageAllClear';
 
@@ -18,7 +18,7 @@ const DEFAULT_MESSAGE_SHADOW = 'rgba(0, 0, 0, 0.65)';
 const DEFAULT_MESSAGE_OFFSET_Y = 0;
 const DEFAULT_MESSAGE_FADE_DELAY = 0.3;
 const DEFAULT_MESSAGE_FADE_DURATION = 1.2;
-const DEFAULT_PROMPT_TEXT = 'Press any key to continue';
+const DEFAULT_PROMPT_TEXT = 'Press any key or tap to return to title';
 const DEFAULT_PROMPT_FONT = '20px "Arial", sans-serif';
 const DEFAULT_PROMPT_COLOR = '#b5b5b5';
 const DEFAULT_PROMPT_SHADOW = 'rgba(0, 0, 0, 0.45)';
@@ -37,7 +37,9 @@ class StageAllClearOverlay {
     this.fadeDurationSec = resolvePositive(fade?.durationSec, DEFAULT_FADE_DURATION_SEC);
     this.fadeColor = typeof fade?.color === 'string' ? fade.color : '#000000';
     this.messageText = typeof message?.text === 'string' ? message.text : DEFAULT_MESSAGE_TEXT;
-    this.messageFont = message?.font || DEFAULT_MESSAGE_FONT;
+    const resolvedMessageFont = resolveFontString(message?.font, DEFAULT_MESSAGE_FONT);
+    this.messageFontSpec = createFontSpec(resolvedMessageFont, { minPx: 22, maxPx: 96 });
+    this.messageFont = this.messageFontSpec.original;
     this.messageColor = typeof message?.color === 'string' ? message.color : DEFAULT_MESSAGE_COLOR;
     this.messageShadowColor = typeof message?.shadowColor === 'string'
       ? message.shadowColor
@@ -49,7 +51,9 @@ class StageAllClearOverlay {
       DEFAULT_MESSAGE_FADE_DURATION,
     );
     this.promptText = typeof prompt?.text === 'string' ? prompt.text : DEFAULT_PROMPT_TEXT;
-    this.promptFont = prompt?.font || DEFAULT_PROMPT_FONT;
+    const resolvedPromptFont = resolveFontString(prompt?.font, DEFAULT_PROMPT_FONT);
+    this.promptFontSpec = createFontSpec(resolvedPromptFont, { minPx: 16, maxPx: 72 });
+    this.promptFont = this.promptFontSpec.original;
     this.promptColor = typeof prompt?.color === 'string' ? prompt.color : DEFAULT_PROMPT_COLOR;
     this.promptShadowColor = typeof prompt?.shadowColor === 'string'
       ? prompt.shadowColor
@@ -81,6 +85,7 @@ class StageAllClearOverlay {
     const height = canvas?.height ?? 0;
     if (width <= 0 || height <= 0) return;
 
+    const viewportScale = this._computeViewportScale(canvas);
     const fadeAlpha = this._getFadeAlpha();
     if (fadeAlpha > 0) {
       ctx.save();
@@ -94,7 +99,7 @@ class StageAllClearOverlay {
     if (messageAlpha > 0 && this.messageText) {
       ctx.save();
       ctx.globalAlpha = messageAlpha;
-      ctx.font = this.messageFont;
+      ctx.font = this._scaleFont(this.messageFontSpec, viewportScale);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (this.messageShadowColor) {
@@ -122,7 +127,7 @@ class StageAllClearOverlay {
     if (promptAlpha > 0 && this.promptText) {
       ctx.save();
       ctx.globalAlpha = promptAlpha;
-      ctx.font = this.promptFont;
+      ctx.font = this._scaleFont(this.promptFontSpec, viewportScale);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (this.promptShadowColor) {
@@ -130,14 +135,20 @@ class StageAllClearOverlay {
         ctx.shadowBlur = 8;
       }
       ctx.fillStyle = this.promptColor;
-      const promptBase = (this._lastMessageBaseline ?? (height / 2)) + this.promptOffsetY;
+      const promptLineHeight = Math.max(20, this._computeLineHeight(ctx) * 0.75);
+      const scaledOffset = this._scaleOffset(this.promptOffsetY, viewportScale, height, promptLineHeight);
+      const promptBase = clamp(
+        (this._lastMessageBaseline ?? (height / 2)) + scaledOffset,
+        promptLineHeight * 0.8,
+        height - promptLineHeight * 0.8,
+      );
       drawTextBlock({
         ctx,
         text: this.promptText,
         x: width / 2,
         y: promptBase,
         maxWidth: width * 0.8,
-        lineHeight: Math.max(20, this._computeLineHeight(ctx) * 0.75),
+        lineHeight: promptLineHeight,
       });
       ctx.restore();
     }
@@ -181,6 +192,56 @@ class StageAllClearOverlay {
     const metrics = ctx.measureText('M');
     const base = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
     return Math.max(24, base * 1.4);
+  }
+
+  _computeViewportScale(canvas) {
+    const referenceSide = this._resolveReferenceViewportSide();
+    const currentSide = this._resolveCurrentMinViewportSide(canvas);
+    if (!Number.isFinite(referenceSide) || referenceSide <= 0) return 1;
+    if (!Number.isFinite(currentSide) || currentSide <= 0) return 1;
+    const rawScale = currentSide / referenceSide;
+    return clamp(rawScale, 0.55, 1.6);
+  }
+
+  _resolveReferenceViewportSide() {
+    const width = Number.isFinite(CANVAS?.width) ? CANVAS.width : 900;
+    const height = Number.isFinite(CANVAS?.height) ? CANVAS.height : 900;
+    const side = Math.min(width, height);
+    return Number.isFinite(side) && side > 0 ? side : null;
+  }
+
+  _resolveCurrentMinViewportSide(canvas) {
+    const fallbackWidth = Number.isFinite(CANVAS?.width) ? CANVAS.width : 900;
+    const fallbackHeight = Number.isFinite(CANVAS?.height) ? CANVAS.height : 900;
+    const width = Number.isFinite(canvas?.width) ? canvas.width : fallbackWidth;
+    const height = Number.isFinite(canvas?.height) ? canvas.height : fallbackHeight;
+    const side = Math.min(width, height);
+    return Number.isFinite(side) && side > 0 ? side : null;
+  }
+
+  _scaleFont(fontSpec, viewportScale = 1) {
+    if (!fontSpec) return '';
+    const baseSize = Number.isFinite(fontSpec.sizePx) ? fontSpec.sizePx : null;
+    if (!baseSize) return fontSpec.original;
+    const clampedScale = clamp(viewportScale, 0.55, 1.6);
+    const targetSize = clamp(
+      baseSize * clampedScale,
+      fontSpec.minPx ?? baseSize * 0.65,
+      fontSpec.maxPx ?? baseSize * 1.6,
+    );
+    const rounded = Math.round(targetSize * 10) / 10;
+    const prefix = fontSpec.prefix ?? '';
+    const suffix = fontSpec.suffix ?? '';
+    return `${prefix}${rounded}px${suffix}`;
+  }
+
+  _scaleOffset(offset, viewportScale, axisSize, minMargin = 16) {
+    const normalized = Number.isFinite(offset) ? offset : 0;
+    const clampedScale = clamp(viewportScale, 0.55, 1.6);
+    const scaled = normalized * clampedScale;
+    const margin = Math.max(minMargin, axisSize * 0.05);
+    const maxOffset = Math.max(0, (axisSize / 2) - margin);
+    return clamp(scaled, -maxOffset, maxOffset);
   }
 }
 
@@ -372,6 +433,7 @@ export class StageAllClear extends StageManager {
     this.overlay = new StageAllClearOverlay({
       fade: effectConfig?.fade,
       message: effectConfig?.message,
+      prompt: effectConfig?.prompt,
     });
   }
 
@@ -429,6 +491,7 @@ export class StageAllClear extends StageManager {
       this.overlay.configure({
         fade: STAGE_ALL_CLEAR?.fade,
         message: STAGE_ALL_CLEAR?.message,
+        prompt: STAGE_ALL_CLEAR?.prompt,
       });
       this.overlay.reset();
     }
@@ -476,6 +539,18 @@ function clamp01(value) {
   if (value <= 0) return 0;
   if (value >= 1) return 1;
   return value;
+}
+
+function clamp(value, min, max) {
+  const normalized = Number.isFinite(value) ? value : 0;
+  const hasMin = Number.isFinite(min);
+  const hasMax = Number.isFinite(max);
+  const lower = hasMin && hasMax && min > max ? max : min;
+  const upper = hasMin && hasMax && min > max ? min : max;
+  let result = normalized;
+  if (Number.isFinite(lower)) result = Math.max(lower, result);
+  if (Number.isFinite(upper)) result = Math.min(upper, result);
+  return result;
 }
 
 function resolveNumber(value, fallback) {
@@ -553,5 +628,27 @@ function drawTextBlock({
     lastBaseline,
     totalHeight,
     lines: lines.length,
+  };
+}
+
+function resolveFontString(font, fallback) {
+  if (typeof font === 'string' && font.trim().length) return font.trim();
+  if (typeof fallback === 'string' && fallback.trim().length) return fallback.trim();
+  return '16px sans-serif';
+}
+
+function createFontSpec(font, { minPx, maxPx } = {}) {
+  const resolvedFont = resolveFontString(font);
+  const match = resolvedFont.match(/(\d+(?:\.\d+)?)px\b/);
+  const sizePx = match ? Number.parseFloat(match[1]) : null;
+  const start = match ? match.index : -1;
+  const end = match ? start + match[0].length : -1;
+  return {
+    original: resolvedFont,
+    sizePx: Number.isFinite(sizePx) ? sizePx : null,
+    prefix: start >= 0 ? resolvedFont.slice(0, start) : '',
+    suffix: end >= 0 ? resolvedFont.slice(end) : '',
+    minPx: Number.isFinite(minPx) && minPx > 0 ? minPx : null,
+    maxPx: Number.isFinite(maxPx) && maxPx > 0 ? maxPx : null,
   };
 }

@@ -97,6 +97,16 @@ class Stage3Phase4 extends StagePhase {
   }
 }
 
+class Stage3Phase5 extends Stage3Phase4 {
+  constructor() {
+    super();
+    this.name = 'stage3-phase5';
+    this.durationSec = Number.POSITIVE_INFINITY;
+  }
+
+  
+}
+
 export class Stage3 extends StageManager {
   constructor() {
     super({
@@ -217,10 +227,27 @@ export class Stage3 extends StageManager {
   }
 }
 
+export class Stage3Ex extends Stage3 {
+  constructor() {
+    super();
+    this.phases = [
+      new Stage3Phase1(),
+      new Stage3Phase2(),
+      new Stage3Phase3(),
+      new Stage3Phase4(),
+      new Stage3Phase5(),
+    ];
+    this.fadeDelaySec = Number.POSITIVE_INFINITY;
+    this.fadeDurationSec = 0;
+    this.hideScoreDurationSec = 0;
+  }
+}
+
 export const STAGE3_PHASES = {
   Stage3Prolog,
   Stage3Phase1,
   Stage3Phase2,
   Stage3Phase3,
   Stage3Phase4,
+  Stage3Phase5,
 };

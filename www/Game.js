@@ -1,12 +1,12 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE } from './Config.js';
+import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
-import { Stage1 } from './Stage1.js';
-import { Stage2 } from './Stage2.js';
-import { Stage3 } from './Stage3.js';
+import { Stage1, Stage1Ex } from './Stage1.js';
+import { Stage2, Stage2Ex } from './Stage2.js';
+import { Stage3, Stage3Ex } from './Stage3.js';
 import { StageAllClear, STAGE_ALL_CLEAR_ID } from './StageAllClear.js';
 import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
@@ -15,13 +15,15 @@ import { StageBackgroundFader } from './StageBackgroundFader.js';
 import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
+import { ExtraStageSnowController } from './ExtraStageSnowController.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
 
 // Game - main controller
 export class Game {
-  constructor(canvas) {
+  constructor(canvas, { menuSnowCanvas = null } = {}) {
     this.canvas = canvas;
+    this.menuSnowCanvas = menuSnowCanvas;
     this.ctx = canvas.getContext('2d');
     this.centerX = canvas.width / 2;
     this.centerY = canvas.height / 2;
@@ -43,10 +45,15 @@ export class Game {
       stage1: Stage1,
       stage2: Stage2,
       stage3: Stage3,
+      stage1_ex: Stage1Ex,
+      stage2_ex: Stage2Ex,
+      stage3_ex: Stage3Ex,
       [STAGE_ALL_CLEAR_ID]: StageAllClear,
     };
-    this.stageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
+    this.baseStageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
+    this.stageOrder = this.baseStageOrder.slice();
     this.selectedStage = 'stage1';
+    this.selectedStageIsEx = false;
 
     this.stageController = new StageOrchestrator({
       stageMap: this.stageMap,
@@ -59,6 +66,12 @@ export class Game {
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
       scale: this.viewportScale,
+    });
+    this.extraStageSnow = new ExtraStageSnowController({
+      canvas: this.menuSnowCanvas || this.canvas,
+      scale: this.viewportScale,
+      manageVisibility: !!this.menuSnowCanvas,
+      config: this._buildPreviewSnowConfig(this.selectedStage),
     });
 
     this.stageThemeManager = new StageThemeManager({ themes: STAGE_THEMES });
@@ -122,7 +135,7 @@ export class Game {
 
     this._updateStageLocks();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
-      this.ui.setStageSelection(this.selectedStage);
+      this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
     }
 
     this.setupEventListeners();
@@ -138,7 +151,7 @@ export class Game {
         if (this.gameStarted) return;
         this._updateStageLocks();
         if (this.ui && typeof this.ui.setStageSelection === 'function') {
-          this.ui.setStageSelection(this.selectedStage);
+          this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
         }
       },
       onIntroStartComplete: () => {
@@ -148,7 +161,7 @@ export class Game {
       },
       onStart: () => this.startGame(),
       onRestart: () => this.restartGame(),
-      onStageSelect: (stageId) => this.setSelectedStage(stageId),
+      onStageSelect: (stageId, options) => this.setSelectedStage(stageId, options),
       onStageSelectScreen: () => this.returnToStageSelect(),
       onOpenSettings: () => this._syncSettingsUI(),
       onCloseSettings: () => this._syncSettingsUI(),
@@ -192,8 +205,8 @@ export class Game {
         this.enableFastForwardDebug();
       },
       onAnyKey: () => {
-        if (this.isPaused) return;
-        this._handleAnyKeyPress();
+        if (this.isPaused) return false;
+        return this._handleAnyKeyPress();
       },
     });
     const reverseTapTarget = typeof window !== 'undefined' ? window : this.canvas;
@@ -201,6 +214,7 @@ export class Game {
   }
 
   startGame() {
+    this._stopExtraStageSnowPreview({ immediate: true });
     this._stopStageMusic();
     this.gameStarted = true;
     this.gameOver = false;
@@ -286,7 +300,11 @@ export class Game {
     }
     this._syncRadiiFromConfig();
 
-    this.stageController.setStartingStage(this.selectedStage);
+    const resolvedStageId = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
@@ -298,7 +316,8 @@ export class Game {
     });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function' && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
+    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function'
+      && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
     if (stage && typeof stage.setSkipProlog === 'function') {
       stage.setSkipProlog(skipProlog);
     }
@@ -332,33 +351,39 @@ export class Game {
     this.startGame();
   }
 
-  setSelectedStage(stageId) {
-    if (!stageId || !this.stageMap?.[stageId]) return;
-    if (!this._isStageUnlocked(stageId)) {
+  setSelectedStage(stageId, { ex = false } = {}) {
+    const baseStageId = this._normalizeBaseStageId(stageId);
+    const resolvedStageId = this._resolveStageId(baseStageId, ex);
+    if (!resolvedStageId || !this.stageMap?.[resolvedStageId]) return;
+    if (!this._isStageUnlocked(baseStageId)) {
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       return;
     }
     if (this.gameStarted) return;
 
-    if (stageId !== 'stage1') {
+    if (baseStageId !== 'stage1') {
       this._stopStageMusic();
     }
 
-    this.selectedStage = stageId;
-    this._applyStageTheme(stageId);
+    this.selectedStage = baseStageId;
+    this.selectedStageIsEx = !!ex;
+    this._applyStageTheme(baseStageId);
 
-    this.stageController.setStartingStage(stageId);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.resetProgress(0);
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(stageId === 'stage2' || stageId === 'stage3');
+      stage.setSkipProlog(baseStageId === 'stage2' || baseStageId === 'stage3');
     }
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
     this.scene.applyPlayerConfigFromConfig();
-    if (stageId === 'stage2' || stageId === 'stage3') {
+    if (baseStageId === 'stage2' || baseStageId === 'stage3') {
       this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
 
@@ -377,8 +402,9 @@ export class Game {
     }
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
-      this.ui.setStageSelection(stageId);
+      this.ui.setStageSelection(baseStageId, { ex: this.selectedStageIsEx });
     }
+    this._syncExtraStageSnowPreview();
   }
 
   animate(now) {
@@ -464,11 +490,13 @@ export class Game {
 
   _handleAnyKeyPress() {
     const activeStageId = this.stageController?.getActiveStageId?.();
-    if (activeStageId !== STAGE_ALL_CLEAR_ID) return;
+    if (activeStageId !== STAGE_ALL_CLEAR_ID) return false;
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.canAcceptContinue === 'function' && stage.canAcceptContinue()) {
       this.returnToIntro();
+      return true;
     }
+    return false;
   }
 
   applyFastForwardStageEnd() {
@@ -518,7 +546,11 @@ export class Game {
     this.score.reset();
     this._syncRadiiFromConfig();
 
-    this.stageController.setStartingStage(this.selectedStage);
+    const resolvedStageId = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
@@ -564,10 +596,11 @@ export class Game {
       } else if (typeof this.ui.showStageSelection === 'function') {
         this.ui.showStageSelection();
         if (typeof this.ui.setStageSelection === 'function') {
-          this.ui.setStageSelection(this.selectedStage);
+          this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
         }
       }
     }
+    this._syncExtraStageSnowPreview();
   }
 
   _clearCanvasSurface() {
@@ -578,6 +611,79 @@ export class Game {
     }
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.restore?.();
+  }
+
+  _syncExtraStageSnowPreview() {
+    if (!this.extraStageSnow) return;
+    const allowPreview = EXTRA_STAGE?.snowPreview?.enabled !== false;
+    const introVisible = this.ui && typeof this.ui.isIntroVisible === 'function' ? this.ui.isIntroVisible() : false;
+    const shouldPreview = allowPreview && !this.gameStarted && !introVisible && this.selectedStageIsEx;
+    if (shouldPreview) {
+      this.extraStageSnow.setSnowConfig(this._buildPreviewSnowConfig(this.selectedStage));
+      this.extraStageSnow.setScale(this.viewportScale);
+      this.extraStageSnow.start();
+    } else {
+      this.extraStageSnow.stop({ immediate: this.gameStarted });
+    }
+  }
+
+  _stopExtraStageSnowPreview({ immediate = false } = {}) {
+    if (!this.extraStageSnow) return;
+    this.extraStageSnow.stop({ immediate });
+  }
+
+  _buildPreviewSnowConfig(stageId) {
+    const base = this._deepCopy(SNOW);
+    const globalOverride = EXTRA_STAGE?.snowPreview?.snow;
+    const stageOverride = stageId ? EXTRA_STAGE?.snowPreview?.perStage?.[stageId] : null;
+    const mergedGlobal = globalOverride && typeof globalOverride === 'object'
+      ? this._mergeSnowConfig(base, globalOverride)
+      : base;
+    const mergedStage = stageOverride && typeof stageOverride === 'object'
+      ? this._mergeSnowConfig(mergedGlobal, stageOverride)
+      : mergedGlobal;
+    return mergedStage;
+  }
+
+  _mergeSnowConfig(base, override) {
+    const merged = { ...base };
+    merged.alpha = this._pickNumber(override.alpha, base.alpha);
+    merged.direction = override.direction || base.direction;
+    merged.spawnPerMin = this._pickNumber(
+      override.spawnPerMin,
+      typeof override.spawnPerSecond === 'number' ? override.spawnPerSecond * 60 : null,
+      base.spawnPerMin,
+    );
+    merged.spawnPerSecond = undefined;
+    merged.size = {
+      min: this._pickNumber(override?.size?.min, base?.size?.min),
+      max: this._pickNumber(override?.size?.max, base?.size?.max),
+    };
+    merged.fallSpeed = {
+      min: this._pickNumber(override?.fallSpeed?.min, base?.fallSpeed?.min),
+      max: this._pickNumber(override?.fallSpeed?.max, base?.fallSpeed?.max),
+    };
+    merged.wind = {
+      baseX: this._pickNumber(override?.wind?.baseX, base?.wind?.baseX),
+      oscAmp: this._pickNumber(override?.wind?.oscAmp, base?.wind?.oscAmp),
+      oscPeriodSec: this._pickNumber(override?.wind?.oscPeriodSec, base?.wind?.oscPeriodSec),
+    };
+    return merged;
+  }
+
+  _deepCopy(obj) {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (_) {
+      return obj;
+    }
+  }
+
+  _pickNumber(...values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) return value;
+    }
+    return undefined;
   }
 
   _syncRadiiFromConfig() {
@@ -603,6 +709,9 @@ export class Game {
         offscreenRadius: this.offscreenRadius,
       });
     }
+    if (this.extraStageSnow && typeof this.extraStageSnow.setScale === 'function') {
+      this.extraStageSnow.setScale(this.viewportScale);
+    }
   }
 
   _getHighScoreStorageKey(stageId) {
@@ -615,19 +724,20 @@ export class Game {
   _readHighScore(stageId) {
     const key = this._getHighScoreStorageKey(stageId);
     const legacyKey = (!stageId || stageId === 'stage1') ? 'orbit_high_score_stage1' : null;
-    const memoryValue = this.highScoreMemory.get(key) ?? 0;
+    const defaultValue = (stageId && stageId.endsWith('_ex')) ? 60 : 0;
+    const memoryValue = this.highScoreMemory.get(key) ?? defaultValue;
     try {
       const stored = localStorage.getItem(key);
-      const parsed = stored ? parseInt(stored, 10) : 0;
-      const legacy = legacyKey ? parseInt(localStorage.getItem(legacyKey) ?? '0', 10) : 0;
+      const parsed = stored ? parseInt(stored, 10) : defaultValue;
+      const legacy = legacyKey ? parseInt(localStorage.getItem(legacyKey) ?? String(defaultValue), 10) : defaultValue;
       const best = Math.max(
         Number.isFinite(parsed) ? parsed : 0,
         Number.isFinite(legacy) ? legacy : 0,
-        Number.isFinite(memoryValue) ? memoryValue : 0,
+        Number.isFinite(memoryValue) ? memoryValue : defaultValue,
       );
-      return Math.max(0, best);
+      return Math.max(defaultValue, best);
     } catch (_) {
-      return Math.max(0, Number.isFinite(memoryValue) ? memoryValue : 0);
+      return Math.max(defaultValue, Number.isFinite(memoryValue) ? memoryValue : defaultValue);
     }
   }
 
@@ -782,7 +892,8 @@ export class Game {
   _applyStageTheme(stageId, { immediate = false } = {}) {
     if (!this.backgroundFader || !this.stageThemeManager) return;
     this.backgroundFader.setElements(this._collectBackgroundElements());
-    const theme = this.stageThemeManager.getTheme(stageId);
+    const baseId = this._normalizeBaseStageId(stageId);
+    const theme = this.stageThemeManager.getTheme(baseId);
     this.backgroundFader.setDefaultDuration(theme.fadeDurationSec);
     if (immediate) {
       this.backgroundFader.setColorImmediate(theme.background);
@@ -802,6 +913,9 @@ export class Game {
 
     this.canvas.width = nextWidth;
     this.canvas.height = nextHeight;
+    if (this.extraStageSnow && typeof this.extraStageSnow.setCanvasSize === 'function') {
+      this.extraStageSnow.setCanvasSize(nextWidth, nextHeight);
+    }
 
     this.centerX = nextWidth / 2;
     this.centerY = nextHeight / 2;
@@ -830,6 +944,9 @@ export class Game {
         offscreenRadius: this.offscreenRadius,
       });
       this.runtime.setBackgroundTargets(this._collectGlobalBackgroundTargets());
+    }
+    if (this.extraStageSnow && typeof this.extraStageSnow.setScale === 'function') {
+      this.extraStageSnow.setScale(this.viewportScale);
     }
     if (this.backgroundFader) {
       this.backgroundFader.setElements(this._collectBackgroundElements());
@@ -901,8 +1018,31 @@ export class Game {
     return baseOrbit / referenceSide;
   }
 
+  _normalizeBaseStageId(stageId) {
+    if (!stageId || stageId === STAGE_ALL_CLEAR_ID) return stageId;
+    return stageId.endsWith('_ex') ? stageId.slice(0, -3) : stageId;
+  }
+
+  _resolveStageId(baseStageId, isEx) {
+    const normalized = this._normalizeBaseStageId(baseStageId);
+    if (!normalized) return null;
+    const suffix = isEx ? '_ex' : '';
+    const resolved = `${normalized}${suffix}`;
+    if (this.stageMap?.[resolved]) return resolved;
+    if (!isEx && this.stageMap?.[normalized]) return normalized;
+    return null;
+  }
+
+  _resolveStageOrder(resolvedStageId, isEx) {
+    if (isEx && resolvedStageId) {
+      return [resolvedStageId];
+    }
+    return this.baseStageOrder.slice();
+  }
+
   _isStageUnlocked(stageId) {
-    return this._readStageUnlock(stageId);
+    const base = this._normalizeBaseStageId(stageId);
+    return this._readStageUnlock(base);
   }
 
   _updateStageLocks() {
@@ -914,8 +1054,13 @@ export class Game {
     }
     if (!stage2Unlocked && this.selectedStage === 'stage2') {
       this.selectedStage = 'stage1';
+      this.selectedStageIsEx = false;
       this._stopStageMusic();
-      this.stageController.setStartingStage(this.selectedStage);
+      const resolved = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+      const order = this._resolveStageOrder(resolved, this.selectedStageIsEx);
+      this.stageOrder = order.slice();
+      this.stageController.stageOrder = order.slice();
+      this.stageController.setStartingStage(resolved);
       this.stageController.reset();
       this.stageController.resetProgress(0);
       this.scene.resetForNewRun();
@@ -936,14 +1081,19 @@ export class Game {
         this.runtime.resetTracking();
       }
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       this._applyStageTheme(this.selectedStage, { immediate: true });
     }
     if (!this._isStageUnlocked('stage3') && this.selectedStage === 'stage3') {
       this.selectedStage = 'stage1';
+      this.selectedStageIsEx = false;
       this._stopStageMusic();
-      this.stageController.setStartingStage(this.selectedStage);
+      const resolved = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+      const order = this._resolveStageOrder(resolved, this.selectedStageIsEx);
+      this.stageOrder = order.slice();
+      this.stageController.stageOrder = order.slice();
+      this.stageController.setStartingStage(resolved);
       this.stageController.reset();
       this.stageController.resetProgress(0);
       this.scene.resetForNewRun();
@@ -964,9 +1114,10 @@ export class Game {
         this.runtime.resetTracking();
       }
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       this._applyStageTheme(this.selectedStage, { immediate: true });
     }
+    this._syncExtraStageSnowPreview();
   }
 }

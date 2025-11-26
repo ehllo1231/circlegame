@@ -132,11 +132,9 @@ export const EXTRA_STAGE = {
       },
       stage2: {
         direction: 'up',
-
       },
       stage3: {
-        direction: 'down',
-        wind: { baseX: -3, oscAmp: 0.22, oscPeriodSec: 7 },
+        wind: { baseX: -3, oscAmp: 0.10, oscPeriodSec: 6 },
       },
     },
   },

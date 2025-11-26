@@ -4,9 +4,9 @@ import { Score } from './Score.js';
 import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
-import { Stage1 } from './Stage1.js';
-import { Stage2 } from './Stage2.js';
-import { Stage3 } from './Stage3.js';
+import { Stage1, Stage1Ex } from './Stage1.js';
+import { Stage2, Stage2Ex } from './Stage2.js';
+import { Stage3, Stage3Ex } from './Stage3.js';
 import { StageAllClear, STAGE_ALL_CLEAR_ID } from './StageAllClear.js';
 import { StageOrchestrator } from './StageOrchestrator.js';
 import { GameScene } from './GameScene.js';
@@ -45,9 +45,13 @@ export class Game {
       stage1: Stage1,
       stage2: Stage2,
       stage3: Stage3,
+      stage1_ex: Stage1Ex,
+      stage2_ex: Stage2Ex,
+      stage3_ex: Stage3Ex,
       [STAGE_ALL_CLEAR_ID]: StageAllClear,
     };
-    this.stageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
+    this.baseStageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
+    this.stageOrder = this.baseStageOrder.slice();
     this.selectedStage = 'stage1';
     this.selectedStageIsEx = false;
 
@@ -296,7 +300,11 @@ export class Game {
     }
     this._syncRadiiFromConfig();
 
-    this.stageController.setStartingStage(this.selectedStage);
+    const resolvedStageId = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
@@ -308,7 +316,8 @@ export class Game {
     });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
-    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function' && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
+    const skipProlog = !!(stage && typeof stage.setSkipProlog === 'function'
+      && (this.selectedStage === 'stage2' || this.selectedStage === 'stage3'));
     if (stage && typeof stage.setSkipProlog === 'function') {
       stage.setSkipProlog(skipProlog);
     }
@@ -343,8 +352,10 @@ export class Game {
   }
 
   setSelectedStage(stageId, { ex = false } = {}) {
-    if (!stageId || !this.stageMap?.[stageId]) return;
-    if (!this._isStageUnlocked(stageId)) {
+    const baseStageId = this._normalizeBaseStageId(stageId);
+    const resolvedStageId = this._resolveStageId(baseStageId, ex);
+    if (!resolvedStageId || !this.stageMap?.[resolvedStageId]) return;
+    if (!this._isStageUnlocked(baseStageId)) {
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
         this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
@@ -352,24 +363,27 @@ export class Game {
     }
     if (this.gameStarted) return;
 
-    if (stageId !== 'stage1') {
+    if (baseStageId !== 'stage1') {
       this._stopStageMusic();
     }
 
-    this.selectedStage = stageId;
+    this.selectedStage = baseStageId;
     this.selectedStageIsEx = !!ex;
-    this._applyStageTheme(stageId);
+    this._applyStageTheme(baseStageId);
 
-    this.stageController.setStartingStage(stageId);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.resetProgress(0);
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.setSkipProlog === 'function') {
-      stage.setSkipProlog(stageId === 'stage2' || stageId === 'stage3');
+      stage.setSkipProlog(baseStageId === 'stage2' || baseStageId === 'stage3');
     }
     if (stage) this.scene.applyStageConfig(stage);
     this.scene.resetForNewRun();
     this.scene.applyPlayerConfigFromConfig();
-    if (stageId === 'stage2' || stageId === 'stage3') {
+    if (baseStageId === 'stage2' || baseStageId === 'stage3') {
       this.scene.setPlayerAngle(PLAYER_START_ANGLE);
     }
 
@@ -388,7 +402,7 @@ export class Game {
     }
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
-      this.ui.setStageSelection(stageId, { ex: this.selectedStageIsEx });
+      this.ui.setStageSelection(baseStageId, { ex: this.selectedStageIsEx });
     }
     this._syncExtraStageSnowPreview();
   }
@@ -532,7 +546,11 @@ export class Game {
     this.score.reset();
     this._syncRadiiFromConfig();
 
-    this.stageController.setStartingStage(this.selectedStage);
+    const resolvedStageId = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+    const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
+    this.stageOrder = order.slice();
+    this.stageController.stageOrder = order.slice();
+    this.stageController.setStartingStage(resolvedStageId);
     this.stageController.reset();
     this.stageController.resetProgress(0);
 
@@ -706,19 +724,20 @@ export class Game {
   _readHighScore(stageId) {
     const key = this._getHighScoreStorageKey(stageId);
     const legacyKey = (!stageId || stageId === 'stage1') ? 'orbit_high_score_stage1' : null;
-    const memoryValue = this.highScoreMemory.get(key) ?? 0;
+    const defaultValue = (stageId && stageId.endsWith('_ex')) ? 60 : 0;
+    const memoryValue = this.highScoreMemory.get(key) ?? defaultValue;
     try {
       const stored = localStorage.getItem(key);
-      const parsed = stored ? parseInt(stored, 10) : 0;
-      const legacy = legacyKey ? parseInt(localStorage.getItem(legacyKey) ?? '0', 10) : 0;
+      const parsed = stored ? parseInt(stored, 10) : defaultValue;
+      const legacy = legacyKey ? parseInt(localStorage.getItem(legacyKey) ?? String(defaultValue), 10) : defaultValue;
       const best = Math.max(
         Number.isFinite(parsed) ? parsed : 0,
         Number.isFinite(legacy) ? legacy : 0,
-        Number.isFinite(memoryValue) ? memoryValue : 0,
+        Number.isFinite(memoryValue) ? memoryValue : defaultValue,
       );
-      return Math.max(0, best);
+      return Math.max(defaultValue, best);
     } catch (_) {
-      return Math.max(0, Number.isFinite(memoryValue) ? memoryValue : 0);
+      return Math.max(defaultValue, Number.isFinite(memoryValue) ? memoryValue : defaultValue);
     }
   }
 
@@ -873,7 +892,8 @@ export class Game {
   _applyStageTheme(stageId, { immediate = false } = {}) {
     if (!this.backgroundFader || !this.stageThemeManager) return;
     this.backgroundFader.setElements(this._collectBackgroundElements());
-    const theme = this.stageThemeManager.getTheme(stageId);
+    const baseId = this._normalizeBaseStageId(stageId);
+    const theme = this.stageThemeManager.getTheme(baseId);
     this.backgroundFader.setDefaultDuration(theme.fadeDurationSec);
     if (immediate) {
       this.backgroundFader.setColorImmediate(theme.background);
@@ -998,8 +1018,31 @@ export class Game {
     return baseOrbit / referenceSide;
   }
 
+  _normalizeBaseStageId(stageId) {
+    if (!stageId || stageId === STAGE_ALL_CLEAR_ID) return stageId;
+    return stageId.endsWith('_ex') ? stageId.slice(0, -3) : stageId;
+  }
+
+  _resolveStageId(baseStageId, isEx) {
+    const normalized = this._normalizeBaseStageId(baseStageId);
+    if (!normalized) return null;
+    const suffix = isEx ? '_ex' : '';
+    const resolved = `${normalized}${suffix}`;
+    if (this.stageMap?.[resolved]) return resolved;
+    if (!isEx && this.stageMap?.[normalized]) return normalized;
+    return null;
+  }
+
+  _resolveStageOrder(resolvedStageId, isEx) {
+    if (isEx && resolvedStageId) {
+      return [resolvedStageId];
+    }
+    return this.baseStageOrder.slice();
+  }
+
   _isStageUnlocked(stageId) {
-    return this._readStageUnlock(stageId);
+    const base = this._normalizeBaseStageId(stageId);
+    return this._readStageUnlock(base);
   }
 
   _updateStageLocks() {
@@ -1013,7 +1056,11 @@ export class Game {
       this.selectedStage = 'stage1';
       this.selectedStageIsEx = false;
       this._stopStageMusic();
-      this.stageController.setStartingStage(this.selectedStage);
+      const resolved = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+      const order = this._resolveStageOrder(resolved, this.selectedStageIsEx);
+      this.stageOrder = order.slice();
+      this.stageController.stageOrder = order.slice();
+      this.stageController.setStartingStage(resolved);
       this.stageController.reset();
       this.stageController.resetProgress(0);
       this.scene.resetForNewRun();
@@ -1042,7 +1089,11 @@ export class Game {
       this.selectedStage = 'stage1';
       this.selectedStageIsEx = false;
       this._stopStageMusic();
-      this.stageController.setStartingStage(this.selectedStage);
+      const resolved = this._resolveStageId(this.selectedStage, this.selectedStageIsEx);
+      const order = this._resolveStageOrder(resolved, this.selectedStageIsEx);
+      this.stageOrder = order.slice();
+      this.stageController.stageOrder = order.slice();
+      this.stageController.setStartingStage(resolved);
       this.stageController.reset();
       this.stageController.resetProgress(0);
       this.scene.resetForNewRun();

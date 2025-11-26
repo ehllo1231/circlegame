@@ -67,6 +67,25 @@ class Stage1Phase4 extends StagePhase {
   }
 }
 
+class Stage1Phase5 extends Stage1Phase4 {
+  constructor() {
+    super();
+    this.name = 'stage1-phase5';
+    this.durationSec = Number.POSITIVE_INFINITY;
+  }
+
+  onEnter() {
+    SPAWN.baseInterval = 15;
+    SPAWN.multiCountWeights = [0.0, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.1];
+    SNOW.direction = 'down';
+    SNOW.spawnPerMin = 0;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = -6;
+  }
+
+}
+
 export class Stage1 extends StageManager {
   constructor() {
     super({
@@ -90,4 +109,24 @@ export const STAGE1_PHASES = {
   Stage1Phase2,
   Stage1Phase3,
   Stage1Phase4,
+  Stage1Phase5,
 };
+
+export class Stage1Ex extends StageManager {
+  constructor() {
+    super({
+      phases: [
+        new Stage1Phase1(),
+        new Stage1Phase2(),
+        new Stage1Phase3(),
+        new Stage1Phase4(),
+        new Stage1Phase5(),
+      ],
+      fadeFrom: '#000000',
+      fadeTo: '#0f0020',
+      fadeDelaySec: Number.POSITIVE_INFINITY,
+      fadeDurationSec: 0,
+      hideScoreDurationSec: 0,
+    });
+  }
+}

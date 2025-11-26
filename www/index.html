@@ -7,6 +7,7 @@
     <style>
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         canvas { border: none; }
+        #menuSnowCanvas { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 11; pointer-events: none; display: none; }
         /* Overlays */
         .overlay { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 10; }
         #gameTitle { font: bold 48px Arial, sans-serif; color: #fff; margin-bottom: 24px; text-shadow: 0 0 20px #fff; }
@@ -147,6 +148,7 @@
         </div>
     </div>
 
+    <canvas id="menuSnowCanvas" aria-hidden="true"></canvas>
     <canvas id="canvas"></canvas>
 
     <script type="module">
@@ -154,6 +156,7 @@
         import { CANVAS } from './Config.js';
 
         const canvas = document.getElementById('canvas');
+        const menuSnowCanvas = document.getElementById('menuSnowCanvas');
 
         function readPositiveNumber(value) {
             const numeric = Number(value);
@@ -208,11 +211,19 @@
         const initialSize = computeCanvasSize();
         canvas.width = initialSize.width;
         canvas.height = initialSize.height;
+        if (menuSnowCanvas) {
+          menuSnowCanvas.width = initialSize.width;
+          menuSnowCanvas.height = initialSize.height;
+        }
 
-        const game = new Game(canvas);
+        const game = new Game(canvas, { menuSnowCanvas });
 
         function handleResize() {
             const size = computeCanvasSize();
+            if (menuSnowCanvas) {
+              menuSnowCanvas.width = size.width;
+              menuSnowCanvas.height = size.height;
+            }
             game.resizeCanvas(size);
         }
 

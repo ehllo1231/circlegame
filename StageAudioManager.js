@@ -54,9 +54,14 @@ export class StageAudioManager {
   }
 
   stopAll() {
-    if (this.currentStageId) {
-      this.stopStage(this.currentStageId);
+    for (const [stageId, audio] of this.audioElements.entries()) {
+      if (!audio) continue;
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch (_) { /* ignore */ }
     }
+    this.currentStageId = null;
   }
 
   pauseAll() {

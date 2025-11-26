@@ -181,13 +181,14 @@ export class StageRuntime {
     });
 
     if (this.audioManager && this.audioManager.isPlaying('stage1')) {
-      if (activeStageId !== 'stage1' || stageElapsedRaw >= 60) {
+      const activeBaseId = this._normalizeBaseStageId(activeStageId);
+      if (activeBaseId !== 'stage1' || stageElapsedRaw >= 60) {
         this.audioManager.stopStage('stage1');
       }
     }
     if (this.audioManager) {
-      this._syncStageTrack('stage2', { activeStageId, prologActive });
-      this._syncStageTrack('stage3', { activeStageId, prologActive });
+      this._syncStageTrack('stage2', { activeStageId, prologActive, stageElapsed: stageElapsedRaw });
+      this._syncStageTrack('stage3', { activeStageId, prologActive, stageElapsed: stageElapsedRaw });
     }
 
     const backgroundColor = this.stageController.getBackgroundColor('#000000');
@@ -406,7 +407,7 @@ export class StageRuntime {
     const advanced = this.stageController.advance(currentSeconds);
     if (!advanced) return false;
     if (previousStageId) {
-      this.mutedStages.delete(this._normalizeStageId(previousStageId));
+      this.mutedStages.delete(this._normalizeBaseStageId(previousStageId));
     }
     this.scene.resetAfterStageTransition();
     const nextStageId = this.stageController.getActiveStageId();
@@ -431,7 +432,8 @@ export class StageRuntime {
 
   _maybePlayStageMusic() {
     if (!this.audioManager) return;
-    const stageId = this.stageController.getActiveStageId();
+    const rawStageId = this.stageController.getActiveStageId();
+    const stageId = this._normalizeBaseStageId(rawStageId);
     if (this._isStageMuted(stageId)) {
       this.audioManager.stopStage(stageId);
       return;
@@ -443,9 +445,9 @@ export class StageRuntime {
     }
   }
 
-  _syncStageTrack(stageId, { activeStageId, prologActive } = {}) {
+  _syncStageTrack(stageId, { activeStageId, prologActive, stageElapsed } = {}) {
     if (!stageId || !this.audioManager) return;
-    const normalized = this._normalizeStageId(stageId);
+    const normalized = this._normalizeBaseStageId(stageId);
     if (!normalized) return;
 
     if (this._isStageMuted(normalized)) {
@@ -455,7 +457,15 @@ export class StageRuntime {
       return;
     }
 
-    const isActive = activeStageId === normalized;
+    const activeBaseId = this._normalizeBaseStageId(activeStageId);
+    const isActive = activeBaseId === normalized;
+    const shouldForceStopAt60 = isActive && normalized !== 'stage1' && Number.isFinite(stageElapsed) && stageElapsed >= 60;
+    if (shouldForceStopAt60) {
+      if (this.audioManager.isPlaying(normalized)) {
+        this.audioManager.stopStage(normalized);
+      }
+      return;
+    }
     const stageFinished = this.stageController?.isStageFinished?.();
     const shouldPlay = isActive && !prologActive && !stageFinished;
     const isPlaying = this.audioManager.isPlaying(normalized);
@@ -527,7 +537,7 @@ export class StageRuntime {
 
   muteStage(stageId) {
     if (!stageId) return;
-    const normalized = this._normalizeStageId(stageId);
+    const normalized = this._normalizeBaseStageId(stageId);
     if (!normalized) return;
     this.mutedStages.add(normalized);
     if (this.audioManager && this.audioManager.isPlaying(normalized)) {
@@ -548,8 +558,14 @@ export class StageRuntime {
     return String(stageId);
   }
 
+  _normalizeBaseStageId(stageId) {
+    const raw = this._normalizeStageId(stageId);
+    if (!raw || raw === STAGE_ALL_CLEAR_ID) return raw;
+    return raw.endsWith('_ex') ? raw.slice(0, -3) : raw;
+  }
+
   _isStageMuted(stageId) {
-    const normalized = this._normalizeStageId(stageId);
+    const normalized = this._normalizeBaseStageId(stageId);
     if (!normalized) return false;
     return this.mutedStages.has(normalized);
   }
