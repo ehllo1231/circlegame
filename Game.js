@@ -67,7 +67,7 @@ export class Game {
       canvas: this.menuSnowCanvas || this.canvas,
       scale: this.viewportScale,
       manageVisibility: !!this.menuSnowCanvas,
-      config: this._buildPreviewSnowConfig(),
+      config: this._buildPreviewSnowConfig(this.selectedStage),
     });
 
     this.stageThemeManager = new StageThemeManager({ themes: STAGE_THEMES });
@@ -601,7 +601,7 @@ export class Game {
     const introVisible = this.ui && typeof this.ui.isIntroVisible === 'function' ? this.ui.isIntroVisible() : false;
     const shouldPreview = allowPreview && !this.gameStarted && !introVisible && this.selectedStageIsEx;
     if (shouldPreview) {
-      this.extraStageSnow.setSnowConfig(this._buildPreviewSnowConfig());
+      this.extraStageSnow.setSnowConfig(this._buildPreviewSnowConfig(this.selectedStage));
       this.extraStageSnow.setScale(this.viewportScale);
       this.extraStageSnow.start();
     } else {
@@ -614,11 +614,17 @@ export class Game {
     this.extraStageSnow.stop({ immediate });
   }
 
-  _buildPreviewSnowConfig() {
+  _buildPreviewSnowConfig(stageId) {
     const base = this._deepCopy(SNOW);
-    const override = EXTRA_STAGE?.snowPreview?.snow;
-    if (!override || typeof override !== 'object') return base;
-    return this._mergeSnowConfig(base, override);
+    const globalOverride = EXTRA_STAGE?.snowPreview?.snow;
+    const stageOverride = stageId ? EXTRA_STAGE?.snowPreview?.perStage?.[stageId] : null;
+    const mergedGlobal = globalOverride && typeof globalOverride === 'object'
+      ? this._mergeSnowConfig(base, globalOverride)
+      : base;
+    const mergedStage = stageOverride && typeof stageOverride === 'object'
+      ? this._mergeSnowConfig(mergedGlobal, stageOverride)
+      : mergedGlobal;
+    return mergedStage;
   }
 
   _mergeSnowConfig(base, override) {

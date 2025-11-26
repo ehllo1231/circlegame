@@ -115,16 +115,28 @@ export const EXTRA_STAGE = {
   snowPreview: {
     enabled: true,             // show snow when an EX stage is selected on the menu
     spawnMultiplier: 1,        // scales SNOW.spawnPerMin for menu preview
-    snow: {                    // optional overrides for EX-preview snow only
+    snow: {                    // global default overrides for EX-preview snow
       alpha: 0.16,
       direction: 'down',
       spawnPerMin: 2000,
-      size: { min: 2, max: 5 },
+      size: { min: 3, max: 5 },
       fallSpeed: { min: 3, max: 5 },
       wind: {
         baseX: 3,
         oscAmp: 0.12,
         oscPeriodSec: 6,
+      },
+    },
+    perStage: {                // stage-specific overrides for EX preview
+      stage1: {
+      },
+      stage2: {
+        direction: 'up',
+
+      },
+      stage3: {
+        direction: 'down',
+        wind: { baseX: -3, oscAmp: 0.22, oscPeriodSec: 7 },
       },
     },
   },
