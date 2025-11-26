@@ -110,6 +110,26 @@ export const SNOW = {
   },
 };
 
+export const EXTRA_STAGE = {
+  labelSuffix: ' EX',
+  snowPreview: {
+    enabled: true,             // show snow when an EX stage is selected on the menu
+    spawnMultiplier: 1,        // scales SNOW.spawnPerMin for menu preview
+    snow: {                    // optional overrides for EX-preview snow only
+      alpha: 0.16,
+      direction: 'down',
+      spawnPerMin: 2000,
+      size: { min: 2, max: 5 },
+      fallSpeed: { min: 3, max: 5 },
+      wind: {
+        baseX: 3,
+        oscAmp: 0.12,
+        oscPeriodSec: 6,
+      },
+    },
+  },
+};
+
 export const STAGE2_PROLOG = {
   radiusDurationSec: 3,
   pauseBetweenSec: 1,

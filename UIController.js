@@ -1,4 +1,4 @@
-import { SCORE, UI } from './Config.js';
+import { SCORE, UI, EXTRA_STAGE } from './Config.js';
 
 export class UIController {
   constructor() {
@@ -31,6 +31,8 @@ export class UIController {
     this.confirmResetButton = document.getElementById('confirmResetButton');
     this.cancelResetButton = document.getElementById('cancelResetButton');
     this.selectedStageId = null;
+    this.stageExState = new Map();
+    this.stageLabelDefaults = new Map();
     this.isMuted = false;
     this.stageLocks = new Map();
     this.stageButtonMap = new Map();
@@ -39,7 +41,11 @@ export class UIController {
     this._gameOverPeekActive = false;
     for (const btn of this.stageButtons) {
       const stage = btn?.dataset?.stage;
-      if (stage) this.stageButtonMap.set(stage, btn);
+      if (stage) {
+        this.stageButtonMap.set(stage, btn);
+        this.stageExState.set(stage, false);
+        this.stageLabelDefaults.set(stage, btn.textContent?.trim() || stage);
+      }
     }
     this._introVisible = false;
     this.hidePauseButton();
@@ -252,8 +258,10 @@ export class UIController {
           const stage = btn.dataset.stage;
           if (stage) {
             if (this.isStageLocked(stage)) return;
-            this.setStageSelection(stage);
-            onStageSelect(stage);
+            const isCurrent = this.selectedStageId === stage;
+            const nextEx = isCurrent ? !this.isStageEx(stage) : false;
+            this.setStageSelection(stage, { ex: nextEx });
+            onStageSelect(stage, { ex: nextEx });
           }
         });
       });
@@ -332,7 +340,8 @@ export class UIController {
     this._setGameOverPeekButtonVisible(false);
     this._updateGameOverPeekButtonState(false);
     if (this.stageSelectLabel) {
-      this.setStageSelection(this.selectedStageId || 'stage1');
+      const stageId = this.selectedStageId || 'stage1';
+      this.setStageSelection(stageId, { ex: this.isStageEx(stageId) });
     }
   }
 
@@ -365,12 +374,19 @@ export class UIController {
     this.showStageSelection();
   }
 
-  setStageSelection(stageId) {
+  setStageSelection(stageId, { ex = false, resetOthers = true } = {}) {
     if (this.isStageLocked(stageId)) return;
     if (!stageId) return;
     const btn = this.stageButtonMap.get(stageId);
     if (!btn) return;
     this.selectedStageId = stageId;
+    if (resetOthers) {
+      for (const [key] of this.stageExState) {
+        this._setStageEx(key, key === stageId ? ex : false);
+      }
+    } else {
+      this._setStageEx(stageId, ex);
+    }
     if (this.stageButtons.length > 0) {
       this.stageButtons.forEach((btn) => {
         const btnStage = btn.dataset.stage;
@@ -383,6 +399,21 @@ export class UIController {
         }
       });
     }
+  }
+
+  isStageEx(stageId) {
+    return !!this.stageExState.get(stageId);
+  }
+
+  _setStageEx(stageId, isEx) {
+    if (!stageId) return;
+    const normalized = !!isEx;
+    this.stageExState.set(stageId, normalized);
+    const btn = this.stageButtonMap.get(stageId);
+    if (!btn) return;
+    const baseLabel = this.stageLabelDefaults.get(stageId) ?? btn.textContent?.trim() ?? stageId;
+    const suffix = EXTRA_STAGE?.labelSuffix ?? ' EX';
+    btn.textContent = normalized ? `${baseLabel}${suffix}` : baseLabel;
   }
 
   showGameOver(finalScoreSeconds, highScore = null, isNew = false) {
@@ -407,9 +438,13 @@ export class UIController {
     if (!btn) return;
     this.stageLocks.set(stageId, !!locked);
     btn.style.display = locked ? 'none' : '';
-    if (locked && btn.classList.contains('active')) {
+    if (locked) {
       btn.classList.remove('active');
       this.selectedStageId = null;
+      this._setStageEx(stageId, false);
+    } else if (btn.classList.contains('active')) {
+      // ensure active state keeps current EX flag when unlock restores visibility
+      this._setStageEx(stageId, this.isStageEx(stageId));
     }
   }
 

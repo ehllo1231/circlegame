@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE } from './Config.js';
+import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1 } from './Stage1.js';
@@ -15,13 +15,15 @@ import { StageBackgroundFader } from './StageBackgroundFader.js';
 import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
+import { ExtraStageSnowController } from './ExtraStageSnowController.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
 
 // Game - main controller
 export class Game {
-  constructor(canvas) {
+  constructor(canvas, { menuSnowCanvas = null } = {}) {
     this.canvas = canvas;
+    this.menuSnowCanvas = menuSnowCanvas;
     this.ctx = canvas.getContext('2d');
     this.centerX = canvas.width / 2;
     this.centerY = canvas.height / 2;
@@ -47,6 +49,7 @@ export class Game {
     };
     this.stageOrder = ['stage1', 'stage2', 'stage3', STAGE_ALL_CLEAR_ID];
     this.selectedStage = 'stage1';
+    this.selectedStageIsEx = false;
 
     this.stageController = new StageOrchestrator({
       stageMap: this.stageMap,
@@ -59,6 +62,12 @@ export class Game {
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
       scale: this.viewportScale,
+    });
+    this.extraStageSnow = new ExtraStageSnowController({
+      canvas: this.menuSnowCanvas || this.canvas,
+      scale: this.viewportScale,
+      manageVisibility: !!this.menuSnowCanvas,
+      config: this._buildPreviewSnowConfig(),
     });
 
     this.stageThemeManager = new StageThemeManager({ themes: STAGE_THEMES });
@@ -122,7 +131,7 @@ export class Game {
 
     this._updateStageLocks();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
-      this.ui.setStageSelection(this.selectedStage);
+      this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
     }
 
     this.setupEventListeners();
@@ -138,7 +147,7 @@ export class Game {
         if (this.gameStarted) return;
         this._updateStageLocks();
         if (this.ui && typeof this.ui.setStageSelection === 'function') {
-          this.ui.setStageSelection(this.selectedStage);
+          this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
         }
       },
       onIntroStartComplete: () => {
@@ -148,7 +157,7 @@ export class Game {
       },
       onStart: () => this.startGame(),
       onRestart: () => this.restartGame(),
-      onStageSelect: (stageId) => this.setSelectedStage(stageId),
+      onStageSelect: (stageId, options) => this.setSelectedStage(stageId, options),
       onStageSelectScreen: () => this.returnToStageSelect(),
       onOpenSettings: () => this._syncSettingsUI(),
       onCloseSettings: () => this._syncSettingsUI(),
@@ -201,6 +210,7 @@ export class Game {
   }
 
   startGame() {
+    this._stopExtraStageSnowPreview({ immediate: true });
     this._stopStageMusic();
     this.gameStarted = true;
     this.gameOver = false;
@@ -332,11 +342,11 @@ export class Game {
     this.startGame();
   }
 
-  setSelectedStage(stageId) {
+  setSelectedStage(stageId, { ex = false } = {}) {
     if (!stageId || !this.stageMap?.[stageId]) return;
     if (!this._isStageUnlocked(stageId)) {
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       return;
     }
@@ -347,6 +357,7 @@ export class Game {
     }
 
     this.selectedStage = stageId;
+    this.selectedStageIsEx = !!ex;
     this._applyStageTheme(stageId);
 
     this.stageController.setStartingStage(stageId);
@@ -377,8 +388,9 @@ export class Game {
     }
 
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
-      this.ui.setStageSelection(stageId);
+      this.ui.setStageSelection(stageId, { ex: this.selectedStageIsEx });
     }
+    this._syncExtraStageSnowPreview();
   }
 
   animate(now) {
@@ -566,10 +578,11 @@ export class Game {
       } else if (typeof this.ui.showStageSelection === 'function') {
         this.ui.showStageSelection();
         if (typeof this.ui.setStageSelection === 'function') {
-          this.ui.setStageSelection(this.selectedStage);
+          this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
         }
       }
     }
+    this._syncExtraStageSnowPreview();
   }
 
   _clearCanvasSurface() {
@@ -580,6 +593,73 @@ export class Game {
     }
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.restore?.();
+  }
+
+  _syncExtraStageSnowPreview() {
+    if (!this.extraStageSnow) return;
+    const allowPreview = EXTRA_STAGE?.snowPreview?.enabled !== false;
+    const introVisible = this.ui && typeof this.ui.isIntroVisible === 'function' ? this.ui.isIntroVisible() : false;
+    const shouldPreview = allowPreview && !this.gameStarted && !introVisible && this.selectedStageIsEx;
+    if (shouldPreview) {
+      this.extraStageSnow.setSnowConfig(this._buildPreviewSnowConfig());
+      this.extraStageSnow.setScale(this.viewportScale);
+      this.extraStageSnow.start();
+    } else {
+      this.extraStageSnow.stop({ immediate: this.gameStarted });
+    }
+  }
+
+  _stopExtraStageSnowPreview({ immediate = false } = {}) {
+    if (!this.extraStageSnow) return;
+    this.extraStageSnow.stop({ immediate });
+  }
+
+  _buildPreviewSnowConfig() {
+    const base = this._deepCopy(SNOW);
+    const override = EXTRA_STAGE?.snowPreview?.snow;
+    if (!override || typeof override !== 'object') return base;
+    return this._mergeSnowConfig(base, override);
+  }
+
+  _mergeSnowConfig(base, override) {
+    const merged = { ...base };
+    merged.alpha = this._pickNumber(override.alpha, base.alpha);
+    merged.direction = override.direction || base.direction;
+    merged.spawnPerMin = this._pickNumber(
+      override.spawnPerMin,
+      typeof override.spawnPerSecond === 'number' ? override.spawnPerSecond * 60 : null,
+      base.spawnPerMin,
+    );
+    merged.spawnPerSecond = undefined;
+    merged.size = {
+      min: this._pickNumber(override?.size?.min, base?.size?.min),
+      max: this._pickNumber(override?.size?.max, base?.size?.max),
+    };
+    merged.fallSpeed = {
+      min: this._pickNumber(override?.fallSpeed?.min, base?.fallSpeed?.min),
+      max: this._pickNumber(override?.fallSpeed?.max, base?.fallSpeed?.max),
+    };
+    merged.wind = {
+      baseX: this._pickNumber(override?.wind?.baseX, base?.wind?.baseX),
+      oscAmp: this._pickNumber(override?.wind?.oscAmp, base?.wind?.oscAmp),
+      oscPeriodSec: this._pickNumber(override?.wind?.oscPeriodSec, base?.wind?.oscPeriodSec),
+    };
+    return merged;
+  }
+
+  _deepCopy(obj) {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (_) {
+      return obj;
+    }
+  }
+
+  _pickNumber(...values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) return value;
+    }
+    return undefined;
   }
 
   _syncRadiiFromConfig() {
@@ -604,6 +684,9 @@ export class Game {
         orbitRadius: this.orbitRadius,
         offscreenRadius: this.offscreenRadius,
       });
+    }
+    if (this.extraStageSnow && typeof this.extraStageSnow.setScale === 'function') {
+      this.extraStageSnow.setScale(this.viewportScale);
     }
   }
 
@@ -804,6 +887,9 @@ export class Game {
 
     this.canvas.width = nextWidth;
     this.canvas.height = nextHeight;
+    if (this.extraStageSnow && typeof this.extraStageSnow.setCanvasSize === 'function') {
+      this.extraStageSnow.setCanvasSize(nextWidth, nextHeight);
+    }
 
     this.centerX = nextWidth / 2;
     this.centerY = nextHeight / 2;
@@ -832,6 +918,9 @@ export class Game {
         offscreenRadius: this.offscreenRadius,
       });
       this.runtime.setBackgroundTargets(this._collectGlobalBackgroundTargets());
+    }
+    if (this.extraStageSnow && typeof this.extraStageSnow.setScale === 'function') {
+      this.extraStageSnow.setScale(this.viewportScale);
     }
     if (this.backgroundFader) {
       this.backgroundFader.setElements(this._collectBackgroundElements());
@@ -916,6 +1005,7 @@ export class Game {
     }
     if (!stage2Unlocked && this.selectedStage === 'stage2') {
       this.selectedStage = 'stage1';
+      this.selectedStageIsEx = false;
       this._stopStageMusic();
       this.stageController.setStartingStage(this.selectedStage);
       this.stageController.reset();
@@ -938,12 +1028,13 @@ export class Game {
         this.runtime.resetTracking();
       }
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       this._applyStageTheme(this.selectedStage, { immediate: true });
     }
     if (!this._isStageUnlocked('stage3') && this.selectedStage === 'stage3') {
       this.selectedStage = 'stage1';
+      this.selectedStageIsEx = false;
       this._stopStageMusic();
       this.stageController.setStartingStage(this.selectedStage);
       this.stageController.reset();
@@ -966,9 +1057,10 @@ export class Game {
         this.runtime.resetTracking();
       }
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
-        this.ui.setStageSelection(this.selectedStage);
+        this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       this._applyStageTheme(this.selectedStage, { immediate: true });
     }
+    this._syncExtraStageSnowPreview();
   }
 }

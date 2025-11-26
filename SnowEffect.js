@@ -6,12 +6,13 @@ function normalizeScale(value) {
 }
 
 export class SnowEffect {
-  constructor({ scale = 1 } = {}) {
+  constructor({ scale = 1, config = null } = {}) {
     this.flakes = [];
     this.spawnAcc = 0;     // spawn accumulator (flakes)
     this.timeFrames = 0;   // frames at 60fps (for wind oscillation)
     this.scale = normalizeScale(scale);
     this.offscreenMargin = this._computeOffscreenMargin();
+    this.config = config || null;
   }
 
   reset() {
@@ -38,58 +39,77 @@ export class SnowEffect {
     }
   }
 
-  update(dt, width, height) {
+  setConfig(config = null) {
+    this.config = config || null;
+  }
+
+  update(dt, width, height, { allowSpawn = true, spawnMultiplier = 1 } = {}) {
+    const cfg = this._getConfig();
+    const fallback = SNOW;
     // support spawnPerMin (preferred). fallback to spawnPerSecond if present
-    const spawnPerMin = (typeof SNOW?.spawnPerMin === 'number')
-      ? SNOW.spawnPerMin
-      : ((typeof SNOW?.spawnPerSecond === 'number') ? SNOW.spawnPerSecond * 60 : 0);
-    const spawnPerFrame = spawnPerMin / (60 * 60);
+    const spawnPerMin = this._pickNumber(
+      cfg?.spawnPerMin,
+      typeof cfg?.spawnPerSecond === 'number' ? cfg.spawnPerSecond * 60 : null,
+      fallback?.spawnPerMin,
+      typeof fallback?.spawnPerSecond === 'number' ? fallback.spawnPerSecond * 60 : null,
+      0,
+    );
+    const normalizedMultiplier = Number.isFinite(spawnMultiplier) ? Math.max(0, spawnMultiplier) : 1;
+    const spawnPerFrame = spawnPerMin * normalizedMultiplier / (60 * 60);
 
     // Advance global time for wind phase calculations
     this.timeFrames += dt;
 
-    const direction = this._resolveDirection();
+    const direction = this._resolveDirection(cfg, fallback);
     const w = Number.isFinite(width) ? width : 0;
     const h = Number.isFinite(height) ? height : 0;
 
-    // Spawn (no hard cap): use accumulator; unbiased across full width
-    this.spawnAcc += spawnPerFrame * dt;
-    let toSpawn = Math.floor(this.spawnAcc);
-    if (toSpawn > 0) this.spawnAcc -= toSpawn;
-    while (toSpawn-- > 0) {
-      // Snapshot all config used by this flake at creation time
-      const size = this._rand(SNOW?.size?.min ?? 1, SNOW?.size?.max ?? 3) * this.scale;
-      const speedMag = this._rand(SNOW?.fallSpeed?.min ?? 0.8, SNOW?.fallSpeed?.max ?? 2.0) * this.scale;
-      const verticalSpeed = direction === 'up' ? -speedMag : speedMag;
-      const alpha = SNOW?.alpha ?? 0.28;
-      const baseX = (SNOW?.wind?.baseX ?? 0.1) * this.scale;
-      const oscAmp = (SNOW?.wind?.oscAmp ?? 0.08) * this.scale;
-      const periodSec = SNOW?.wind?.oscPeriodSec ?? 5;
-      const periodFrames = Math.max(1, periodSec * 60);
-      // Use current wind for initial vx blend to preserve behavior
-      const phase0 = (this.timeFrames / periodFrames) * Math.PI * 2;
-      const windX0 = baseX + Math.sin(phase0) * oscAmp;
+    if (allowSpawn) {
+      // Spawn (no hard cap): use accumulator; unbiased across full width
+      this.spawnAcc += spawnPerFrame * dt;
+      let toSpawn = Math.floor(this.spawnAcc);
+      if (toSpawn > 0) this.spawnAcc -= toSpawn;
+      while (toSpawn-- > 0) {
+        // Snapshot all config used by this flake at creation time
+        const size = this._rand(
+          this._pickNumber(cfg?.size?.min, fallback?.size?.min, 1),
+          this._pickNumber(cfg?.size?.max, fallback?.size?.max, 3),
+        ) * this.scale;
+        const speedMag = this._rand(
+          this._pickNumber(cfg?.fallSpeed?.min, fallback?.fallSpeed?.min, 0.8),
+          this._pickNumber(cfg?.fallSpeed?.max, fallback?.fallSpeed?.max, 2.0),
+        ) * this.scale;
+        const verticalSpeed = direction === 'up' ? -speedMag : speedMag;
+        const alpha = this._pickNumber(cfg?.alpha, fallback?.alpha, 0.28);
+        const baseX = (this._pickNumber(cfg?.wind?.baseX, fallback?.wind?.baseX, 0.1)) * this.scale;
+        const oscAmp = (this._pickNumber(cfg?.wind?.oscAmp, fallback?.wind?.oscAmp, 0.08)) * this.scale;
+        const periodSec = this._pickNumber(cfg?.wind?.oscPeriodSec, fallback?.wind?.oscPeriodSec, 5);
+        const periodFrames = Math.max(1, periodSec * 60);
+        // Use current wind for initial vx blend to preserve behavior
+        const phase0 = (this.timeFrames / periodFrames) * Math.PI * 2;
+        const windX0 = baseX + Math.sin(phase0) * oscAmp;
 
-      const spawnX = Math.random() * w * 3 - w;
-      const spawnY = direction === 'up'
-        ? h + size + Math.random() * (30 * this.scale)
-        : -size - Math.random() * (30 * this.scale);
+        const spawnX = Math.random() * w * 3 - w;
+        const spawnY = direction === 'up'
+          ? h + size + Math.random() * (30 * this.scale)
+          : -size - Math.random() * (30 * this.scale);
 
-      this.flakes.push({
-        x: spawnX,
-        y: spawnY,
-        // keep existing behavior: include wind at spawn plus small noise
-        vx: windX0 + (Math.random() - 0.5) * 0.1,
-        vy: verticalSpeed,
-        size,
-        appeared: false,
-        direction,
-        // snapshot config so later changes do not affect this flake
-        alpha,
-        windBaseX: baseX,
-        windOscAmp: oscAmp,
-        windPeriodFrames: periodFrames,
-      });
+        this.flakes.push({
+          x: spawnX,
+          y: spawnY,
+          // keep existing behavior: include wind at spawn plus small noise
+          vx: windX0 + (Math.random() - 0.5) * 0.1,
+          vy: verticalSpeed,
+          size,
+          appeared: false,
+          direction,
+          // snapshot config so later changes do not affect this flake
+          alpha,
+          windBaseX: baseX,
+          windOscAmp: oscAmp,
+          windPeriodFrames: periodFrames,
+        });
+      }
     }
 
     // Update existing flakes using their own snapped configs
@@ -119,7 +139,8 @@ export class SnowEffect {
   draw(ctx) {
     ctx.save();
     for (const f of this.flakes) {
-      const a = (typeof f.alpha === 'number') ? f.alpha : (SNOW?.alpha ?? 0.28);
+      const cfg = this._getConfig();
+      const a = (typeof f.alpha === 'number') ? f.alpha : (this._pickNumber(cfg?.alpha, SNOW?.alpha, 0.28));
       ctx.fillStyle = `rgba(255,255,255,${a})`;
       ctx.beginPath();
       ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
@@ -134,12 +155,23 @@ export class SnowEffect {
     return lo + Math.random() * Math.max(0, hi - lo);
   }
 
-  _resolveDirection() {
-    const direction = SNOW?.direction;
+  _resolveDirection(cfg, fallback) {
+    const direction = cfg?.direction ?? fallback?.direction;
     return direction === 'up' ? 'up' : 'down';
   }
 
   _computeOffscreenMargin() {
     return Math.max(8, 20 * this.scale);
+  }
+
+  _getConfig() {
+    return this.config || SNOW;
+  }
+
+  _pickNumber(...values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) return value;
+    }
+    return null;
   }
 }
