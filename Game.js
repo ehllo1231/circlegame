@@ -192,8 +192,8 @@ export class Game {
         this.enableFastForwardDebug();
       },
       onAnyKey: () => {
-        if (this.isPaused) return;
-        this._handleAnyKeyPress();
+        if (this.isPaused) return false;
+        return this._handleAnyKeyPress();
       },
     });
     const reverseTapTarget = typeof window !== 'undefined' ? window : this.canvas;
@@ -464,11 +464,13 @@ export class Game {
 
   _handleAnyKeyPress() {
     const activeStageId = this.stageController?.getActiveStageId?.();
-    if (activeStageId !== STAGE_ALL_CLEAR_ID) return;
+    if (activeStageId !== STAGE_ALL_CLEAR_ID) return false;
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.canAcceptContinue === 'function' && stage.canAcceptContinue()) {
       this.returnToIntro();
+      return true;
     }
+    return false;
   }
 
   applyFastForwardStageEnd() {

@@ -230,7 +230,7 @@ export const STAGE_ALL_CLEAR = {
     font: '28px "Pretendard", "Noto Sans KR", Arial, sans-serif',
     color: '#4d4d4d',
     shadowColor: 'rgba(0, 0, 0, 0.45)',
-    offsetY: 300,
+    offsetY: 100,
     delayAfterMessageSec: 2,
     fadeInDurationSec: 0.8,
   },

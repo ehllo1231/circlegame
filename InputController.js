@@ -39,9 +39,25 @@ export class InputController {
     this.reverseTapElement = target;
     this._onPointerDown = (event) => {
       const reverseHandler = this.handlers.reverse;
-      if (!reverseHandler) return;
+      const anyKeyHandler = this.handlers.anyKey;
+      const canReverse = typeof reverseHandler === 'function';
+      const canAnyKey = typeof anyKeyHandler === 'function';
+      if (!canReverse && !canAnyKey) return;
+      const isTouch = event?.pointerType === 'touch';
+      if (canAnyKey) {
+        const consumed = anyKeyHandler({
+          code: null,
+          pointerType: event?.pointerType,
+          source: 'pointer',
+          isTouch,
+        }) === true;
+        if (consumed) {
+          event?.preventDefault?.();
+          return;
+        }
+      }
+      if (!canReverse) return;
       if (this._isEventFromUiBlocker(event)) return;
-      const isTouch = event.pointerType === 'touch';
       // Allow secondary touches so multi-touch taps still reverse direction.
       if (!isTouch && typeof event.isPrimary === 'boolean' && !event.isPrimary) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -89,10 +105,9 @@ export class InputController {
       this.handlers.fastForward();
       handled = true;
     }
-    if (!handled && this.handlers.anyKey) {
-      this.handlers.anyKey({ code });
-    } else if (handled && this.handlers.anyKey) {
-      this.handlers.anyKey({ code });
+    if (this.handlers.anyKey) {
+      const consumed = this.handlers.anyKey({ code }) === true;
+      if (consumed) handled = true;
     }
     if (handled) event.preventDefault();
   }
