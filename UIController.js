@@ -426,9 +426,9 @@ export class UIController {
     this._updateGameOverPeekButtonState(false);
     if (this.scoreDisplay) {
       const lines = [];
-      if (isNew) lines.push('최고 점수!!');
-      lines.push(`${SCORE.label}: ${finalScoreSeconds}`);
-      if (highScore != null) lines.push(`최고 점수: ${highScore}`);
+      if (isNew) lines.push('New High Score!');
+      lines.push(`Score: ${finalScoreSeconds}`);
+      if (highScore != null) lines.push(`Best: ${highScore}`);
       this.scoreDisplay.innerHTML = lines.map(x => `<div>${x}</div>`).join('');
     }
   }
