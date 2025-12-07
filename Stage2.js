@@ -387,6 +387,17 @@ class Stage2Phase5 extends Stage2Phase4 {
     this.name = 'stage2-phase5';
     this.durationSec = Number.POSITIVE_INFINITY;
   }
+
+  onEnter() {
+    SPAWN.baseInterval = 15;
+    SPAWN.multiCountWeights = [0.05, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.05];
+    SNOW.direction = 'down';
+    SNOW.spawnPerMin = 0;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = -6;
+    SNOW.wind.oscAmp = 0.1;
+  }
 }
 
 export class Stage2 extends StageManager {

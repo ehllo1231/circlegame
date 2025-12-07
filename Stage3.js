@@ -104,7 +104,21 @@ class Stage3Phase5 extends Stage3Phase4 {
     this.durationSec = Number.POSITIVE_INFINITY;
   }
 
-  
+  onEnter(context) {
+    SPAWN.baseInterval = 15;
+    SPAWN.multiCountWeights = [0.05, 0.02, 0.1, 0.2, 0.2, 0.25, 0.13, 0.05];
+    SNOW.direction = 'down';
+    SNOW.spawnPerMin = 0;
+    SNOW.fallSpeed.min = 7.0;
+    SNOW.fallSpeed.max = 10;
+    SNOW.wind.baseX = -6;
+    SNOW.wind.oscAmp = 0.1;
+    applyStageRotation(context, {
+      enabled: true,
+      speedDegPerSec: 45,
+      direction: 'counterclockwise',
+    });
+  }
 }
 
 export class Stage3 extends StageManager {

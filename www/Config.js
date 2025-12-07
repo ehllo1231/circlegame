@@ -213,6 +213,13 @@ export const STAGE3_PROLOG = {
       lengthDecay: 0.6,
     },
   },
+  rotationOscillation: {
+    enabled: true,
+    startAfterSec: 60,
+    intervalSec: 20,
+    // Values < 3 are treated as multipliers of the base radius.
+    values: [1, 0.8],
+  },
 };
 
 export const STAGE_THEMES = {
@@ -350,4 +357,18 @@ export const EFFECTS = {
     volume: 0.85,
     preload: 'auto',
   },
+};
+
+export const ADS = {
+  enabled: true,
+  // Show one interstitial after every N completed games (game over).
+  showEveryNGames: 5,
+  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712', // Google sample interstitial
+  // Leave true while testing to avoid serving live ads during development.
+  initializeForTesting: true,
+  useTestAds: true,
+  testingDevices: [],
+  tagForChildDirectedTreatment: false,
+  tagForUnderAgeOfConsent: false,
+  maxAdContentRating: 'General',
 };

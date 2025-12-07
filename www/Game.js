@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW } from './Config.js';
+import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW, ADS } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1, Stage1Ex } from './Stage1.js';
@@ -16,6 +16,7 @@ import { StageAudioManager } from './StageAudioManager.js';
 import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
 import { ExtraStageSnowController } from './ExtraStageSnowController.js';
+import { AdManager } from './AdManager.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
 
@@ -84,9 +85,11 @@ export class Game {
 
     this.audioManager = new StageAudioManager({ config: AUDIO });
     this.effectAudioManager = new SoundEffectManager({ config: EFFECTS });
+    this.adManager = new AdManager({ config: ADS });
     this.audioMuted = false;
     this.highScoreMemory = new Map();
     this._applyAudioMuteState();
+    this._syncAdConfig();
     this._syncSettingsUI();
 
     this.runtime = new StageRuntime({
@@ -211,6 +214,7 @@ export class Game {
     });
     const reverseTapTarget = typeof window !== 'undefined' ? window : this.canvas;
     this.input.attach({ reverseTapElement: reverseTapTarget });
+    this._bindLifecycleEvents();
   }
 
   startGame() {
@@ -284,11 +288,13 @@ export class Game {
     }
     this._updateStageLocks();
     this.ui.showGameOver(finalScore, high, isNew);
+    this._handleAdOnGameComplete();
   }
 
   restartGame() {
     this._stopStageMusic();
     resetAllConfigToDefaults();
+    this._syncAdConfig();
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
     }
@@ -493,10 +499,26 @@ export class Game {
     if (activeStageId !== STAGE_ALL_CLEAR_ID) return false;
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.canAcceptContinue === 'function' && stage.canAcceptContinue()) {
+      this._recordCompletionHighScore();
       this.returnToIntro();
       return true;
     }
     return false;
+  }
+
+  _bindLifecycleEvents() {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    const handler = (event) => {
+      if (!this.gameStarted || this.gameOver || this.isPaused) return;
+      const hidden = document.visibilityState === 'hidden';
+      if (hidden || event?.type === 'pagehide') {
+        this.pauseGame();
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    window.addEventListener('pagehide', handler);
+    window.addEventListener('blur', handler);
+    this._lifecycleHandler = handler;
   }
 
   applyFastForwardStageEnd() {
@@ -529,6 +551,7 @@ export class Game {
     }
     this._stopStageMusic();
     resetAllConfigToDefaults();
+    this._syncAdConfig();
     if (this.ui && typeof this.ui.applyUIConfig === 'function') {
       this.ui.applyUIConfig();
     }
@@ -836,6 +859,21 @@ export class Game {
     }
   }
 
+  _syncAdConfig() {
+    if (this.adManager && typeof this.adManager.updateConfig === 'function') {
+      this.adManager.updateConfig(ADS);
+      if (typeof this.adManager.preload === 'function') {
+        this.adManager.preload();
+      }
+    }
+  }
+
+  _handleAdOnGameComplete() {
+    if (this.adManager && typeof this.adManager.handleGameCompleted === 'function') {
+      this.adManager.handleGameCompleted();
+    }
+  }
+
   resetHighScores() {
     this._removeLocalStorageKeys((key) => key && key.startsWith('orbit_high_score'));
     this._removeLocalStorageKeys((key) => key && key.startsWith('stage_unlocked_'));
@@ -862,6 +900,17 @@ export class Game {
   _playEffect(effectId) {
     if (!effectId || !this.effectAudioManager) return;
     this.effectAudioManager.play(effectId);
+  }
+
+  _recordCompletionHighScore() {
+    const displayScore = this.runtime ? this.runtime.getDisplayScore() : this.score.getSeconds();
+    const finalScore = Math.floor(displayScore ?? this.score.getSeconds());
+    if (!Number.isFinite(finalScore) || finalScore < 0) return;
+    const stageId = this.stageController?.getStartingStageId?.() ?? 'stage1';
+    const currentHigh = this._readHighScore(stageId);
+    if (finalScore > currentHigh) {
+      this._saveHighScore(stageId, finalScore);
+    }
   }
 
   _collectBackgroundElements() {

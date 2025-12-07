@@ -182,7 +182,8 @@ export class StageRuntime {
 
     if (this.audioManager && this.audioManager.isPlaying('stage1')) {
       const activeBaseId = this._normalizeBaseStageId(activeStageId);
-      if (activeBaseId !== 'stage1' || stageElapsedRaw >= 60) {
+      const isExStage = this._isExStage(activeStageId);
+      if (activeBaseId !== 'stage1' || (stageElapsedRaw >= 60 && !isExStage)) {
         this.audioManager.stopStage('stage1');
       }
     }
@@ -458,8 +459,13 @@ export class StageRuntime {
     }
 
     const activeBaseId = this._normalizeBaseStageId(activeStageId);
+    const activeIsEx = this._isExStage(activeStageId);
     const isActive = activeBaseId === normalized;
-    const shouldForceStopAt60 = isActive && normalized !== 'stage1' && Number.isFinite(stageElapsed) && stageElapsed >= 60;
+    const shouldForceStopAt60 = isActive
+      && normalized !== 'stage1'
+      && !activeIsEx
+      && Number.isFinite(stageElapsed)
+      && stageElapsed >= 60;
     if (shouldForceStopAt60) {
       if (this.audioManager.isPlaying(normalized)) {
         this.audioManager.stopStage(normalized);
@@ -562,6 +568,11 @@ export class StageRuntime {
     const raw = this._normalizeStageId(stageId);
     if (!raw || raw === STAGE_ALL_CLEAR_ID) return raw;
     return raw.endsWith('_ex') ? raw.slice(0, -3) : raw;
+  }
+
+  _isExStage(stageId) {
+    const raw = this._normalizeStageId(stageId);
+    return typeof raw === 'string' && raw.endsWith('_ex');
   }
 
   _isStageMuted(stageId) {

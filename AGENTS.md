@@ -121,6 +121,7 @@
   Config on each onEnter/onExit.
 
   - Source of truth: modify files in the main source tree only; never edit the mirrored `www/` build outputs (used for Android) directly.
+  - Operational note: only perform actions explicitly requested by the user; avoid unsolicited changes or steps.
 
 # Code Styles
 # Design Principles

@@ -23,6 +23,13 @@ export class Stage3Prolog {
     this.stageRotationEnabled = false;
     this.stageRotationSpeedRadPerSec = 0;
     this.stageRotationDirection = -1;
+    this.elapsedSinceStartSec = 0;
+    this.radiusOscillationStartSec = 60;
+    this.radiusOscillationIntervalSec = 20;
+    this.radiusOscillationValues = [1, 0.8];
+    this.radiusOscillationEnabled = true;
+    this._radiusOscillationCycle = -1;
+    this._radiusBase = null;
 
     this.totalDurationSec = 0;
     this.lightningStrikeCount = 1;
@@ -53,6 +60,9 @@ export class Stage3Prolog {
     this.lightningStrikesCompleted = 0;
     this.lightningActive = false;
     this.lightningDelayRemaining = 0;
+    this.elapsedSinceStartSec = 0;
+    this._radiusOscillationCycle = -1;
+    this._radiusBase = null;
 
     if (fastForward) {
       this._fastForward();
@@ -64,6 +74,7 @@ export class Stage3Prolog {
   update(dtSeconds = 0) {
     if (!this.started) return;
     const dt = Number.isFinite(dtSeconds) && dtSeconds > 0 ? dtSeconds : 0;
+    this.elapsedSinceStartSec += dt;
 
     if (!this.completed) {
       if (!this.lightningActive && this.lightningStrikesCompleted < this.lightningStrikeCount) {
@@ -106,6 +117,7 @@ export class Stage3Prolog {
     }
 
     this._updateStageRotation(dt);
+    this._updatePostCompleteRadius();
   }
 
   draw(ctx) {
@@ -233,6 +245,7 @@ export class Stage3Prolog {
     this.lightningEffect.configure(cfg.lightning);
     this.lightningStrikeCount = this._sanitizeStrikeCount(cfg?.lightning?.strikeCount);
     this.lightningDelaySec = this._sanitizeDelay(cfg?.lightning?.strikeDelaySec);
+    this._configureRotationOscillation(cfg?.rotationOscillation);
     this._recomputeTotalDuration();
   }
 
@@ -415,5 +428,65 @@ export class Stage3Prolog {
 
   _getStrikeDelay() {
     return this.lightningDelaySec;
+  }
+
+  _configureRotationOscillation(osc = {}) {
+    this.radiusOscillationEnabled = osc?.enabled !== false;
+    const start = Number(osc?.startAfterSec);
+    const interval = Number(osc?.intervalSec);
+    const values = Array.isArray(osc?.values)
+      ? osc.values
+        .map((v) => (Number.isFinite(v) ? v : null))
+        .filter((v) => Number.isFinite(v) && v > 0)
+      : null;
+    if (Number.isFinite(start) && start >= 0) {
+      this.radiusOscillationStartSec = start;
+    }
+    if (Number.isFinite(interval) && interval > 0) {
+      this.radiusOscillationIntervalSec = interval;
+    }
+    if (values && values.length > 0) {
+      this.radiusOscillationValues = values;
+    }
+    this._radiusOscillationCycle = -1;
+    this._radiusBase = null;
+  }
+
+  _updatePostCompleteRadius() {
+    if (!this.completed) return;
+    if (!Array.isArray(this.obstacles) || this.obstacles.length === 0) return;
+    if (!this.radiusOscillationEnabled) return;
+    if (!Number.isFinite(this.elapsedSinceStartSec)) return;
+    if (!Number.isFinite(this.radiusOscillationStartSec) || this.radiusOscillationStartSec < 0) return;
+    if (this.elapsedSinceStartSec < this.radiusOscillationStartSec) return;
+    if (!Number.isFinite(this.radiusOscillationIntervalSec) || this.radiusOscillationIntervalSec <= 0) return;
+    if (!Array.isArray(this.radiusOscillationValues) || this.radiusOscillationValues.length === 0) return;
+
+    if (!Number.isFinite(this._radiusBase) || this._radiusBase <= 0) {
+      const first = this.obstacles[0];
+      const current = first?.radius;
+      if (Number.isFinite(current) && current > 0) {
+        this._radiusBase = current;
+      }
+    }
+    if (!Number.isFinite(this._radiusBase) || this._radiusBase <= 0) return;
+
+    const elapsedSinceStart = this.elapsedSinceStartSec - this.radiusOscillationStartSec;
+    const cycle = Math.floor(elapsedSinceStart / this.radiusOscillationIntervalSec);
+    if (cycle === this._radiusOscillationCycle) return;
+    this._radiusOscillationCycle = cycle;
+
+    const value = this.radiusOscillationValues[cycle % this.radiusOscillationValues.length];
+    const factor = Number.isFinite(value) ? value : 1;
+    const nextRadius = factor < 3 ? this._radiusBase * factor : value;
+
+    for (const obstacle of this.obstacles) {
+      if (!obstacle) continue;
+      if (typeof obstacle.setRadius === 'function') {
+        obstacle.setRadius(nextRadius);
+      } else {
+        obstacle.radius = nextRadius;
+      }
+    }
   }
 }
