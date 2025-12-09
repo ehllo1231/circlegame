@@ -19,6 +19,7 @@ import { ExtraStageSnowController } from './ExtraStageSnowController.js';
 import { AdManager } from './AdManager.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
+const EXTRA_STAGE_UNLOCK_KEY = 'orbit_extra_stage_unlocked';
 
 // Game - main controller
 export class Game {
@@ -88,6 +89,7 @@ export class Game {
     this.adManager = new AdManager({ config: ADS });
     this.audioMuted = false;
     this.highScoreMemory = new Map();
+    this._refreshExtraStageFlagsFromStorage();
     this._applyAudioMuteState();
     this._syncAdConfig();
     this._syncSettingsUI();
@@ -359,7 +361,11 @@ export class Game {
 
   setSelectedStage(stageId, { ex = false } = {}) {
     const baseStageId = this._normalizeBaseStageId(stageId);
-    const resolvedStageId = this._resolveStageId(baseStageId, ex);
+    let useEx = !!ex;
+    if (useEx && !this._canUseExtraStage(baseStageId)) {
+      useEx = false;
+    }
+    const resolvedStageId = this._resolveStageId(baseStageId, useEx);
     if (!resolvedStageId || !this.stageMap?.[resolvedStageId]) return;
     if (!this._isStageUnlocked(baseStageId)) {
       if (this.ui && typeof this.ui.setStageSelection === 'function') {
@@ -374,7 +380,7 @@ export class Game {
     }
 
     this.selectedStage = baseStageId;
-    this.selectedStageIsEx = !!ex;
+    this.selectedStageIsEx = useEx;
     this._applyStageTheme(baseStageId);
 
     const order = this._resolveStageOrder(resolvedStageId, this.selectedStageIsEx);
@@ -499,6 +505,7 @@ export class Game {
     if (activeStageId !== STAGE_ALL_CLEAR_ID) return false;
     const stage = this.stageController.getActiveStage();
     if (stage && typeof stage.canAcceptContinue === 'function' && stage.canAcceptContinue()) {
+      this._grantExtraStageUnlock();
       this._recordCompletionHighScore();
       this.returnToIntro();
       return true;
@@ -834,6 +841,49 @@ export class Game {
     }
   }
 
+  _refreshExtraStageFlagsFromStorage() {
+    this.extraStageUnlocked = this._readExtraStageUnlock();
+  }
+
+  _readExtraStageUnlock() {
+    try {
+      return localStorage.getItem(EXTRA_STAGE_UNLOCK_KEY) === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  _persistExtraStageUnlock(enabled) {
+    try {
+      if (enabled) {
+        localStorage.setItem(EXTRA_STAGE_UNLOCK_KEY, '1');
+      } else {
+        localStorage.removeItem(EXTRA_STAGE_UNLOCK_KEY);
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }
+
+  _grantExtraStageUnlock() {
+    this._refreshExtraStageFlagsFromStorage();
+    if (this.extraStageUnlocked) return;
+    this.extraStageUnlocked = true;
+    this._persistExtraStageUnlock(true);
+  }
+
+  _disableExtraStageUnlocks() {
+    this.extraStageUnlocked = false;
+    this._persistExtraStageUnlock(false);
+    if (this.selectedStageIsEx) {
+      if (!this.gameStarted) {
+        this.setSelectedStage(this.selectedStage, { ex: false });
+      } else {
+        this.selectedStageIsEx = false;
+      }
+    }
+  }
+
   toggleAudioMute() {
     this.setAudioMuted(!this.audioMuted);
   }
@@ -877,6 +927,7 @@ export class Game {
   resetHighScores() {
     this._removeLocalStorageKeys((key) => key && key.startsWith('orbit_high_score'));
     this._removeLocalStorageKeys((key) => key && key.startsWith('stage_unlocked_'));
+    this._disableExtraStageUnlocks();
     this.highScoreMemory.clear();
     this._updateStageLocks();
     this.setSelectedStage('stage1');
@@ -1094,6 +1145,12 @@ export class Game {
     return this._readStageUnlock(base);
   }
 
+  _canUseExtraStage(stageId) {
+    if (!stageId) return false;
+    if (!this.extraStageUnlocked) return false;
+    return this._isStageUnlocked(stageId);
+  }
+
   _updateStageLocks() {
     const stage2Unlocked = this._isStageUnlocked('stage2');
     if (this.ui && typeof this.ui.setStageLock === 'function') {
@@ -1166,6 +1223,9 @@ export class Game {
         this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
       }
       this._applyStageTheme(this.selectedStage, { immediate: true });
+    }
+    if (this.selectedStageIsEx && !this._canUseExtraStage(this.selectedStage)) {
+      this.setSelectedStage(this.selectedStage, { ex: false });
     }
     this._syncExtraStageSnowPreview();
   }
