@@ -242,6 +242,17 @@ export class UIController {
         }
       });
     });
+    const imageSlots = Array.from(this.playerCustomizeModal.querySelectorAll('[data-player-image-src]'));
+    imageSlots.forEach((slot) => {
+      const src = slot.dataset?.playerImageSrc;
+      if (!src) return;
+      const img = this._ensureSlotImage(slot);
+      if (img) img.src = src;
+      slot.addEventListener('click', () => {
+        this._setPlayerPreview(src);
+        this._emitPlayerSkinSelect({ type: 'image', src });
+      });
+    });
   }
 
   _initObstacleCustomizeSlots() {
