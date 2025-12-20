@@ -38,7 +38,8 @@ export const ORBIT = {
 };
 
 export const PLAYER = {
-  radius: 13,
+  radius: 13, // collision radius
+  renderRadius: 13, // visual radius
   angularSpeed: 0.042, // radians per frame (2x)
 };
 

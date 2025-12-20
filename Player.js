@@ -1,11 +1,12 @@
 ﻿import { PLAYER } from './Config.js';
 // Player ?대옒??- 二쇱씤怨?愿由?
 export class Player {
-    constructor(centerX, centerY, orbitRadius, playerRadius) {
+    constructor(centerX, centerY, orbitRadius, playerRadius, playerRenderRadius) {
         this.centerX = centerX;
         this.centerY = centerY;
         this.orbitRadius = orbitRadius;
         this.radius = playerRadius;
+        this.renderRadius = Number.isFinite(playerRenderRadius) ? playerRenderRadius : playerRadius;
         this.angle = 0;
         this.speed = (PLAYER && typeof PLAYER.angularSpeed === 'number') ? PLAYER.angularSpeed : 0.015; // angular speed
         this.rotationDirection = 1; // 1: ?쒓퀎諛⑺뼢, -1: ?쒓퀎諛섎?諛⑺뼢
@@ -21,8 +22,9 @@ export class Player {
         const playerX = this.centerX + Math.cos(this.angle) * this.orbitRadius;
         const playerY = this.centerY + Math.sin(this.angle) * this.orbitRadius;
         const skin = this.skin;
+        const renderRadius = Number.isFinite(this.renderRadius) ? this.renderRadius : this.radius;
         if (skin && skin.type === 'image' && skin.image && skin.image.complete) {
-            const size = Number.isFinite(skin.sizePx) ? skin.sizePx : this.radius * 2;
+            const size = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * 2;
             const prevSmoothing = ctx.imageSmoothingEnabled;
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(skin.image, playerX - size / 2, playerY - size / 2, size, size);
@@ -32,7 +34,7 @@ export class Player {
 
         ctx.fillStyle = this.color || this.baseColor || '#ffffff';
         ctx.beginPath();
-        ctx.arc(playerX, playerY, this.radius, 0, 2 * Math.PI);
+        ctx.arc(playerX, playerY, renderRadius, 0, 2 * Math.PI);
         ctx.fill();
     }
     
@@ -40,11 +42,12 @@ export class Player {
         this.rotationDirection *= -1;
     }
 
-    setGeometry({ centerX, centerY, orbitRadius, radius }) {
+    setGeometry({ centerX, centerY, orbitRadius, radius, renderRadius }) {
         if (typeof centerX === 'number') this.centerX = centerX;
         if (typeof centerY === 'number') this.centerY = centerY;
         if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
         if (typeof radius === 'number') this.radius = radius;
+        if (typeof renderRadius === 'number') this.renderRadius = renderRadius;
     }
 
     setSkin(skin) {

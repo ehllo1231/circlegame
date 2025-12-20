@@ -5,11 +5,12 @@ import { RhythmEffect } from './RhythmEffect.js';
 import { SnowEffect } from './SnowEffect.js';
 
 export class GameScene {
-  constructor({ centerX, centerY, orbitRadius, playerRadius, scale = 1 } = {}) {
+  constructor({ centerX, centerY, orbitRadius, playerRadius, playerRenderRadius, scale = 1 } = {}) {
     this.centerX = centerX;
     this.centerY = centerY;
     this.orbitRadius = orbitRadius;
     this.playerRadius = playerRadius;
+    this.playerRenderRadius = Number.isFinite(playerRenderRadius) ? playerRenderRadius : playerRadius;
     this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
     this.playerSkin = null;
     this.obstacleSkin = null;
@@ -20,11 +21,13 @@ export class GameScene {
     this._buildEntities();
   }
 
-  setGeometry({ centerX, centerY, orbitRadius, playerRadius } = {}) {
+  setGeometry({ centerX, centerY, orbitRadius, playerRadius, playerRenderRadius } = {}) {
     if (typeof centerX === 'number') this.centerX = centerX;
     if (typeof centerY === 'number') this.centerY = centerY;
     if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
     if (typeof playerRadius === 'number') this.playerRadius = playerRadius;
+    if (typeof playerRenderRadius === 'number') this.playerRenderRadius = playerRenderRadius;
+    if (!Number.isFinite(this.playerRenderRadius)) this.playerRenderRadius = this.playerRadius;
 
     if (!this.player || !this.obstacleManager) {
       this._buildEntities();
@@ -36,6 +39,7 @@ export class GameScene {
       centerY: this.centerY,
       orbitRadius: this.orbitRadius,
       radius: this.playerRadius,
+      renderRadius: this.playerRenderRadius,
     });
     this.obstacleManager.setGeometry({
       centerX: this.centerX,
@@ -280,7 +284,13 @@ export class GameScene {
   }
 
   _buildEntities() {
-    this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
+    this.player = new Player(
+      this.centerX,
+      this.centerY,
+      this.orbitRadius,
+      this.playerRadius,
+      this.playerRenderRadius,
+    );
     if (this.playerSkin && typeof this.player.setSkin === 'function') {
       this.player.setSkin(this.playerSkin);
     }

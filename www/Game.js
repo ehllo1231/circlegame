@@ -31,7 +31,9 @@ export class Game {
     this.centerY = canvas.height / 2;
     this.viewportScale = this._computeViewportScale();
     this.orbitRadius = this._computeScaledOrbitRadius(this.viewportScale);
-    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale);
+    const { baseRadius, baseRenderRadius } = this._resolvePlayerBaseRadii(this.playerSkin);
+    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale, baseRadius);
+    this.playerRenderRadius = this._computeScaledPlayerRenderRadius(this.viewportScale, baseRenderRadius);
     this.offscreenRadius = Math.hypot(canvas.width / 2, canvas.height / 2) + 40;
 
     this.gameStarted = false;
@@ -67,6 +69,7 @@ export class Game {
       centerY: this.centerY,
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
+      playerRenderRadius: this.playerRenderRadius,
       scale: this.viewportScale,
     });
     this.playerSkin = this._normalizePlayerSkin({ type: 'default' });
@@ -331,6 +334,7 @@ export class Game {
       centerY: this.centerY,
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
+      playerRenderRadius: this.playerRenderRadius,
     });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
@@ -599,6 +603,7 @@ export class Game {
       centerY: this.centerY,
       orbitRadius: this.orbitRadius,
       playerRadius: this.playerRadius,
+      playerRenderRadius: this.playerRenderRadius,
     });
     this.scene.resetForNewRun();
     const stage = this.stageController.getActiveStage();
@@ -729,7 +734,9 @@ export class Game {
   _syncRadiiFromConfig() {
     this.viewportScale = this._computeViewportScale();
     this.orbitRadius = this._computeScaledOrbitRadius(this.viewportScale);
-    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale);
+    const { baseRadius, baseRenderRadius } = this._resolvePlayerBaseRadii(this.playerSkin);
+    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale, baseRadius);
+    this.playerRenderRadius = this._computeScaledPlayerRenderRadius(this.viewportScale, baseRenderRadius);
     if (this.scene && typeof this.scene.setScale === 'function') {
       this.scene.setScale(this.viewportScale);
     }
@@ -739,6 +746,7 @@ export class Game {
         centerY: this.centerY,
         orbitRadius: this.orbitRadius,
         playerRadius: this.playerRadius,
+        playerRenderRadius: this.playerRenderRadius,
       });
     }
     if (this.runtime) {
@@ -1014,6 +1022,7 @@ export class Game {
 
   applyPlayerSkin(skin = null) {
     this.playerSkin = this._normalizePlayerSkin(skin);
+    this._syncRadiiFromConfig();
     if (this.scene && typeof this.scene.setPlayerSkin === 'function') {
       this.scene.setPlayerSkin(this.playerSkin);
     }
@@ -1027,15 +1036,38 @@ export class Game {
   }
 
   _normalizePlayerSkin(skin) {
-    const fallback = { type: 'circle', color: null, image: null, src: null };
+    const fallback = {
+      type: 'circle',
+      color: null,
+      image: null,
+      src: null,
+      radius: null,
+      renderRadius: null,
+    };
     if (!skin || typeof skin !== 'object') return fallback;
+    const radius = Number.isFinite(skin.radius) ? skin.radius : null;
+    const renderRadius = Number.isFinite(skin.renderRadius) ? skin.renderRadius : null;
     if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
       const image = new Image();
       image.src = skin.src;
-      return { type: 'image', color: null, image, src: skin.src };
+      return { type: 'image', color: null, image, src: skin.src, radius, renderRadius };
     }
     const color = typeof skin.color === 'string' && skin.color.length > 0 ? skin.color : null;
-    return { type: 'circle', color, image: null, src: null };
+    return { type: 'circle', color, image: null, src: null, radius, renderRadius };
+  }
+
+  _resolvePlayerBaseRadii(skin) {
+    const fallbackRadius = typeof PLAYER?.radius === 'number' ? PLAYER.radius : 15;
+    const fallbackRenderRadius = typeof PLAYER?.renderRadius === 'number'
+      ? PLAYER.renderRadius
+      : fallbackRadius;
+    const baseRadius = (skin && Number.isFinite(skin.radius) && skin.radius > 0)
+      ? skin.radius
+      : fallbackRadius;
+    const baseRenderRadius = (skin && Number.isFinite(skin.renderRadius) && skin.renderRadius > 0)
+      ? skin.renderRadius
+      : fallbackRenderRadius;
+    return { baseRadius, baseRenderRadius };
   }
 
   _normalizeObstacleSkin(skin) {
@@ -1071,7 +1103,9 @@ export class Game {
     this.offscreenRadius = Math.hypot(nextWidth / 2, nextHeight / 2) + 40;
     this.viewportScale = this._computeViewportScale();
     this.orbitRadius = this._computeScaledOrbitRadius(this.viewportScale);
-    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale);
+    const { baseRadius, baseRenderRadius } = this._resolvePlayerBaseRadii(this.playerSkin);
+    this.playerRadius = this._computeScaledPlayerRadius(this.viewportScale, baseRadius);
+    this.playerRenderRadius = this._computeScaledPlayerRenderRadius(this.viewportScale, baseRenderRadius);
 
     if (this.scene && typeof this.scene.setScale === 'function') {
       this.scene.setScale(this.viewportScale);
@@ -1083,6 +1117,7 @@ export class Game {
         centerY: this.centerY,
         orbitRadius: this.orbitRadius,
         playerRadius: this.playerRadius,
+        playerRenderRadius: this.playerRenderRadius,
       });
     }
     if (this.runtime) {
@@ -1123,8 +1158,20 @@ export class Game {
     return baseOrbit * normalized;
   }
 
-  _computeScaledPlayerRadius(scale = 1) {
-    const basePlayer = typeof PLAYER?.radius === 'number' ? PLAYER.radius : 15;
+  _computeScaledPlayerRadius(scale = 1, baseRadius) {
+    const basePlayer = (Number.isFinite(baseRadius) && baseRadius > 0)
+      ? baseRadius
+      : (typeof PLAYER?.radius === 'number' ? PLAYER.radius : 15);
+    const normalized = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    const scaled = basePlayer * normalized;
+    return Math.max(2.5, scaled);
+  }
+
+  _computeScaledPlayerRenderRadius(scale = 1, baseRadius) {
+    const fallback = typeof PLAYER?.renderRadius === 'number'
+      ? PLAYER.renderRadius
+      : (typeof PLAYER?.radius === 'number' ? PLAYER.radius : 15);
+    const basePlayer = (Number.isFinite(baseRadius) && baseRadius > 0) ? baseRadius : fallback;
     const normalized = Number.isFinite(scale) && scale > 0 ? scale : 1;
     const scaled = basePlayer * normalized;
     return Math.max(2.5, scaled);

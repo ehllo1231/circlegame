@@ -209,8 +209,9 @@ export class UIController {
     const defaultSlot = this.playerCustomizeModal.querySelector('[data-player-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
+        const overrides = this._getPlayerRadiusOverrides(defaultSlot);
         this._setPlayerPreview(null);
-        this._emitPlayerSkinSelect({ type: 'default' });
+        this._emitPlayerSkinSelect({ type: 'default', ...overrides });
       });
     }
     const colorSlots = Array.from(this.playerCustomizeModal.querySelectorAll('[data-player-color]'));
@@ -218,8 +219,9 @@ export class UIController {
       const color = slot.dataset?.playerColor;
       if (!color) return;
       slot.addEventListener('click', () => {
+        const overrides = this._getPlayerRadiusOverrides(slot);
         this._setPlayerPreviewColor(color);
-        this._emitPlayerSkinSelect({ type: 'color', color });
+        this._emitPlayerSkinSelect({ type: 'color', color, ...overrides });
       });
     });
     const slots = canFetch
@@ -237,8 +239,9 @@ export class UIController {
       slot.addEventListener('click', () => {
         const preview = slot.dataset?.pixilPreview;
         if (preview) {
+          const overrides = this._getPlayerRadiusOverrides(slot);
           this._setPlayerPreview(preview);
-          this._emitPlayerSkinSelect({ type: 'image', src: preview });
+          this._emitPlayerSkinSelect({ type: 'image', src: preview, ...overrides });
         }
       });
     });
@@ -249,8 +252,9 @@ export class UIController {
       const img = this._ensureSlotImage(slot);
       if (img) img.src = src;
       slot.addEventListener('click', () => {
+        const overrides = this._getPlayerRadiusOverrides(slot);
         this._setPlayerPreview(src);
-        this._emitPlayerSkinSelect({ type: 'image', src });
+        this._emitPlayerSkinSelect({ type: 'image', src, ...overrides });
       });
     });
   }
@@ -291,6 +295,16 @@ export class UIController {
       container.appendChild(img);
     }
     return img;
+  }
+
+  _getPlayerRadiusOverrides(slot) {
+    if (!slot) return {};
+    const overrides = {};
+    const radius = parseFloat(slot.dataset?.playerRadius ?? '');
+    const renderRadius = parseFloat(slot.dataset?.playerRenderRadius ?? '');
+    if (Number.isFinite(radius)) overrides.radius = radius;
+    if (Number.isFinite(renderRadius)) overrides.renderRadius = renderRadius;
+    return overrides;
   }
 
   async _loadPixilPreview(src) {
