@@ -1071,12 +1071,24 @@ export class Game {
   }
 
   _normalizeObstacleSkin(skin) {
-    const fallback = { color: '#ffffff', renderScale: 1, hitScale: 1 };
+    const fallback = {
+      type: 'color',
+      color: '#ffffff',
+      image: null,
+      src: null,
+      renderScale: 1,
+      hitScale: 1,
+    };
     if (!skin || typeof skin !== 'object') return fallback;
-    const color = (typeof skin.color === 'string' && skin.color.length > 0) ? skin.color : fallback.color;
     const renderScale = (Number.isFinite(skin.renderScale) && skin.renderScale > 0) ? skin.renderScale : 1;
     const hitScale = (Number.isFinite(skin.hitScale) && skin.hitScale > 0) ? skin.hitScale : 1;
-    return { color, renderScale, hitScale };
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      const image = new Image();
+      image.src = skin.src;
+      return { type: 'image', color: null, image, src: skin.src, renderScale, hitScale };
+    }
+    const color = (typeof skin.color === 'string' && skin.color.length > 0) ? skin.color : fallback.color;
+    return { type: 'color', color, image: null, src: null, renderScale, hitScale };
   }
 
   resizeCanvas({ width, height } = {}) {

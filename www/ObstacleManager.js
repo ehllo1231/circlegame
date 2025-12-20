@@ -10,6 +10,7 @@ export class ObstacleManager {
         this.obstacles = [];
         this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
         this.obstacleColor = '#ffffff';
+        this.obstacleImage = null;
         this.hitScale = 1;
         this.renderScale = 1;
 
@@ -136,6 +137,7 @@ export class ObstacleManager {
         const color = (skin && typeof skin.color === 'string' && skin.color.length > 0)
           ? skin.color
           : '#ffffff';
+        const image = (skin && skin.type === 'image' && skin.image) ? skin.image : null;
         const nextHitScale = (skin && Number.isFinite(skin.hitScale) && skin.hitScale > 0)
           ? skin.hitScale
           : 1;
@@ -149,10 +151,12 @@ export class ObstacleManager {
             this._applyScale();
         }
         this.obstacleColor = color;
+        this.obstacleImage = image;
         if (Array.isArray(this.obstacles)) {
             for (const obstacle of this.obstacles) {
                 if (!obstacle) continue;
                 obstacle.color = this.obstacleColor;
+                obstacle.image = this.obstacleImage;
                 if (scaleChanged) {
                     obstacle.baseWidth = this.baseWidth;
                     obstacle.length = this.length;
@@ -223,6 +227,7 @@ export class ObstacleManager {
             obstacle.renderBaseWidth = this.renderBaseWidth;
             obstacle.renderLength = this.renderLength;
             obstacle.color = this.obstacleColor;
+            obstacle.image = this.obstacleImage;
             this.obstacles.push(obstacle);
             spawned.push(angle);
         }

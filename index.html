@@ -87,6 +87,7 @@
         .customize-preview-art { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; }
         .customize-slot-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .customize-slot-content img { max-width: 70%; max-height: 70%; }
+        .customize-slot[data-obstacle-image-src] img { width: 22px; height: 28px; max-width: 22px; max-height: 28px; object-fit: contain; }
         .pixel-art { image-rendering: pixelated; image-rendering: crisp-edges; }
         .customize-preview-art img { max-width: 100%; max-height: 100%; display: none; }
         .slot-preview-circle { width: 32px; height: 32px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 14px rgba(255,255,255,0.35); }
@@ -114,6 +115,7 @@
             .customize-preview-art { width: 90px; height: 90px; }
             .slot-preview-circle { width: 28px; height: 28px; }
             .slot-preview-spike { border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 24px solid #ffffff; }
+            .customize-slot[data-obstacle-image-src] img { width: 19px; height: 24px; max-width: 19px; max-height: 24px; }
             .customize-nav { width: auto; height: auto; }
             .nav-triangle { border-top-width: 6px; border-bottom-width: 6px; }
             .nav-left { border-right-width: 9px; }
@@ -267,14 +269,14 @@
                             <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
                         </div>
                         <div class="customize-page" data-page="3">
-                            <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 라임" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/라임.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 레몬" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/레몬.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 수박" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/수박.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 양파" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/양파.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 오렌지" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/오렌지.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 오이" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/오이.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 키위" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/키위.png" data-player-radius="13" data-player-render-radius="16"></button>
+                            <button class="customize-slot" type="button" aria-label="Player image Slice 토마토" data-prevent-reverse="true" data-player-image-src="Assets/custom/player/slice/토마토.png" data-player-radius="13" data-player-render-radius="16"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 11" data-prevent-reverse="true"></button>
@@ -343,6 +345,7 @@
                     <div class="customize-preview-title">Current</div>
                     <div class="customize-preview-art">
                         <div id="obstaclePreviewSpike" class="preview-spike" aria-hidden="true"></div>
+                        <img id="obstaclePreviewImage" class="pixel-art" alt="">
                     </div>
                 </div>
                 <div class="customize-page-panel">
@@ -383,16 +386,17 @@
                                     <span class="slot-preview-spike slot-spike-sky"></span>
                                 </span>
                             </button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 꼬깔콘" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/꼬깔콘.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 드릴" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/드릴.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 벼" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/벼.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 야채피자" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/야채피자.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 얼음" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/얼음.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 옵시디언" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/옵시디언.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 이끼" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/이끼.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 치즈피자" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/치즈피자.png" data-obstacle-render-scale="1.1"></button>
                         </div>
                         <div class="customize-page" data-page="2">
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 페퍼로니" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/페퍼로니.png" data-obstacle-render-scale="1.1"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
@@ -407,7 +411,6 @@
                             <button class="customize-slot" type="button" aria-label="Empty slot 12" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 13" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 14" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
                         </div>
                         <div class="customize-page" data-page="3">
                             <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>

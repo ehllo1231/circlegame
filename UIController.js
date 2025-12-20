@@ -42,6 +42,7 @@ export class UIController {
     this.playerPreviewImage = document.getElementById('playerPreviewImage');
     this.playerPreviewDefault = this.playerCustomizeModal?.querySelector('.preview-circle') ?? null;
     this.obstaclePreviewSpike = document.getElementById('obstaclePreviewSpike');
+    this.obstaclePreviewImage = document.getElementById('obstaclePreviewImage');
     this.playerPages = Array.from(this.playerCustomizeModal?.querySelectorAll('.customize-page') ?? []);
     this.playerPagePrevButton = document.getElementById('playerPagePrev');
     this.playerPageNextButton = document.getElementById('playerPageNext');
@@ -279,6 +280,18 @@ export class UIController {
         this._emitObstacleSkinSelect({ type: 'color', color, ...overrides });
       });
     });
+    const imageSlots = Array.from(this.obstacleCustomizeModal.querySelectorAll('[data-obstacle-image-src]'));
+    imageSlots.forEach((slot) => {
+      const src = slot.dataset?.obstacleImageSrc;
+      if (!src) return;
+      const img = this._ensureSlotImage(slot);
+      if (img) img.src = src;
+      slot.addEventListener('click', () => {
+        const overrides = this._getObstacleScaleOverrides(slot);
+        this._setObstaclePreviewImage(src);
+        this._emitObstacleSkinSelect({ type: 'image', src, ...overrides });
+      });
+    });
   }
 
   _ensureSlotImage(slot) {
@@ -374,11 +387,30 @@ export class UIController {
   }
 
   _setObstaclePreviewColor(color) {
+    if (this.obstaclePreviewImage) {
+      this.obstaclePreviewImage.src = '';
+      this.obstaclePreviewImage.style.display = 'none';
+    }
     if (!this.obstaclePreviewSpike) return;
+    this.obstaclePreviewSpike.style.display = 'block';
     if (color) {
       this.obstaclePreviewSpike.style.borderTopColor = color;
     } else {
       this.obstaclePreviewSpike.style.borderTopColor = '';
+    }
+  }
+
+  _setObstaclePreviewImage(preview) {
+    const hasPreview = typeof preview === 'string' && preview.length > 0;
+    if (this.obstaclePreviewImage) {
+      this.obstaclePreviewImage.src = hasPreview ? preview : '';
+      this.obstaclePreviewImage.style.display = hasPreview ? 'block' : 'none';
+    }
+    if (this.obstaclePreviewSpike) {
+      this.obstaclePreviewSpike.style.display = hasPreview ? 'none' : 'block';
+    }
+    if (!hasPreview) {
+      this._setObstaclePreviewColor(null);
     }
   }
 

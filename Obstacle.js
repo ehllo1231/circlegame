@@ -20,6 +20,36 @@ export class Obstacle {
     draw(ctx, centerX, centerY) {
         const drawLength = Number.isFinite(this.renderLength) ? this.renderLength : this.length;
         const drawBaseWidth = Number.isFinite(this.renderBaseWidth) ? this.renderBaseWidth : this.baseWidth;
+        const image = this.image;
+        if (image && image.complete) {
+            const imgW = image.naturalWidth || image.width;
+            const imgH = image.naturalHeight || image.height;
+            if (Number.isFinite(imgW) && Number.isFinite(imgH) && imgW > 0 && imgH > 0
+                && Number.isFinite(drawLength) && drawLength > 0
+                && Number.isFinite(drawBaseWidth) && drawBaseWidth > 0) {
+                const rotateImage = imgH > imgW;
+                const lengthLimit = Math.max(1, drawLength);
+                const widthLimit = Math.max(1, drawBaseWidth);
+                const scale = rotateImage
+                    ? Math.min(lengthLimit / imgH, widthLimit / imgW)
+                    : Math.min(lengthLimit / imgW, widthLimit / imgH);
+                const drawW = imgW * scale;
+                const drawH = imgH * scale;
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(this.angle);
+                if (rotateImage) {
+                    const centerXPos = this.radius - (drawH / 2);
+                    ctx.translate(centerXPos, 0);
+                    ctx.rotate(Math.PI / 2);
+                    ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+                } else {
+                    ctx.drawImage(image, this.radius - drawW, -drawH / 2, drawW, drawH);
+                }
+                ctx.restore();
+                return;
+            }
+        }
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(this.angle);
