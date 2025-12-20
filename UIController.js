@@ -42,8 +42,18 @@ export class UIController {
     this.playerPreviewImage = document.getElementById('playerPreviewImage');
     this.playerPreviewDefault = this.playerCustomizeModal?.querySelector('.preview-circle') ?? null;
     this.obstaclePreviewSpike = document.getElementById('obstaclePreviewSpike');
+    this.playerPages = Array.from(this.playerCustomizeModal?.querySelectorAll('.customize-page') ?? []);
+    this.playerPagePrevButton = document.getElementById('playerPagePrev');
+    this.playerPageNextButton = document.getElementById('playerPageNext');
+    this.playerPageIndicator = document.getElementById('playerPageIndicator');
+    this.obstaclePages = Array.from(this.obstacleCustomizeModal?.querySelectorAll('.customize-page') ?? []);
+    this.obstaclePagePrevButton = document.getElementById('obstaclePagePrev');
+    this.obstaclePageNextButton = document.getElementById('obstaclePageNext');
+    this.obstaclePageIndicator = document.getElementById('obstaclePageIndicator');
     this._onPlayerSkinSelect = null;
     this._onObstacleSkinSelect = null;
+    this._playerPageIndex = 0;
+    this._obstaclePageIndex = 0;
     this.selectedStageId = null;
     this.stageExState = new Map();
     this.stageLabelDefaults = new Map();
@@ -69,6 +79,20 @@ export class UIController {
     this.applyUIConfig();
     this._initPlayerCustomizeSlots();
     this._initObstacleCustomizeSlots();
+    this._initCustomizePagination({
+      pages: this.playerPages,
+      prevButton: this.playerPagePrevButton,
+      nextButton: this.playerPageNextButton,
+      indicator: this.playerPageIndicator,
+      indexKey: '_playerPageIndex',
+    });
+    this._initCustomizePagination({
+      pages: this.obstaclePages,
+      prevButton: this.obstaclePagePrevButton,
+      nextButton: this.obstaclePageNextButton,
+      indicator: this.obstaclePageIndicator,
+      indexKey: '_obstaclePageIndex',
+    });
   }
 
   applyUIConfig() {
@@ -180,7 +204,8 @@ export class UIController {
   }
 
   _initPlayerCustomizeSlots() {
-    if (!this.playerCustomizeModal || typeof fetch !== 'function') return;
+    if (!this.playerCustomizeModal) return;
+    const canFetch = typeof fetch === 'function';
     const defaultSlot = this.playerCustomizeModal.querySelector('[data-player-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
@@ -197,7 +222,9 @@ export class UIController {
         this._emitPlayerSkinSelect({ type: 'color', color });
       });
     });
-    const slots = Array.from(this.playerCustomizeModal.querySelectorAll('[data-pixil-src]'));
+    const slots = canFetch
+      ? Array.from(this.playerCustomizeModal.querySelectorAll('[data-pixil-src]'))
+      : [];
     slots.forEach((slot) => {
       const src = slot.dataset?.pixilSrc;
       if (!src) return;
@@ -316,6 +343,35 @@ export class UIController {
     } else {
       this.obstaclePreviewSpike.style.borderTopColor = '';
     }
+  }
+
+  _initCustomizePagination({ pages, prevButton, nextButton, indicator, indexKey }) {
+    if (!Array.isArray(pages) || pages.length === 0) return;
+    const total = pages.length;
+    const setIndex = (nextIndex) => {
+      const raw = Number.isFinite(nextIndex) ? nextIndex : 0;
+      const clamped = Math.max(0, Math.min(total - 1, raw));
+      this[indexKey] = clamped;
+      pages.forEach((page, idx) => {
+        page.classList.toggle('active', idx === clamped);
+      });
+      if (indicator) {
+        indicator.textContent = `${clamped + 1}/${total}`;
+      }
+      if (prevButton) prevButton.disabled = clamped === 0;
+      if (nextButton) nextButton.disabled = clamped === total - 1;
+    };
+    if (prevButton) {
+      prevButton.addEventListener('click', () => {
+        setIndex((this[indexKey] ?? 0) - 1);
+      });
+    }
+    if (nextButton) {
+      nextButton.addEventListener('click', () => {
+        setIndex((this[indexKey] ?? 0) + 1);
+      });
+    }
+    setIndex(this[indexKey] ?? 0);
   }
 
   _emitPlayerSkinSelect(payload) {
