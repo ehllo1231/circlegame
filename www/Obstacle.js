@@ -18,14 +18,16 @@ export class Obstacle {
     }
     
     draw(ctx, centerX, centerY) {
+        const drawLength = Number.isFinite(this.renderLength) ? this.renderLength : this.length;
+        const drawBaseWidth = Number.isFinite(this.renderBaseWidth) ? this.renderBaseWidth : this.baseWidth;
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(this.angle);
         
         ctx.beginPath();
-        ctx.moveTo(this.radius - this.length, 0);
-        ctx.lineTo(this.radius, -this.baseWidth / 2);
-        ctx.lineTo(this.radius, this.baseWidth / 2);
+        ctx.moveTo(this.radius - drawLength, 0);
+        ctx.lineTo(this.radius, -drawBaseWidth / 2);
+        ctx.lineTo(this.radius, drawBaseWidth / 2);
         ctx.closePath();
         ctx.fillStyle = this.color || '#ffffff';
         ctx.fill();

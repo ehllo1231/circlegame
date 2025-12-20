@@ -264,8 +264,9 @@ export class UIController {
     const defaultSlot = this.obstacleCustomizeModal.querySelector('[data-obstacle-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
+        const overrides = this._getObstacleScaleOverrides(defaultSlot);
         this._setObstaclePreviewColor(null);
-        this._emitObstacleSkinSelect({ type: 'default' });
+        this._emitObstacleSkinSelect({ type: 'default', ...overrides });
       });
     }
     const colorSlots = Array.from(this.obstacleCustomizeModal.querySelectorAll('[data-obstacle-color]'));
@@ -273,8 +274,9 @@ export class UIController {
       const color = slot.dataset?.obstacleColor;
       if (!color) return;
       slot.addEventListener('click', () => {
+        const overrides = this._getObstacleScaleOverrides(slot);
         this._setObstaclePreviewColor(color);
-        this._emitObstacleSkinSelect({ type: 'color', color });
+        this._emitObstacleSkinSelect({ type: 'color', color, ...overrides });
       });
     });
   }
@@ -304,6 +306,16 @@ export class UIController {
     const renderRadius = parseFloat(slot.dataset?.playerRenderRadius ?? '');
     if (Number.isFinite(radius)) overrides.radius = radius;
     if (Number.isFinite(renderRadius)) overrides.renderRadius = renderRadius;
+    return overrides;
+  }
+
+  _getObstacleScaleOverrides(slot) {
+    if (!slot) return {};
+    const overrides = {};
+    const hitScale = parseFloat(slot.dataset?.obstacleHitScale ?? '');
+    const renderScale = parseFloat(slot.dataset?.obstacleRenderScale ?? '');
+    if (Number.isFinite(hitScale)) overrides.hitScale = hitScale;
+    if (Number.isFinite(renderScale)) overrides.renderScale = renderScale;
     return overrides;
   }
 

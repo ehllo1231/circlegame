@@ -10,6 +10,8 @@ export class ObstacleManager {
         this.obstacles = [];
         this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
         this.obstacleColor = '#ffffff';
+        this.hitScale = 1;
+        this.renderScale = 1;
 
         // Spawn interval and counter
         this.spawnInterval = (SPAWN && typeof SPAWN.baseInterval === 'number') ? SPAWN.baseInterval : 90;
@@ -81,6 +83,8 @@ export class ObstacleManager {
                 if (!obstacle) continue;
                 obstacle.baseWidth = this.baseWidth;
                 obstacle.length = this.length;
+                obstacle.renderBaseWidth = this.renderBaseWidth;
+                obstacle.renderLength = this.renderLength;
                 obstacle.offscreenMargin = this.offscreenMargin;
                 if (Number.isFinite(obstacle.speed)) {
                     obstacle.speed *= speedRatio;
@@ -132,11 +136,29 @@ export class ObstacleManager {
         const color = (skin && typeof skin.color === 'string' && skin.color.length > 0)
           ? skin.color
           : '#ffffff';
+        const nextHitScale = (skin && Number.isFinite(skin.hitScale) && skin.hitScale > 0)
+          ? skin.hitScale
+          : 1;
+        const nextRenderScale = (skin && Number.isFinite(skin.renderScale) && skin.renderScale > 0)
+          ? skin.renderScale
+          : 1;
+        const scaleChanged = nextHitScale !== this.hitScale || nextRenderScale !== this.renderScale;
+        this.hitScale = nextHitScale;
+        this.renderScale = nextRenderScale;
+        if (scaleChanged) {
+            this._applyScale();
+        }
         this.obstacleColor = color;
         if (Array.isArray(this.obstacles)) {
             for (const obstacle of this.obstacles) {
                 if (!obstacle) continue;
                 obstacle.color = this.obstacleColor;
+                if (scaleChanged) {
+                    obstacle.baseWidth = this.baseWidth;
+                    obstacle.length = this.length;
+                    obstacle.renderBaseWidth = this.renderBaseWidth;
+                    obstacle.renderLength = this.renderLength;
+                }
             }
         }
     }
@@ -198,6 +220,8 @@ export class ObstacleManager {
                 accel,
                 this.offscreenMargin,
             );
+            obstacle.renderBaseWidth = this.renderBaseWidth;
+            obstacle.renderLength = this.renderLength;
             obstacle.color = this.obstacleColor;
             this.obstacles.push(obstacle);
             spawned.push(angle);
@@ -342,8 +366,12 @@ export class ObstacleManager {
 
     _applyScale() {
         const scale = this.scale;
-        this.baseWidth = this._baseWidth * scale;
-        this.length = this._baseLength * scale;
+        const hitScale = (Number.isFinite(this.hitScale) && this.hitScale > 0) ? this.hitScale : 1;
+        const renderScale = (Number.isFinite(this.renderScale) && this.renderScale > 0) ? this.renderScale : 1;
+        this.baseWidth = this._baseWidth * scale * hitScale;
+        this.length = this._baseLength * scale * hitScale;
+        this.renderBaseWidth = this._baseWidth * scale * renderScale;
+        this.renderLength = this._baseLength * scale * renderScale;
         this.speed = this._baseSpeed * scale;
         this.constantSpeed = this._baseConstantSpeed * scale;
         this.gravityAcc = this._baseGravityAcc * scale;
