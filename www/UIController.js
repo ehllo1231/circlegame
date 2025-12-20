@@ -23,6 +23,7 @@ export class UIController {
     this.pauseResumeButton = document.getElementById('pauseResumeButton');
     this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
     this.settingsButton = document.getElementById('settingsButton');
+    this.customizeButton = document.getElementById('customizeButton');
     this.settingsModal = document.getElementById('settingsModal');
     this.settingsResetButton = document.getElementById('settingsResetButton');
     this.closeSettingsButton = document.getElementById('closeSettingsButton');
@@ -30,6 +31,8 @@ export class UIController {
     this.resetConfirmModal = document.getElementById('resetConfirmModal');
     this.confirmResetButton = document.getElementById('confirmResetButton');
     this.cancelResetButton = document.getElementById('cancelResetButton');
+    this.customizeModal = document.getElementById('customizeModal');
+    this.closeCustomizeButton = document.getElementById('closeCustomizeButton');
     this.selectedStageId = null;
     this.stageExState = new Map();
     this.stageLabelDefaults = new Map();
@@ -154,6 +157,12 @@ export class UIController {
     }
     if (this.settingsButton && iconSize) {
       this.settingsButton.style.setProperty('--settings-icon-size', iconSize);
+    }
+    if (this.customizeButton && size) {
+      this.customizeButton.style.setProperty('--settings-btn-size', size);
+    }
+    if (this.customizeButton && iconSize) {
+      this.customizeButton.style.setProperty('--settings-icon-size', iconSize);
     }
   }
 
@@ -282,10 +291,22 @@ export class UIController {
         this.showSettingsModal();
       });
     }
+    if (this.customizeButton) {
+      this.customizeButton.addEventListener('click', () => {
+        this.hideSettingsModal();
+        this.hideResetConfirmModal();
+        this.showCustomizeModal();
+      });
+    }
     if (this.closeSettingsButton) {
       this.closeSettingsButton.addEventListener('click', () => {
         this.hideSettingsModal();
         if (onCloseSettings) onCloseSettings();
+      });
+    }
+    if (this.closeCustomizeButton) {
+      this.closeCustomizeButton.addEventListener('click', () => {
+        this.hideCustomizeModal();
       });
     }
     if (this.muteToggleButton && onToggleMute) {
@@ -328,6 +349,7 @@ export class UIController {
     this.hidePauseMenu();
     this.hideSettingsModal();
     this.hideResetConfirmModal();
+    this.hideCustomizeModal();
   }
 
   showIntro() {
@@ -339,6 +361,7 @@ export class UIController {
     this.hidePauseMenu();
     this._setGameOverPeekButtonVisible(false);
     this._updateGameOverPeekButtonState(false);
+    this.hideCustomizeModal();
     if (this.stageSelectLabel) {
       const stageId = this.selectedStageId || 'stage1';
       this.setStageSelection(stageId, { ex: this.isStageEx(stageId) });
@@ -356,6 +379,7 @@ export class UIController {
     this._updateGameOverPeekButtonState(false);
     this.hideSettingsModal();
     this.hideResetConfirmModal();
+    this.hideCustomizeModal();
   }
 
   isIntroVisible() {
@@ -546,6 +570,14 @@ export class UIController {
 
   hideSettingsModal() {
     if (this.settingsModal) this.settingsModal.style.display = 'none';
+  }
+
+  showCustomizeModal() {
+    if (this.customizeModal) this.customizeModal.style.display = 'flex';
+  }
+
+  hideCustomizeModal() {
+    if (this.customizeModal) this.customizeModal.style.display = 'none';
   }
 
   showResetConfirmModal() {

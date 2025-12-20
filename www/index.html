@@ -46,6 +46,9 @@
         #settingsButton .settings-icon img,
         #settingsButton .settings-icon svg { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 6px rgba(0,0,0,0.35)); }
         #settingsButton .settings-icon svg { fill: currentColor; }
+        #customizeButton { position: absolute; left: 24px; bottom: 24px; z-index: 12; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); width: var(--settings-btn-size, 46px); height: var(--settings-btn-size, 46px); border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; opacity: var(--pause-btn-opacity, 0.65); backdrop-filter: blur(6px); }
+        #customizeButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+        #customizeButton .customize-label { font-weight: 700; font-size: calc(var(--settings-btn-size, 46px) * 0.45); font-family: Arial, sans-serif; line-height: 1; letter-spacing: 0.03em; }
         .modal-overlay { position: absolute; inset: 0; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); z-index: 16; padding: 16px; }
         .modal-card { position: relative; background: rgba(12,12,12,0.92); padding: 24px 28px; border-radius: 16px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 10px 36px rgba(0,0,0,0.35); min-width: 260px; max-width: 400px; align-items: stretch; }
         .modal-title { font: bold 28px Arial, sans-serif; color: #fff; text-align: center; }
@@ -91,6 +94,10 @@
             </span>
             <span class="sr-only">Settings</span>
         </button>
+        <button id="customizeButton" aria-label="Customize" data-prevent-reverse="true">
+            <span class="customize-label" aria-hidden="true">C</span>
+            <span class="sr-only">Customize</span>
+        </button>
     </div>
 
     <div id="settingsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -111,6 +118,17 @@
             <div class="modal-row-actions">
                 <button id="confirmResetButton" class="modal-button primary">Delete</button>
                 <button id="cancelResetButton" class="modal-button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="customizeModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="customizeTitle">
+        <div class="modal-card">
+            <button id="closeCustomizeButton" class="modal-close" aria-label="Close customize">&times;</button>
+            <div class="modal-title" id="customizeTitle">customize</div>
+            <div class="modal-actions">
+                <button id="customizePlayerButton" class="modal-button">player</button>
+                <button id="customizeObstacleButton" class="modal-button">obstacle</button>
             </div>
         </div>
     </div>
