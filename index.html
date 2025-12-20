@@ -68,17 +68,39 @@
         .customize-preview-title { font: 600 14px Arial, sans-serif; color: #d8d8d8; text-transform: uppercase; letter-spacing: 0.08em; }
         .preview-circle { width: 76px; height: 76px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
         .preview-spike { width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 56px solid #ffffff; filter: drop-shadow(0 4px 10px rgba(255,255,255,0.35)); }
-        .customize-grid { display: grid; grid-template-columns: repeat(4, minmax(56px, 1fr)); gap: 10px; }
+        .customize-grid { display: grid; grid-template-columns: repeat(5, minmax(56px, 1fr)); gap: 10px; }
         .customize-slot { appearance: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; min-height: 64px; cursor: pointer; padding: 0; }
         .customize-slot:hover { background: rgba(255,255,255,0.08); }
         .customize-slot:focus { outline: 2px solid rgba(255,255,255,0.45); outline-offset: 2px; }
+        .customize-preview-art { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; }
+        .customize-slot-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        .customize-slot-content img { max-width: 70%; max-height: 70%; }
+        .pixel-art { image-rendering: pixelated; image-rendering: crisp-edges; }
+        .customize-preview-art img { max-width: 100%; max-height: 100%; display: none; }
+        .slot-preview-circle { width: 32px; height: 32px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 14px rgba(255,255,255,0.35); }
+        .slot-color-red { background: #ff3b3b; box-shadow: 0 0 14px rgba(255,59,59,0.4); }
+        .slot-color-pink { background: #ff5ca8; box-shadow: 0 0 14px rgba(255,92,168,0.4); }
+        .slot-color-orange { background: #ff9b2f; box-shadow: 0 0 14px rgba(255,155,47,0.4); }
+        .slot-color-yellow { background: #ffe44d; box-shadow: 0 0 14px rgba(255,228,77,0.4); }
+        .slot-color-lime { background: #a6ff4d; box-shadow: 0 0 14px rgba(166,255,77,0.4); }
+        .slot-color-sky { background: #7cd4ff; box-shadow: 0 0 14px rgba(124,212,255,0.4); }
+        .slot-preview-spike { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 28px solid #ffffff; filter: drop-shadow(0 3px 8px rgba(255,255,255,0.3)); }
+        .slot-spike-red { border-top-color: #ff3b3b; }
+        .slot-spike-pink { border-top-color: #ff5ca8; }
+        .slot-spike-orange { border-top-color: #ff9b2f; }
+        .slot-spike-yellow { border-top-color: #ffe44d; }
+        .slot-spike-lime { border-top-color: #a6ff4d; }
+        .slot-spike-sky { border-top-color: #7cd4ff; }
         @media (max-width: 640px) {
             .customize-layout { grid-template-columns: 1fr; gap: 14px; }
             .customize-preview { min-height: 150px; padding: 12px; }
             .preview-circle { width: 64px; height: 64px; }
             .preview-spike { border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 44px solid #ffffff; }
             .customize-grid { gap: 8px; }
-            .customize-slot { min-height: 54px; }
+            .customize-slot { min-height: 52px; }
+            .customize-preview-art { width: 90px; height: 90px; }
+            .slot-preview-circle { width: 28px; height: 28px; }
+            .slot-preview-spike { border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 24px solid #ffffff; }
         }
     </style>
 </head>
@@ -158,16 +180,47 @@
             <div class="customize-layout">
                 <div class="customize-preview">
                     <div class="customize-preview-title">Current</div>
-                    <div class="preview-circle" aria-hidden="true"></div>
+                    <div class="customize-preview-art">
+                        <div class="preview-circle" aria-hidden="true"></div>
+                        <img id="playerPreviewImage" class="pixel-art" alt="">
+                    </div>
                 </div>
                 <div class="customize-grid">
-                    <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Default player" data-prevent-reverse="true" data-player-default="true">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color red" data-prevent-reverse="true" data-player-color="#ff3b3b">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-red"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color pink" data-prevent-reverse="true" data-player-color="#ff5ca8">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-pink"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color orange" data-prevent-reverse="true" data-player-color="#ff9b2f">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-orange"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color yellow" data-prevent-reverse="true" data-player-color="#ffe44d">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-yellow"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color lime" data-prevent-reverse="true" data-player-color="#a6ff4d">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-lime"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Player color sky" data-prevent-reverse="true" data-player-color="#7cd4ff">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-circle slot-color-sky"></span>
+                        </span>
+                    </button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>
@@ -176,7 +229,6 @@
                     <button class="customize-slot" type="button" aria-label="Empty slot 13" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 14" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 16" data-prevent-reverse="true"></button>
                 </div>
             </div>
         </div>
@@ -189,10 +241,46 @@
             <div class="customize-layout">
                 <div class="customize-preview">
                     <div class="customize-preview-title">Current</div>
-                    <div class="preview-spike" aria-hidden="true"></div>
+                    <div class="customize-preview-art">
+                        <div id="obstaclePreviewSpike" class="preview-spike" aria-hidden="true"></div>
+                    </div>
                 </div>
                 <div class="customize-grid">
-                    <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Default obstacle" data-prevent-reverse="true" data-obstacle-default="true">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color red" data-prevent-reverse="true" data-obstacle-color="#ff3b3b">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-red"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color pink" data-prevent-reverse="true" data-obstacle-color="#ff5ca8">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-pink"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color orange" data-prevent-reverse="true" data-obstacle-color="#ff9b2f">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-orange"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color yellow" data-prevent-reverse="true" data-obstacle-color="#ffe44d">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-yellow"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color lime" data-prevent-reverse="true" data-obstacle-color="#a6ff4d">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-lime"></span>
+                        </span>
+                    </button>
+                    <button class="customize-slot" type="button" aria-label="Obstacle color sky" data-prevent-reverse="true" data-obstacle-color="#7cd4ff">
+                        <span class="customize-slot-content" aria-hidden="true">
+                            <span class="slot-preview-spike slot-spike-sky"></span>
+                        </span>
+                    </button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
@@ -201,13 +289,6 @@
                     <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
                     <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 11" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 12" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 13" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 14" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
-                    <button class="customize-slot" type="button" aria-label="Empty slot 16" data-prevent-reverse="true"></button>
                 </div>
             </div>
         </div>

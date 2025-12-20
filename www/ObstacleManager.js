@@ -9,6 +9,7 @@ export class ObstacleManager {
         this.orbitRadius = orbitRadius;
         this.obstacles = [];
         this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+        this.obstacleColor = '#ffffff';
 
         // Spawn interval and counter
         this.spawnInterval = (SPAWN && typeof SPAWN.baseInterval === 'number') ? SPAWN.baseInterval : 90;
@@ -126,6 +127,19 @@ export class ObstacleManager {
 
         this._applyScale();
     }
+
+    setSkin(skin) {
+        const color = (skin && typeof skin.color === 'string' && skin.color.length > 0)
+          ? skin.color
+          : '#ffffff';
+        this.obstacleColor = color;
+        if (Array.isArray(this.obstacles)) {
+            for (const obstacle of this.obstacles) {
+                if (!obstacle) continue;
+                obstacle.color = this.obstacleColor;
+            }
+        }
+    }
     // Score-based difficulty: shrink spawn interval stepwise
     applySpawnAcceleration(visibleScore) {
         if (typeof visibleScore !== 'number' || !isFinite(visibleScore)) return;
@@ -175,7 +189,7 @@ export class ObstacleManager {
         const accel = this.constantSpeedEnabled ? 0 : this.gravityAcc;
         for (let i = 0; i < count; i++) {
             const angle = this._normAngle(baseAngle + i * stepRad);
-            this.obstacles.push(new Obstacle(
+            const obstacle = new Obstacle(
                 angle,
                 offscreenRadius,
                 batchSpeed,
@@ -183,7 +197,9 @@ export class ObstacleManager {
                 this.length,
                 accel,
                 this.offscreenMargin,
-            ));
+            );
+            obstacle.color = this.obstacleColor;
+            this.obstacles.push(obstacle);
             spawned.push(angle);
         }
     }

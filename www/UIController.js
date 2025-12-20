@@ -39,6 +39,11 @@ export class UIController {
     this.obstacleCustomizeModal = document.getElementById('obstacleCustomizeModal');
     this.closePlayerCustomizeButton = document.getElementById('closePlayerCustomizeButton');
     this.closeObstacleCustomizeButton = document.getElementById('closeObstacleCustomizeButton');
+    this.playerPreviewImage = document.getElementById('playerPreviewImage');
+    this.playerPreviewDefault = this.playerCustomizeModal?.querySelector('.preview-circle') ?? null;
+    this.obstaclePreviewSpike = document.getElementById('obstaclePreviewSpike');
+    this._onPlayerSkinSelect = null;
+    this._onObstacleSkinSelect = null;
     this.selectedStageId = null;
     this.stageExState = new Map();
     this.stageLabelDefaults = new Map();
@@ -62,6 +67,8 @@ export class UIController {
     this._setGameOverPeekButtonVisible(false);
     this._updateGameOverPeekButtonState(false);
     this.applyUIConfig();
+    this._initPlayerCustomizeSlots();
+    this._initObstacleCustomizeSlots();
   }
 
   applyUIConfig() {
@@ -172,6 +179,157 @@ export class UIController {
     }
   }
 
+  _initPlayerCustomizeSlots() {
+    if (!this.playerCustomizeModal || typeof fetch !== 'function') return;
+    const defaultSlot = this.playerCustomizeModal.querySelector('[data-player-default="true"]');
+    if (defaultSlot) {
+      defaultSlot.addEventListener('click', () => {
+        this._setPlayerPreview(null);
+        this._emitPlayerSkinSelect({ type: 'default' });
+      });
+    }
+    const colorSlots = Array.from(this.playerCustomizeModal.querySelectorAll('[data-player-color]'));
+    colorSlots.forEach((slot) => {
+      const color = slot.dataset?.playerColor;
+      if (!color) return;
+      slot.addEventListener('click', () => {
+        this._setPlayerPreviewColor(color);
+        this._emitPlayerSkinSelect({ type: 'color', color });
+      });
+    });
+    const slots = Array.from(this.playerCustomizeModal.querySelectorAll('[data-pixil-src]'));
+    slots.forEach((slot) => {
+      const src = slot.dataset?.pixilSrc;
+      if (!src) return;
+      const img = this._ensureSlotImage(slot);
+      this._loadPixilPreview(src).then((preview) => {
+        if (!preview) return;
+        slot.dataset.pixilPreview = preview;
+        if (img) img.src = preview;
+      });
+      slot.addEventListener('click', () => {
+        const preview = slot.dataset?.pixilPreview;
+        if (preview) {
+          this._setPlayerPreview(preview);
+          this._emitPlayerSkinSelect({ type: 'image', src: preview });
+        }
+      });
+    });
+  }
+
+  _initObstacleCustomizeSlots() {
+    if (!this.obstacleCustomizeModal) return;
+    const defaultSlot = this.obstacleCustomizeModal.querySelector('[data-obstacle-default="true"]');
+    if (defaultSlot) {
+      defaultSlot.addEventListener('click', () => {
+        this._setObstaclePreviewColor(null);
+        this._emitObstacleSkinSelect({ type: 'default' });
+      });
+    }
+    const colorSlots = Array.from(this.obstacleCustomizeModal.querySelectorAll('[data-obstacle-color]'));
+    colorSlots.forEach((slot) => {
+      const color = slot.dataset?.obstacleColor;
+      if (!color) return;
+      slot.addEventListener('click', () => {
+        this._setObstaclePreviewColor(color);
+        this._emitObstacleSkinSelect({ type: 'color', color });
+      });
+    });
+  }
+
+  _ensureSlotImage(slot) {
+    if (!slot || typeof document === 'undefined') return null;
+    let container = slot.querySelector('.customize-slot-content');
+    if (!container) {
+      container = document.createElement('span');
+      container.className = 'customize-slot-content';
+      slot.appendChild(container);
+    }
+    let img = container.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      img.className = 'pixel-art';
+      img.alt = '';
+      container.appendChild(img);
+    }
+    return img;
+  }
+
+  async _loadPixilPreview(src) {
+    try {
+      const response = await fetch(encodeURI(src));
+      if (!response.ok) return null;
+      const data = await response.json();
+      const raw = data?.preview || data?.frames?.[0]?.preview || data?.frames?.[0]?.layers?.[0]?.src;
+      return this._normalizePixilPreview(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _normalizePixilPreview(value) {
+    if (typeof value !== 'string' || value.length === 0) return null;
+    const marker = 'base64,';
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex >= 0) {
+      return `data:image/png;base64,${value.slice(markerIndex + marker.length)}`;
+    }
+    const commaIndex = value.indexOf(',');
+    if (value.startsWith('data:image/png') && commaIndex >= 0) {
+      return `data:image/png;base64,${value.slice(commaIndex + 1)}`;
+    }
+    return null;
+  }
+
+  _setPlayerPreview(preview) {
+    const hasPreview = typeof preview === 'string' && preview.length > 0;
+    if (this.playerPreviewImage) {
+      this.playerPreviewImage.src = hasPreview ? preview : '';
+      this.playerPreviewImage.style.display = hasPreview ? 'block' : 'none';
+    }
+    if (hasPreview) {
+      if (this.playerPreviewDefault) this.playerPreviewDefault.style.display = 'none';
+      return;
+    }
+    this._setPlayerPreviewColor(null);
+  }
+
+  _setPlayerPreviewColor(color) {
+    if (this.playerPreviewImage) {
+      this.playerPreviewImage.src = '';
+      this.playerPreviewImage.style.display = 'none';
+    }
+    if (this.playerPreviewDefault) {
+      this.playerPreviewDefault.style.display = 'block';
+      if (color) {
+        this.playerPreviewDefault.style.background = color;
+      } else {
+        this.playerPreviewDefault.style.background = '';
+      }
+    }
+  }
+
+  _setObstaclePreviewColor(color) {
+    if (!this.obstaclePreviewSpike) return;
+    if (color) {
+      this.obstaclePreviewSpike.style.borderTopColor = color;
+    } else {
+      this.obstaclePreviewSpike.style.borderTopColor = '';
+    }
+  }
+
+  _emitPlayerSkinSelect(payload) {
+    if (typeof this._onPlayerSkinSelect === 'function') {
+      this._onPlayerSkinSelect(payload);
+    }
+  }
+
+  _emitObstacleSkinSelect(payload) {
+    if (typeof this._onObstacleSkinSelect === 'function') {
+      this._onObstacleSkinSelect(payload);
+    }
+  }
+
   _applyGameOverUI(cfg, commonButton) {
     if (this.gameOverScreen) {
       this._setStyleValue(this.gameOverScreen, 'gap', cfg.containerGapPx ?? cfg.containerGap);
@@ -247,10 +405,14 @@ export class UIController {
     onCloseSettings,
     onToggleMute,
     onConfirmReset,
+    onPlayerSkinSelect,
+    onObstacleSkinSelect,
     onPause,
     onResume,
     onPauseStageSelect,
   } = {}) {
+    this._onPlayerSkinSelect = typeof onPlayerSkinSelect === 'function' ? onPlayerSkinSelect : null;
+    this._onObstacleSkinSelect = typeof onObstacleSkinSelect === 'function' ? onObstacleSkinSelect : null;
     if (this.gameStartButton) {
       this.gameStartButton.addEventListener('click', () => {
         if (onIntroStart) onIntroStart();

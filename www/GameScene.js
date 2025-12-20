@@ -11,6 +11,8 @@ export class GameScene {
     this.orbitRadius = orbitRadius;
     this.playerRadius = playerRadius;
     this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    this.playerSkin = null;
+    this.obstacleSkin = null;
 
     this.playerHitFlash = 0;
     this._snowShouldDraw = false;
@@ -51,6 +53,20 @@ export class GameScene {
     }
     if (this.snow && typeof this.snow.setScale === 'function') {
       this.snow.setScale(this.scale);
+    }
+  }
+
+  setPlayerSkin(skin) {
+    this.playerSkin = skin;
+    if (this.player && typeof this.player.setSkin === 'function') {
+      this.player.setSkin(skin);
+    }
+  }
+
+  setObstacleSkin(skin) {
+    this.obstacleSkin = skin;
+    if (this.obstacleManager && typeof this.obstacleManager.setSkin === 'function') {
+      this.obstacleManager.setSkin(skin);
     }
   }
 
@@ -229,7 +245,10 @@ export class GameScene {
       }
     }
 
-    this.player.color = (this.playerHitFlash > 0) ? '#ff4444' : '#ffffff';
+    const baseColor = this.player && typeof this.player.getBaseColor === 'function'
+      ? this.player.getBaseColor()
+      : '#ffffff';
+    this.player.color = (this.playerHitFlash > 0) ? '#ff4444' : baseColor;
     if (rhythmActive) {
       this.rhythmEffect.applyTransform(ctx, centerX, centerY);
     }
@@ -262,7 +281,13 @@ export class GameScene {
 
   _buildEntities() {
     this.player = new Player(this.centerX, this.centerY, this.orbitRadius, this.playerRadius);
+    if (this.playerSkin && typeof this.player.setSkin === 'function') {
+      this.player.setSkin(this.playerSkin);
+    }
     this.obstacleManager = new ObstacleManager(this.centerX, this.centerY, this.orbitRadius, { scale: this.scale });
+    if (this.obstacleSkin && typeof this.obstacleManager.setSkin === 'function') {
+      this.obstacleManager.setSkin(this.obstacleSkin);
+    }
     this.snow = new SnowEffect({ scale: this.scale });
     this.rhythmEffect = new RhythmEffect();
     this.playerHitFlash = 0;

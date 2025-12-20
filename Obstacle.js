@@ -9,6 +9,7 @@ export class Obstacle {
         this.length = length;
         this.acceleration = acceleration;
         this.offscreenMargin = Number.isFinite(offscreenMargin) && offscreenMargin > 0 ? offscreenMargin : 60;
+        this.color = '#ffffff';
     }
     
     update(dt = 1) {
@@ -26,7 +27,7 @@ export class Obstacle {
         ctx.lineTo(this.radius, -this.baseWidth / 2);
         ctx.lineTo(this.radius, this.baseWidth / 2);
         ctx.closePath();
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = this.color || '#ffffff';
         ctx.fill();
         ctx.restore();
     }

@@ -9,6 +9,8 @@ export class Player {
         this.angle = 0;
         this.speed = (PLAYER && typeof PLAYER.angularSpeed === 'number') ? PLAYER.angularSpeed : 0.015; // angular speed
         this.rotationDirection = 1; // 1: ?쒓퀎諛⑺뼢, -1: ?쒓퀎諛섎?諛⑺뼢
+        this.skin = null;
+        this.baseColor = '#ffffff';
     }
     
     update(dt = 1) {
@@ -18,8 +20,17 @@ export class Player {
     draw(ctx) {
         const playerX = this.centerX + Math.cos(this.angle) * this.orbitRadius;
         const playerY = this.centerY + Math.sin(this.angle) * this.orbitRadius;
-        
-        ctx.fillStyle = this.color || '#ffffff';
+        const skin = this.skin;
+        if (skin && skin.type === 'image' && skin.image && skin.image.complete) {
+            const size = Number.isFinite(skin.sizePx) ? skin.sizePx : this.radius * 2;
+            const prevSmoothing = ctx.imageSmoothingEnabled;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(skin.image, playerX - size / 2, playerY - size / 2, size, size);
+            ctx.imageSmoothingEnabled = prevSmoothing;
+            return;
+        }
+
+        ctx.fillStyle = this.color || this.baseColor || '#ffffff';
         ctx.beginPath();
         ctx.arc(playerX, playerY, this.radius, 0, 2 * Math.PI);
         ctx.fill();
@@ -34,6 +45,16 @@ export class Player {
         if (typeof centerY === 'number') this.centerY = centerY;
         if (typeof orbitRadius === 'number') this.orbitRadius = orbitRadius;
         if (typeof radius === 'number') this.radius = radius;
+    }
+
+    setSkin(skin) {
+        this.skin = skin && typeof skin === 'object' ? skin : null;
+        const color = this.skin?.color;
+        this.baseColor = (typeof color === 'string' && color.length > 0) ? color : '#ffffff';
+    }
+
+    getBaseColor() {
+        return this.baseColor || '#ffffff';
     }
     
     // 二쇱씤怨듭쓽 ?꾩옱 ?꾩튂 醫뚰몴 諛섑솚

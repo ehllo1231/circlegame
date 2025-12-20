@@ -69,6 +69,14 @@ export class Game {
       playerRadius: this.playerRadius,
       scale: this.viewportScale,
     });
+    this.playerSkin = this._normalizePlayerSkin({ type: 'default' });
+    if (this.scene && typeof this.scene.setPlayerSkin === 'function') {
+      this.scene.setPlayerSkin(this.playerSkin);
+    }
+    this.obstacleSkin = this._normalizeObstacleSkin({ type: 'default' });
+    if (this.scene && typeof this.scene.setObstacleSkin === 'function') {
+      this.scene.setObstacleSkin(this.obstacleSkin);
+    }
     this.extraStageSnow = new ExtraStageSnowController({
       canvas: this.menuSnowCanvas || this.canvas,
       scale: this.viewportScale,
@@ -172,6 +180,8 @@ export class Game {
       onCloseSettings: () => this._syncSettingsUI(),
       onToggleMute: () => this.toggleAudioMute(),
       onConfirmReset: () => this.resetHighScores(),
+      onPlayerSkinSelect: (skin) => this.applyPlayerSkin(skin),
+      onObstacleSkinSelect: (skin) => this.applyObstacleSkin(skin),
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
       onPauseStageSelect: () => this.handlePauseStageSelect(),
@@ -1000,6 +1010,45 @@ export class Game {
     } else {
       this.backgroundFader.fadeTo(theme.background, theme.fadeDurationSec);
     }
+  }
+
+  applyPlayerSkin(skin = null) {
+    this.playerSkin = this._normalizePlayerSkin(skin);
+    if (this.scene && typeof this.scene.setPlayerSkin === 'function') {
+      this.scene.setPlayerSkin(this.playerSkin);
+    }
+  }
+
+  applyObstacleSkin(skin = null) {
+    this.obstacleSkin = this._normalizeObstacleSkin(skin);
+    if (this.scene && typeof this.scene.setObstacleSkin === 'function') {
+      this.scene.setObstacleSkin(this.obstacleSkin);
+    }
+  }
+
+  _normalizePlayerSkin(skin) {
+    const fallback = { type: 'circle', color: null, image: null, src: null };
+    if (!skin || typeof skin !== 'object') return fallback;
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      const image = new Image();
+      image.src = skin.src;
+      return { type: 'image', color: null, image, src: skin.src };
+    }
+    const color = typeof skin.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    return { type: 'circle', color, image: null, src: null };
+  }
+
+  _normalizeObstacleSkin(skin) {
+    const fallback = { color: '#ffffff' };
+    if (!skin || typeof skin !== 'object') return fallback;
+    if (skin.type === 'color' && typeof skin.color === 'string' && skin.color.length > 0) {
+      return { color: skin.color };
+    }
+    if (skin.type === 'default') return fallback;
+    if (typeof skin.color === 'string' && skin.color.length > 0) {
+      return { color: skin.color };
+    }
+    return fallback;
   }
 
   resizeCanvas({ width, height } = {}) {

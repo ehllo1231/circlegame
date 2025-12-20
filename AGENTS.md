@@ -121,6 +121,7 @@
   Config on each onEnter/onExit.
 
   - Source of truth: modify files in the main source tree only; never edit the mirrored `www/` build outputs (used for Android) directly.
+  - Customization rule: changing player/obstacle visuals must not alter hitboxes; keep collision values fixed (player radius intended to stay 13, obstacle collision geometry unchanged) unless explicitly requested.
   - Operational note: only perform actions explicitly requested by the user; avoid unsolicited changes or steps.
 
 # Code Styles
