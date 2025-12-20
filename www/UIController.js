@@ -24,6 +24,8 @@ export class UIController {
     this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
     this.settingsButton = document.getElementById('settingsButton');
     this.customizeButton = document.getElementById('customizeButton');
+    this.customizePlayerButton = document.getElementById('customizePlayerButton');
+    this.customizeObstacleButton = document.getElementById('customizeObstacleButton');
     this.settingsModal = document.getElementById('settingsModal');
     this.settingsResetButton = document.getElementById('settingsResetButton');
     this.closeSettingsButton = document.getElementById('closeSettingsButton');
@@ -33,6 +35,10 @@ export class UIController {
     this.cancelResetButton = document.getElementById('cancelResetButton');
     this.customizeModal = document.getElementById('customizeModal');
     this.closeCustomizeButton = document.getElementById('closeCustomizeButton');
+    this.playerCustomizeModal = document.getElementById('playerCustomizeModal');
+    this.obstacleCustomizeModal = document.getElementById('obstacleCustomizeModal');
+    this.closePlayerCustomizeButton = document.getElementById('closePlayerCustomizeButton');
+    this.closeObstacleCustomizeButton = document.getElementById('closeObstacleCustomizeButton');
     this.selectedStageId = null;
     this.stageExState = new Map();
     this.stageLabelDefaults = new Map();
@@ -298,10 +304,32 @@ export class UIController {
         this.showCustomizeModal();
       });
     }
+    if (this.customizePlayerButton) {
+      this.customizePlayerButton.addEventListener('click', () => {
+        this.hideObstacleCustomizeModal();
+        this.showPlayerCustomizeModal();
+      });
+    }
+    if (this.customizeObstacleButton) {
+      this.customizeObstacleButton.addEventListener('click', () => {
+        this.hidePlayerCustomizeModal();
+        this.showObstacleCustomizeModal();
+      });
+    }
     if (this.closeSettingsButton) {
       this.closeSettingsButton.addEventListener('click', () => {
         this.hideSettingsModal();
         if (onCloseSettings) onCloseSettings();
+      });
+    }
+    if (this.closePlayerCustomizeButton) {
+      this.closePlayerCustomizeButton.addEventListener('click', () => {
+        this.hidePlayerCustomizeModal();
+      });
+    }
+    if (this.closeObstacleCustomizeButton) {
+      this.closeObstacleCustomizeButton.addEventListener('click', () => {
+        this.hideObstacleCustomizeModal();
       });
     }
     if (this.closeCustomizeButton) {
@@ -350,6 +378,8 @@ export class UIController {
     this.hideSettingsModal();
     this.hideResetConfirmModal();
     this.hideCustomizeModal();
+    this.hidePlayerCustomizeModal();
+    this.hideObstacleCustomizeModal();
   }
 
   showIntro() {
@@ -362,6 +392,8 @@ export class UIController {
     this._setGameOverPeekButtonVisible(false);
     this._updateGameOverPeekButtonState(false);
     this.hideCustomizeModal();
+    this.hidePlayerCustomizeModal();
+    this.hideObstacleCustomizeModal();
     if (this.stageSelectLabel) {
       const stageId = this.selectedStageId || 'stage1';
       this.setStageSelection(stageId, { ex: this.isStageEx(stageId) });
@@ -380,6 +412,8 @@ export class UIController {
     this.hideSettingsModal();
     this.hideResetConfirmModal();
     this.hideCustomizeModal();
+    this.hidePlayerCustomizeModal();
+    this.hideObstacleCustomizeModal();
   }
 
   isIntroVisible() {
@@ -578,6 +612,22 @@ export class UIController {
 
   hideCustomizeModal() {
     if (this.customizeModal) this.customizeModal.style.display = 'none';
+  }
+
+  showPlayerCustomizeModal() {
+    if (this.playerCustomizeModal) this.playerCustomizeModal.style.display = 'flex';
+  }
+
+  hidePlayerCustomizeModal() {
+    if (this.playerCustomizeModal) this.playerCustomizeModal.style.display = 'none';
+  }
+
+  showObstacleCustomizeModal() {
+    if (this.obstacleCustomizeModal) this.obstacleCustomizeModal.style.display = 'flex';
+  }
+
+  hideObstacleCustomizeModal() {
+    if (this.obstacleCustomizeModal) this.obstacleCustomizeModal.style.display = 'none';
   }
 
   showResetConfirmModal() {

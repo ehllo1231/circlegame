@@ -62,6 +62,24 @@
         .modal-button.primary:hover { background: #dcdcdc; }
         .modal-close { position: absolute; top: 8px; right: 10px; padding: 4px; background: transparent; border: none; color: rgba(255,255,255,0.85); font: bold 24px Arial, sans-serif; cursor: pointer; line-height: 1; transition: transform 0.2s ease, color 0.2s ease; }
         .modal-close:hover { color: #fff; transform: scale(1.1); }
+        .customize-card { width: min(900px, 92vw); max-width: 960px; padding: 20px 22px; gap: 12px; }
+        .customize-layout { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(220px, 2fr); gap: 18px; align-items: stretch; }
+        .customize-preview { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; min-height: 210px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+        .customize-preview-title { font: 600 14px Arial, sans-serif; color: #d8d8d8; text-transform: uppercase; letter-spacing: 0.08em; }
+        .preview-circle { width: 76px; height: 76px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 20px rgba(255,255,255,0.4); }
+        .preview-spike { width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 56px solid #ffffff; filter: drop-shadow(0 4px 10px rgba(255,255,255,0.35)); }
+        .customize-grid { display: grid; grid-template-columns: repeat(4, minmax(56px, 1fr)); gap: 10px; }
+        .customize-slot { appearance: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; min-height: 64px; cursor: pointer; padding: 0; }
+        .customize-slot:hover { background: rgba(255,255,255,0.08); }
+        .customize-slot:focus { outline: 2px solid rgba(255,255,255,0.45); outline-offset: 2px; }
+        @media (max-width: 640px) {
+            .customize-layout { grid-template-columns: 1fr; gap: 14px; }
+            .customize-preview { min-height: 150px; padding: 12px; }
+            .preview-circle { width: 64px; height: 64px; }
+            .preview-spike { border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 44px solid #ffffff; }
+            .customize-grid { gap: 8px; }
+            .customize-slot { min-height: 54px; }
+        }
     </style>
 </head>
 <body>
@@ -129,6 +147,68 @@
             <div class="modal-actions">
                 <button id="customizePlayerButton" class="modal-button">player</button>
                 <button id="customizeObstacleButton" class="modal-button">obstacle</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerCustomizeModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="playerCustomizeTitle" data-prevent-reverse="true">
+        <div class="modal-card customize-card">
+            <button id="closePlayerCustomizeButton" class="modal-close" aria-label="Close player customize" data-prevent-reverse="true">&times;</button>
+            <div class="modal-title" id="playerCustomizeTitle">player</div>
+            <div class="customize-layout">
+                <div class="customize-preview">
+                    <div class="customize-preview-title">Current</div>
+                    <div class="preview-circle" aria-hidden="true"></div>
+                </div>
+                <div class="customize-grid">
+                    <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 11" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 12" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 13" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 14" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 16" data-prevent-reverse="true"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="obstacleCustomizeModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="obstacleCustomizeTitle" data-prevent-reverse="true">
+        <div class="modal-card customize-card">
+            <button id="closeObstacleCustomizeButton" class="modal-close" aria-label="Close obstacle customize" data-prevent-reverse="true">&times;</button>
+            <div class="modal-title" id="obstacleCustomizeTitle">obstacle</div>
+            <div class="customize-layout">
+                <div class="customize-preview">
+                    <div class="customize-preview-title">Current</div>
+                    <div class="preview-spike" aria-hidden="true"></div>
+                </div>
+                <div class="customize-grid">
+                    <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 11" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 12" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 13" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 14" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
+                    <button class="customize-slot" type="button" aria-label="Empty slot 16" data-prevent-reverse="true"></button>
+                </div>
             </div>
         </div>
     </div>
