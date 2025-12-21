@@ -414,6 +414,32 @@ export class UIController {
     }
   }
 
+  setPlayerSkinPreview(skin) {
+    if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      this._setPlayerPreview(skin.src);
+      return;
+    }
+    const color = typeof skin?.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    if (color) {
+      this._setPlayerPreviewColor(color);
+      return;
+    }
+    this._setPlayerPreview(null);
+  }
+
+  setObstacleSkinPreview(skin) {
+    if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      this._setObstaclePreviewImage(skin.src);
+      return;
+    }
+    const color = typeof skin?.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    if (color) {
+      this._setObstaclePreviewColor(color);
+      return;
+    }
+    this._setObstaclePreviewColor(null);
+  }
+
   _initCustomizePagination({ pages, prevButton, nextButton, indicator, indexKey }) {
     if (!Array.isArray(pages) || pages.length === 0) return;
     const total = pages.length;

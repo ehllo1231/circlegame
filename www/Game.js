@@ -20,6 +20,8 @@ import { AdManager } from './AdManager.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
 const EXTRA_STAGE_UNLOCK_KEY = 'orbit_extra_stage_unlocked';
+const PLAYER_SKIN_STORAGE_KEY = 'orbit_player_skin';
+const OBSTACLE_SKIN_STORAGE_KEY = 'orbit_obstacle_skin';
 
 // Game - main controller
 export class Game {
@@ -80,6 +82,7 @@ export class Game {
     if (this.scene && typeof this.scene.setObstacleSkin === 'function') {
       this.scene.setObstacleSkin(this.obstacleSkin);
     }
+    this._loadPersistedSkins();
     this.extraStageSnow = new ExtraStageSnowController({
       canvas: this.menuSnowCanvas || this.canvas,
       scale: this.viewportScale,
@@ -762,6 +765,98 @@ export class Game {
     }
   }
 
+  _loadPersistedSkins() {
+    const storedPlayer = this._readSkinFromStorage(PLAYER_SKIN_STORAGE_KEY);
+    if (storedPlayer) {
+      this.applyPlayerSkin(storedPlayer);
+    }
+    const storedObstacle = this._readSkinFromStorage(OBSTACLE_SKIN_STORAGE_KEY);
+    if (storedObstacle) {
+      this.applyObstacleSkin(storedObstacle);
+    }
+  }
+
+  _readSkinFromStorage(storageKey) {
+    if (typeof localStorage === 'undefined' || !storageKey) return null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _writeSkinToStorage(storageKey, payload) {
+    if (typeof localStorage === 'undefined' || !storageKey) return;
+    try {
+      if (!payload) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch (_) {
+      // ignore storage errors
+    }
+  }
+
+  _serializePlayerSkin(skin) {
+    if (!skin || typeof skin !== 'object') return null;
+    const payload = {};
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      payload.type = 'image';
+      payload.src = skin.src;
+    } else if (typeof skin.color === 'string' && skin.color.length > 0) {
+      payload.type = 'color';
+      payload.color = skin.color;
+    } else {
+      payload.type = 'default';
+    }
+    if (Number.isFinite(skin.radius)) payload.radius = skin.radius;
+    if (Number.isFinite(skin.renderRadius)) payload.renderRadius = skin.renderRadius;
+    return payload;
+  }
+
+  _serializeObstacleSkin(skin) {
+    if (!skin || typeof skin !== 'object') return null;
+    const payload = {};
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      payload.type = 'image';
+      payload.src = skin.src;
+    } else if (typeof skin.color === 'string' && skin.color.length > 0) {
+      payload.type = 'color';
+      payload.color = skin.color;
+    } else {
+      payload.type = 'default';
+    }
+    if (Number.isFinite(skin.renderScale) && skin.renderScale !== 1) {
+      payload.renderScale = skin.renderScale;
+    }
+    if (Number.isFinite(skin.hitScale) && skin.hitScale !== 1) {
+      payload.hitScale = skin.hitScale;
+    }
+    return payload;
+  }
+
+  _persistPlayerSkin(skin) {
+    const payload = this._serializePlayerSkin(skin);
+    const shouldClear = !payload
+      || (payload.type === 'default'
+        && !Number.isFinite(payload.radius)
+        && !Number.isFinite(payload.renderRadius));
+    this._writeSkinToStorage(PLAYER_SKIN_STORAGE_KEY, shouldClear ? null : payload);
+  }
+
+  _persistObstacleSkin(skin) {
+    const payload = this._serializeObstacleSkin(skin);
+    const shouldClear = !payload
+      || (payload.type === 'default'
+        && !Number.isFinite(payload.renderScale)
+        && !Number.isFinite(payload.hitScale));
+    this._writeSkinToStorage(OBSTACLE_SKIN_STORAGE_KEY, shouldClear ? null : payload);
+  }
+
   _getHighScoreStorageKey(stageId) {
     if (!stageId || stageId === 'stage1') {
       return 'orbit_high_score';
@@ -1026,12 +1121,20 @@ export class Game {
     if (this.scene && typeof this.scene.setPlayerSkin === 'function') {
       this.scene.setPlayerSkin(this.playerSkin);
     }
+    this._persistPlayerSkin(this.playerSkin);
+    if (this.ui && typeof this.ui.setPlayerSkinPreview === 'function') {
+      this.ui.setPlayerSkinPreview(this.playerSkin);
+    }
   }
 
   applyObstacleSkin(skin = null) {
     this.obstacleSkin = this._normalizeObstacleSkin(skin);
     if (this.scene && typeof this.scene.setObstacleSkin === 'function') {
       this.scene.setObstacleSkin(this.obstacleSkin);
+    }
+    this._persistObstacleSkin(this.obstacleSkin);
+    if (this.ui && typeof this.ui.setObstacleSkinPreview === 'function') {
+      this.ui.setObstacleSkinPreview(this.obstacleSkin);
     }
   }
 
