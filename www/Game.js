@@ -780,6 +780,9 @@ export class Game {
     if (this.extraStageSnow && typeof this.extraStageSnow.setScale === 'function') {
       this.extraStageSnow.setScale(this.viewportScale);
     }
+    if (this.ui && typeof this.ui.setPlayerSkinPreview === 'function') {
+      this.ui.setPlayerSkinPreview(this.playerSkin, { renderRadius: this.playerRenderRadius });
+    }
   }
 
   _loadPersistedSkins() {
@@ -1185,9 +1188,6 @@ export class Game {
       this.scene.setPlayerSkin(this.playerSkin);
     }
     this._persistPlayerSkin(this.playerSkin);
-    if (this.ui && typeof this.ui.setPlayerSkinPreview === 'function') {
-      this.ui.setPlayerSkinPreview(this.playerSkin);
-    }
   }
 
   applyObstacleSkin(skin = null) {

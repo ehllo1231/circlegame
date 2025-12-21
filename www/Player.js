@@ -40,8 +40,9 @@ export class Player {
                 && skin.src.startsWith('data:image')
                 && Number.isFinite(sizeScale)
                 && sizeScale > 2;
+            const snapBase = Math.max(1, renderRadius * 2);
             const baseSize = isCusSkin
-                ? (52 * Math.max(1, Math.round(rawSize / 52)))
+                ? (snapBase * Math.max(1, Math.round(rawSize / snapBase)))
                 : rawSize;
             const drawSize = Math.max(1, snapToPixel ? Math.round(baseSize) : baseSize);
             const drawX = snapToPixel
@@ -52,6 +53,20 @@ export class Player {
                 : (scaledY - drawSize / 2);
             const prevSmoothing = ctx.imageSmoothingEnabled;
             ctx.imageSmoothingEnabled = false;
+            if (isCusSkin) {
+                const srcSize = Number.isFinite(skin.image.width) && skin.image.width > 0
+                    ? skin.image.width
+                    : (Number.isFinite(skin.image.naturalWidth) ? skin.image.naturalWidth : 0);
+                const targetSize = Math.max(1, Math.round(drawSize));
+                if (Number.isFinite(srcSize) && srcSize > 0 && targetSize < srcSize) {
+                    const scaledCanvas = this._getCusScaledCanvas(skin, srcSize, targetSize);
+                    if (scaledCanvas) {
+                        ctx.drawImage(scaledCanvas, drawX, drawY, targetSize, targetSize);
+                        ctx.imageSmoothingEnabled = prevSmoothing;
+                        return;
+                    }
+                }
+            }
             ctx.drawImage(skin.image, drawX, drawY, drawSize, drawSize);
             ctx.imageSmoothingEnabled = prevSmoothing;
             return;
@@ -83,6 +98,83 @@ export class Player {
 
     getBaseColor() {
         return this.baseColor || '#ffffff';
+    }
+
+    _getCusScaledCanvas(skin, srcSize, targetSize) {
+        if (!skin || !skin.image || !Number.isFinite(targetSize)) return null;
+        if (!skin._cusScaleCache) {
+            skin._cusScaleCache = new Map();
+        }
+        const cached = skin._cusScaleCache.get(targetSize);
+        if (cached) return cached;
+        const sourceData = this._getCusSourceData(skin, srcSize);
+        if (!sourceData || !sourceData.data) return null;
+        if (typeof document === 'undefined') return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = targetSize;
+        canvas.height = targetSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const output = ctx.createImageData(targetSize, targetSize);
+        const outputData = output.data;
+        const srcData = sourceData.data;
+        const scale = srcSize / targetSize;
+        for (let y = 0; y < targetSize; y += 1) {
+            const sy0 = Math.floor(y * scale);
+            const sy1 = Math.min(srcSize - 1, Math.floor((y + 1) * scale - 1));
+            for (let x = 0; x < targetSize; x += 1) {
+                const sx0 = Math.floor(x * scale);
+                const sx1 = Math.min(srcSize - 1, Math.floor((x + 1) * scale - 1));
+                let bestAlpha = 0;
+                let bestIndex = -1;
+                for (let sy = sy0; sy <= sy1; sy += 1) {
+                    for (let sx = sx0; sx <= sx1; sx += 1) {
+                        const idx = (sy * srcSize + sx) * 4;
+                        const alpha = srcData[idx + 3];
+                        if (alpha > bestAlpha) {
+                            bestAlpha = alpha;
+                            bestIndex = idx;
+                            if (bestAlpha === 255) break;
+                        }
+                    }
+                    if (bestAlpha === 255) break;
+                }
+                const outIndex = (y * targetSize + x) * 4;
+                if (bestAlpha > 0 && bestIndex >= 0) {
+                    outputData[outIndex] = srcData[bestIndex];
+                    outputData[outIndex + 1] = srcData[bestIndex + 1];
+                    outputData[outIndex + 2] = srcData[bestIndex + 2];
+                    outputData[outIndex + 3] = bestAlpha;
+                } else {
+                    outputData[outIndex] = 0;
+                    outputData[outIndex + 1] = 0;
+                    outputData[outIndex + 2] = 0;
+                    outputData[outIndex + 3] = 0;
+                }
+            }
+        }
+        ctx.putImageData(output, 0, 0);
+        skin._cusScaleCache.set(targetSize, canvas);
+        return canvas;
+    }
+
+    _getCusSourceData(skin, srcSize) {
+        if (!skin || !skin.image || !Number.isFinite(srcSize)) return null;
+        if (skin._cusSourceData && skin._cusSourceSize === srcSize) {
+            return skin._cusSourceData;
+        }
+        if (typeof document === 'undefined') return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = srcSize;
+        canvas.height = srcSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(skin.image, 0, 0, srcSize, srcSize);
+        const data = ctx.getImageData(0, 0, srcSize, srcSize);
+        skin._cusSourceData = data;
+        skin._cusSourceSize = srcSize;
+        return data;
     }
     
     // 二쇱씤怨듭쓽 ?꾩옱 ?꾩튂 醫뚰몴 諛섑솚

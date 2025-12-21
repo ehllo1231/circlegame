@@ -829,11 +829,19 @@ export class UIController {
     return null;
   }
 
-  _setPlayerPreview(preview) {
+  _setPlayerPreview(preview, sizePx = null) {
     const hasPreview = typeof preview === 'string' && preview.length > 0;
     if (this.playerPreviewImage) {
       this.playerPreviewImage.src = hasPreview ? preview : '';
       this.playerPreviewImage.style.display = hasPreview ? 'block' : 'none';
+      if (hasPreview && Number.isFinite(sizePx) && sizePx > 0) {
+        const clamped = Math.max(1, Math.round(sizePx));
+        this.playerPreviewImage.style.width = `${clamped}px`;
+        this.playerPreviewImage.style.height = `${clamped}px`;
+      } else {
+        this.playerPreviewImage.style.removeProperty('width');
+        this.playerPreviewImage.style.removeProperty('height');
+      }
     }
     if (hasPreview) {
       if (this.playerPreviewDefault) this.playerPreviewDefault.style.display = 'none';
@@ -930,7 +938,7 @@ export class UIController {
     }
   }
 
-  setPlayerSkinPreview(skin) {
+  setPlayerSkinPreview(skin, options = {}) {
     const normalized = skin && typeof skin === 'object' ? skin : null;
     this._currentPlayerSkin = normalized;
     if (normalized?.type === 'image'
@@ -941,7 +949,21 @@ export class UIController {
       this._customPlayerSkin = { src: normalized.src, sizeScale: normalized.sizeScale };
     }
     if (normalized && normalized.type === 'image' && typeof normalized.src === 'string' && normalized.src.length > 0) {
-      this._setPlayerPreview(normalized.src);
+      let previewSize = null;
+      const renderRadius = Number.isFinite(options?.renderRadius) && options.renderRadius > 0
+        ? options.renderRadius
+        : null;
+      const isCusSkin = normalized.src.startsWith('data:image')
+        && Number.isFinite(normalized.sizeScale)
+        && normalized.sizeScale > 2;
+      if (isCusSkin && renderRadius) {
+        const sizeScale = normalized.sizeScale;
+        const rawSize = Number.isFinite(normalized.sizePx) ? normalized.sizePx : renderRadius * sizeScale;
+        const snapBase = Math.max(1, renderRadius * 2);
+        const baseSize = snapBase * Math.max(1, Math.round(rawSize / snapBase));
+        previewSize = Math.max(1, Math.round(baseSize));
+      }
+      this._setPlayerPreview(normalized.src, previewSize);
       return;
     }
     const color = typeof normalized?.color === 'string' && normalized.color.length > 0 ? normalized.color : null;
