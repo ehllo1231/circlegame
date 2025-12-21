@@ -1,4 +1,5 @@
 import { SCORE, UI, EXTRA_STAGE } from './Config.js';
+import { SLOT_CONFIG } from './SlotConfig.js';
 
 export class UIController {
   constructor() {
@@ -369,6 +370,77 @@ export class UIController {
         const overrides = this._getRingScaleOverrides(slot);
         this._setRingPreviewImage(src, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'image', src, ...overrides });
+      });
+    });
+  }
+
+  _getSlotKey(type, slot) {
+    if (!slot) return null;
+    const data = slot.dataset ?? {};
+    if (type === 'player') {
+      if (data.playerDefault === 'true') return 'player:default';
+      if (data.playerColor) return `player:color:${data.playerColor}`;
+      if (data.playerImageSrc) return `player:image:${data.playerImageSrc}`;
+      if (data.pixilSrc) return `player:pixil:${data.pixilSrc}`;
+      if (data.playerCustom === 'true') return 'player:custom';
+      return null;
+    }
+    if (type === 'obstacle') {
+      if (data.obstacleDefault === 'true') return 'obstacle:default';
+      if (data.obstacleColor) return `obstacle:color:${data.obstacleColor}`;
+      if (data.obstacleImageSrc) return `obstacle:image:${data.obstacleImageSrc}`;
+      return null;
+    }
+    if (type === 'ring') {
+      if (data.ringDefault === 'true') return 'ring:default';
+      if (data.ringColor) return `ring:color:${data.ringColor}`;
+      if (data.ringImageSrc) return `ring:image:${data.ringImageSrc}`;
+      return null;
+    }
+    return null;
+  }
+
+  _isSlotRequirementMet(requirement, stageScores) {
+    if (!requirement || requirement.unlocked === true) return true;
+    const stageId = requirement.stageId;
+    if (!stageId) return false;
+    const minScore = Number.isFinite(requirement.minScore) ? requirement.minScore : 0;
+    const score = Number.isFinite(stageScores?.[stageId]) ? stageScores[stageId] : 0;
+    return score >= minScore;
+  }
+
+  _setSlotLocked(slot, locked) {
+    if (!slot) return;
+    const isLocked = !!locked;
+    slot.classList.toggle('is-locked', isLocked);
+    slot.disabled = isLocked;
+    if (isLocked) {
+      slot.setAttribute('aria-disabled', 'true');
+    } else {
+      slot.removeAttribute('aria-disabled');
+    }
+  }
+
+  applySlotLocks(stageScores = {}) {
+    const config = SLOT_CONFIG ?? {};
+    const defaultRequirement = config.defaultRequirement ?? null;
+    const overrides = config.overrides ?? {};
+    const groups = [
+      { type: 'player', container: this.playerCustomizeModal },
+      { type: 'obstacle', container: this.obstacleCustomizeModal },
+      { type: 'ring', container: this.ringCustomizeModal },
+    ];
+    groups.forEach(({ type, container }) => {
+      if (!container) return;
+      const slots = Array.from(container.querySelectorAll('.customize-slot'));
+      slots.forEach((slot) => {
+        const key = this._getSlotKey(type, slot);
+        if (!key) return;
+        const requirement = Object.prototype.hasOwnProperty.call(overrides, key)
+          ? overrides[key]
+          : defaultRequirement;
+        const unlocked = this._isSlotRequirementMet(requirement, stageScores);
+        this._setSlotLocked(slot, !unlocked);
       });
     });
   }

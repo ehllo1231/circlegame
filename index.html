@@ -82,9 +82,15 @@
         .nav-triangle { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
         .nav-left { border-right: 11px solid rgba(255,255,255,0.85); margin-left: 2px; }
         .nav-right { border-left: 11px solid rgba(255,255,255,0.85); margin-right: 2px; }
-        .customize-slot { appearance: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; min-height: 64px; cursor: pointer; padding: 0; }
+        .customize-slot { appearance: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; min-height: 64px; cursor: pointer; padding: 0; position: relative; }
         .customize-slot:hover { background: rgba(255,255,255,0.08); }
         .customize-slot:focus { outline: 2px solid rgba(255,255,255,0.45); outline-offset: 2px; }
+        .customize-slot:disabled { cursor: not-allowed; opacity: 0.6; }
+        .customize-slot.is-locked { border-style: solid; }
+        .customize-slot.is-locked:hover { background: rgba(255,255,255,0.02); }
+        .customize-slot.is-locked .customize-slot-content { display: none; }
+        .customize-slot.is-locked::before { content: ''; position: absolute; width: 14px; height: 10px; border: 2px solid rgba(255,255,255,0.85); border-bottom: none; border-radius: 10px 10px 0 0; top: calc(50% - 16px); left: calc(50% - 9px); z-index: 2; pointer-events: none; }
+        .customize-slot.is-locked::after { content: ''; position: absolute; width: 18px; height: 14px; border: 2px solid rgba(255,255,255,0.85); border-radius: 3px; top: calc(50% - 4px); left: calc(50% - 11px); background: rgba(0,0,0,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.4); z-index: 2; pointer-events: none; }
         .customize-slot.custom-skin-slot { background: rgba(255,255,255,0.08); border-style: solid; border-color: rgba(255,255,255,0.4); }
         .customize-slot.custom-skin-slot:hover { background: rgba(255,255,255,0.14); }
         .customize-preview-art { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; }

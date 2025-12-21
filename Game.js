@@ -158,6 +158,7 @@ export class Game {
     this.score.setMaxSeconds(this.stageController.getTotalDuration());
 
     this._updateStageLocks();
+    this._updateCustomizeSlotLocks();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
     }
@@ -967,6 +968,22 @@ export class Game {
     if (this.runtime && typeof this.runtime.notifyHighScoreUpdated === 'function') {
       this.runtime.notifyHighScoreUpdated(normalizedStageId, normalized);
     }
+    this._updateCustomizeSlotLocks();
+  }
+
+  _getStageScoreSnapshot() {
+    const stageIds = ['stage1', 'stage2', 'stage3', 'stage1_ex', 'stage2_ex', 'stage3_ex'];
+    const scores = {};
+    stageIds.forEach((stageId) => {
+      scores[stageId] = this._readHighScore(stageId);
+    });
+    return scores;
+  }
+
+  _updateCustomizeSlotLocks() {
+    if (this.ui && typeof this.ui.applySlotLocks === 'function') {
+      this.ui.applySlotLocks(this._getStageScoreSnapshot());
+    }
   }
 
   _removeLocalStorageKeys(predicate) {
@@ -1109,6 +1126,7 @@ export class Game {
     this._disableExtraStageUnlocks();
     this.highScoreMemory.clear();
     this._updateStageLocks();
+    this._updateCustomizeSlotLocks();
     this.setSelectedStage('stage1');
     if (this.score) {
       this.score.reset();
