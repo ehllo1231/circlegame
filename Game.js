@@ -836,6 +836,10 @@ export class Game {
     }
     if (Number.isFinite(skin.radius)) payload.radius = skin.radius;
     if (Number.isFinite(skin.renderRadius)) payload.renderRadius = skin.renderRadius;
+    if (Number.isFinite(skin.sizeScale) && skin.sizeScale !== 2) {
+      payload.sizeScale = skin.sizeScale;
+    }
+    if (Number.isFinite(skin.sizePx)) payload.sizePx = skin.sizePx;
     return payload;
   }
 
@@ -1216,17 +1220,21 @@ export class Game {
       src: null,
       radius: null,
       renderRadius: null,
+      sizeScale: null,
+      sizePx: null,
     };
     if (!skin || typeof skin !== 'object') return fallback;
     const radius = Number.isFinite(skin.radius) ? skin.radius : null;
     const renderRadius = Number.isFinite(skin.renderRadius) ? skin.renderRadius : null;
+    const sizeScale = (Number.isFinite(skin.sizeScale) && skin.sizeScale > 0) ? skin.sizeScale : null;
+    const sizePx = (Number.isFinite(skin.sizePx) && skin.sizePx > 0) ? skin.sizePx : null;
     if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
       const image = new Image();
       image.src = skin.src;
-      return { type: 'image', color: null, image, src: skin.src, radius, renderRadius };
+      return { type: 'image', color: null, image, src: skin.src, radius, renderRadius, sizeScale, sizePx };
     }
     const color = typeof skin.color === 'string' && skin.color.length > 0 ? skin.color : null;
-    return { type: 'circle', color, image: null, src: null, radius, renderRadius };
+    return { type: 'circle', color, image: null, src: null, radius, renderRadius, sizeScale, sizePx };
   }
 
   _resolvePlayerBaseRadii(skin) {

@@ -133,7 +133,7 @@ export class Stage3 extends StageManager {
       fadeFrom: '#00032e',
       fadeTo: '#000000',
       fadeDelaySec: 2,
-      fadeDurationSec: 2,
+      fadeDurationSec: 5,
       hideScoreDurationSec: 2,
     });
 

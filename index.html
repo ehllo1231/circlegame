@@ -85,9 +85,12 @@
         .customize-slot { appearance: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; min-height: 64px; cursor: pointer; padding: 0; }
         .customize-slot:hover { background: rgba(255,255,255,0.08); }
         .customize-slot:focus { outline: 2px solid rgba(255,255,255,0.45); outline-offset: 2px; }
+        .customize-slot.custom-skin-slot { background: rgba(255,255,255,0.08); border-style: solid; border-color: rgba(255,255,255,0.4); }
+        .customize-slot.custom-skin-slot:hover { background: rgba(255,255,255,0.14); }
         .customize-preview-art { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; }
         .customize-slot-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .customize-slot-content img { max-width: 70%; max-height: 70%; }
+        .custom-skin-label { font: 700 14px Arial, sans-serif; color: #ffffff; letter-spacing: 0.2em; }
         .customize-slot[data-obstacle-image-src] img { width: 33px; height: 42px; max-width: 33px; max-height: 42px; object-fit: contain; }
         .pixel-art { image-rendering: pixelated; image-rendering: crisp-edges; }
         .customize-preview-art img { max-width: 100%; max-height: 100%; display: none; }
@@ -119,6 +122,20 @@
         .slot-spike-yellow { border-top-color: #ffe44d; }
         .slot-spike-lime { border-top-color: #a6ff4d; }
         .slot-spike-sky { border-top-color: #7cd4ff; }
+        .pixel-editor-modal { z-index: 18; }
+        .pixel-editor-card { width: min(720px, 94vw); max-width: 720px; }
+        .pixel-editor-layout { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(200px, 260px); gap: 18px; align-items: center; }
+        .pixel-editor-stage { position: relative; --editor-scale: 5; width: calc(52px * var(--editor-scale)); height: calc(52px * var(--editor-scale)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(10,10,10,0.8); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); overflow: hidden; }
+        .pixel-editor-canvas, .pixel-editor-guide { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+        .pixel-editor-canvas { touch-action: none; }
+        .pixel-editor-guide { pointer-events: none; }
+        .pixel-editor-tools { display: flex; flex-direction: column; gap: 12px; }
+        .pixel-editor-note { font: 12px Arial, sans-serif; color: rgba(255,255,255,0.6); text-align: center; }
+        .pixel-tool { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 14px Arial, sans-serif; color: #d8d8d8; }
+        .pixel-tool input[type="color"] { width: 46px; height: 32px; border: none; background: transparent; padding: 0; cursor: pointer; }
+        .pixel-editor-row { display: flex; gap: 10px; }
+        .modal-button.compact { padding: 8px 12px; font-size: 14px; border-radius: 10px; }
+        .modal-button.toggle.active { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.35); }
         @media (max-width: 640px) {
             .customize-layout { grid-template-columns: 1fr; gap: 14px; }
             .customize-preview { min-height: 150px; padding: 12px; }
@@ -137,6 +154,8 @@
             .nav-triangle { border-top-width: 6px; border-bottom-width: 6px; }
             .nav-left { border-right-width: 9px; }
             .nav-right { border-left-width: 9px; }
+            .pixel-editor-layout { grid-template-columns: 1fr; }
+            .pixel-editor-stage { --editor-scale: 4; margin: 0 auto; }
         }
     </style>
 </head>
@@ -321,7 +340,11 @@
                             <button class="customize-slot" type="button" aria-label="Empty slot 15" data-prevent-reverse="true"></button>
                         </div>
                         <div class="customize-page" data-page="5">
-                            <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
+                            <button class="customize-slot custom-skin-slot" type="button" aria-label="Custom player skin" data-prevent-reverse="true" data-player-custom="true">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="custom-skin-label">CUS</span>
+                                </span>
+                            </button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
@@ -348,6 +371,34 @@
                             <span class="nav-triangle nav-right" aria-hidden="true"></span>
                             <span class="sr-only">Next page</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerSkinEditorModal" class="modal-overlay pixel-editor-modal" role="dialog" aria-modal="true" aria-labelledby="playerSkinEditorTitle" data-prevent-reverse="true">
+        <div class="modal-card pixel-editor-card">
+            <button id="closePlayerSkinEditorButton" class="modal-close" aria-label="Close custom skin editor" data-prevent-reverse="true">&times;</button>
+            <div class="modal-title" id="playerSkinEditorTitle">Custom Skin</div>
+            <div class="pixel-editor-layout">
+                <div class="pixel-editor-stage" aria-label="Pixel editor" data-prevent-reverse="true">
+                    <canvas id="playerSkinCanvas" class="pixel-editor-canvas" width="52" height="52" aria-label="Pixel canvas" data-prevent-reverse="true"></canvas>
+                    <canvas id="playerSkinGuide" class="pixel-editor-guide" width="52" height="52" aria-hidden="true"></canvas>
+                </div>
+                <div class="pixel-editor-tools">
+                    <div class="pixel-editor-note">Hit radius guide: 13px</div>
+                    <label class="pixel-tool">
+                        <span>Color</span>
+                        <input id="playerSkinColor" type="color" value="#ffffff" aria-label="Pick color" data-prevent-reverse="true">
+                    </label>
+                    <div class="pixel-editor-row">
+                        <button id="playerSkinToolDraw" class="modal-button compact toggle active" type="button" data-prevent-reverse="true">Draw</button>
+                        <button id="playerSkinToolErase" class="modal-button compact toggle" type="button" data-prevent-reverse="true">Erase</button>
+                    </div>
+                    <div class="pixel-editor-row">
+                        <button id="playerSkinClear" class="modal-button compact" type="button" data-prevent-reverse="true">Clear</button>
+                        <button id="playerSkinApply" class="modal-button compact primary" type="button" data-prevent-reverse="true">Apply</button>
                     </div>
                 </div>
             </div>
@@ -405,17 +456,17 @@
                                 </span>
                             </button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 꼬깔콘" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/꼬깔콘.png" data-obstacle-render-scale="1.1"></button>
-                            <button class="customize-slot" type="button" aria-label="Obstacle image 드릴" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/드릴.png" data-obstacle-render-scale="1.1"></button>
-                            <button class="customize-slot" type="button" aria-label="Obstacle image 벼" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/벼.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 드릴" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/드릴.png" data-obstacle-render-scale="1.3"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 벼" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/벼.png" data-obstacle-render-scale="1.3"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 야채피자" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/야채피자.png" data-obstacle-render-scale="1.3"></button>
-                            <button class="customize-slot" type="button" aria-label="Obstacle image 얼음" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/얼음.png" data-obstacle-render-scale="1.1"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 얼음" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/얼음.png" data-obstacle-render-scale="1.3"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 옵시디언" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/옵시디언.png" data-obstacle-render-scale="1.7"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 이끼" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/이끼.png" data-obstacle-render-scale="1.5"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 치즈피자" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/치즈피자.png" data-obstacle-render-scale="1.3"></button>
                         </div>
                         <div class="customize-page" data-page="2">
                             <button class="customize-slot" type="button" aria-label="Obstacle image 페퍼로니" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/페퍼로니.png" data-obstacle-render-scale="1.3"></button>
-                            <button class="customize-slot" type="button" aria-label="Obstacle image 검" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/검.png" data-obstacle-render-scale="1.7"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 검" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/검.png" data-obstacle-render-scale="2"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 기계뿔" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/기계뿔.png" data-obstacle-render-scale="1.5"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 소용돌이" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/소용돌이.png" data-obstacle-render-scale="1.5"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 강아지" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/강아지.png" data-obstacle-render-scale="2"></button>

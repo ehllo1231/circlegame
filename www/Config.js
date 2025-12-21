@@ -244,7 +244,7 @@ export const STAGE_THEMES = {
 
 export const STAGE_ALL_CLEAR = {
   retractDelaySec: 1,
-  retractDurationSec: 5,
+  retractDurationSec: 3,
   retractEaseExponent: 1.25,
   disableCollisionBelowPx: 4,
   targetInsetPx: 48,

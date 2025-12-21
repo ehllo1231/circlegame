@@ -48,6 +48,15 @@ export class UIController {
     this.obstaclePreviewImage = document.getElementById('obstaclePreviewImage');
     this.ringPreviewRing = document.getElementById('ringPreviewRing');
     this.ringPreviewImage = document.getElementById('ringPreviewImage');
+    this.playerSkinEditorModal = document.getElementById('playerSkinEditorModal');
+    this.closePlayerSkinEditorButton = document.getElementById('closePlayerSkinEditorButton');
+    this.playerSkinCanvas = document.getElementById('playerSkinCanvas');
+    this.playerSkinGuide = document.getElementById('playerSkinGuide');
+    this.playerSkinColorInput = document.getElementById('playerSkinColor');
+    this.playerSkinToolDrawButton = document.getElementById('playerSkinToolDraw');
+    this.playerSkinToolEraseButton = document.getElementById('playerSkinToolErase');
+    this.playerSkinClearButton = document.getElementById('playerSkinClear');
+    this.playerSkinApplyButton = document.getElementById('playerSkinApply');
     this.playerPages = Array.from(this.playerCustomizeModal?.querySelectorAll('.customize-page') ?? []);
     this.playerPagePrevButton = document.getElementById('playerPagePrev');
     this.playerPageNextButton = document.getElementById('playerPageNext');
@@ -63,6 +72,9 @@ export class UIController {
     this._onPlayerSkinSelect = null;
     this._onObstacleSkinSelect = null;
     this._onRingSkinSelect = null;
+    this._currentPlayerSkin = null;
+    this._playerSkinEditor = null;
+    this._playerSkinEditorResizeHandler = null;
     this._playerPageIndex = 0;
     this._obstaclePageIndex = 0;
     this._ringPageIndex = 0;
@@ -92,6 +104,7 @@ export class UIController {
     this._initPlayerCustomizeSlots();
     this._initObstacleCustomizeSlots();
     this._initRingCustomizeSlots();
+    this._initPlayerSkinEditor();
     this._initCustomizePagination({
       pages: this.playerPages,
       prevButton: this.playerPagePrevButton,
@@ -277,6 +290,12 @@ export class UIController {
         this._emitPlayerSkinSelect({ type: 'image', src, ...overrides });
       });
     });
+    const customSlot = this.playerCustomizeModal.querySelector('[data-player-custom="true"]');
+    if (customSlot) {
+      customSlot.addEventListener('click', () => {
+        this.showPlayerSkinEditorModal();
+      });
+    }
   }
 
   _initObstacleCustomizeSlots() {
@@ -345,6 +364,206 @@ export class UIController {
         this._emitRingSkinSelect({ type: 'image', src, ...overrides });
       });
     });
+  }
+
+  _initPlayerSkinEditor() {
+    if (!this.playerSkinCanvas) return;
+    const ctx = this.playerSkinCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    this._playerSkinEditor = {
+      canvas: this.playerSkinCanvas,
+      guideCanvas: this.playerSkinGuide,
+      ctx,
+      guideCtx: this.playerSkinGuide?.getContext('2d') ?? null,
+      size: this.playerSkinCanvas.width || 52,
+      hitRadius: 13,
+      tool: 'draw',
+      color: this.playerSkinColorInput?.value || '#ffffff',
+      isDrawing: false,
+    };
+    this.playerSkinCanvas.addEventListener('pointerdown', (event) => this._handlePlayerSkinPointerDown(event));
+    this.playerSkinCanvas.addEventListener('pointermove', (event) => this._handlePlayerSkinPointerMove(event));
+    this.playerSkinCanvas.addEventListener('pointerup', (event) => this._handlePlayerSkinPointerUp(event));
+    this.playerSkinCanvas.addEventListener('pointerleave', (event) => this._handlePlayerSkinPointerUp(event));
+    this.playerSkinCanvas.addEventListener('pointercancel', (event) => this._handlePlayerSkinPointerUp(event));
+    if (this.playerSkinColorInput) {
+      this.playerSkinColorInput.addEventListener('input', (event) => {
+        const nextColor = event?.target?.value;
+        this._setPlayerSkinColor(nextColor);
+      });
+    }
+    if (this.playerSkinToolDrawButton) {
+      this.playerSkinToolDrawButton.addEventListener('click', () => {
+        this._setPlayerSkinTool('draw');
+      });
+    }
+    if (this.playerSkinToolEraseButton) {
+      this.playerSkinToolEraseButton.addEventListener('click', () => {
+        this._setPlayerSkinTool('erase');
+      });
+    }
+    if (this.playerSkinClearButton) {
+      this.playerSkinClearButton.addEventListener('click', () => {
+        this._clearPlayerSkinCanvas();
+      });
+    }
+    if (this.playerSkinApplyButton) {
+      this.playerSkinApplyButton.addEventListener('click', () => {
+        this._applyPlayerSkinFromEditor();
+      });
+    }
+    if (this.closePlayerSkinEditorButton) {
+      this.closePlayerSkinEditorButton.addEventListener('click', () => {
+        this.hidePlayerSkinEditorModal();
+      });
+    }
+    if (typeof window !== 'undefined') {
+      this._playerSkinEditorResizeHandler = () => {
+        if (this.playerSkinEditorModal?.style.display === 'flex') {
+          this._refreshPlayerSkinGuide();
+        }
+      };
+      window.addEventListener('resize', this._playerSkinEditorResizeHandler);
+    }
+  }
+
+  _preparePlayerSkinEditor() {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.ctx) return;
+    editor.isDrawing = false;
+    if (this.playerSkinColorInput && typeof this.playerSkinColorInput.value === 'string') {
+      editor.color = this.playerSkinColorInput.value || editor.color;
+    }
+    this._clearPlayerSkinCanvas();
+    const src = this._getCustomPlayerSkinSrc();
+    if (src) {
+      const image = new Image();
+      image.onload = () => {
+        editor.ctx.clearRect(0, 0, editor.canvas.width, editor.canvas.height);
+        editor.ctx.drawImage(image, 0, 0, editor.canvas.width, editor.canvas.height);
+      };
+      image.src = src;
+    }
+    this._refreshPlayerSkinGuide();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => this._refreshPlayerSkinGuide());
+    }
+  }
+
+  _getCustomPlayerSkinSrc() {
+    const skin = this._currentPlayerSkin;
+    if (!skin || skin.type !== 'image') return null;
+    if (typeof skin.src !== 'string' || skin.src.length === 0) return null;
+    return skin.src.startsWith('data:image') ? skin.src : null;
+  }
+
+  _setPlayerSkinTool(tool) {
+    const editor = this._playerSkinEditor;
+    if (!editor) return;
+    editor.tool = tool === 'erase' ? 'erase' : 'draw';
+    if (this.playerSkinToolDrawButton) {
+      this.playerSkinToolDrawButton.classList.toggle('active', editor.tool === 'draw');
+    }
+    if (this.playerSkinToolEraseButton) {
+      this.playerSkinToolEraseButton.classList.toggle('active', editor.tool === 'erase');
+    }
+  }
+
+  _setPlayerSkinColor(color) {
+    const editor = this._playerSkinEditor;
+    if (!editor) return;
+    if (typeof color === 'string' && color.length > 0) {
+      editor.color = color;
+    }
+  }
+
+  _clearPlayerSkinCanvas() {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.ctx) return;
+    editor.ctx.clearRect(0, 0, editor.canvas.width, editor.canvas.height);
+  }
+
+  _applyPlayerSkinFromEditor() {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.canvas) return;
+    const dataUrl = editor.canvas.toDataURL('image/png');
+    const sizeScale = Number.isFinite(editor.size) && Number.isFinite(editor.hitRadius) && editor.hitRadius > 0
+      ? editor.size / editor.hitRadius
+      : 4;
+    this._emitPlayerSkinSelect({ type: 'image', src: dataUrl, sizeScale });
+    this.hidePlayerSkinEditorModal();
+  }
+
+  _getPlayerSkinPixelFromEvent(event) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.canvas) return null;
+    const rect = editor.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * editor.canvas.width);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * editor.canvas.height);
+    if (x < 0 || y < 0 || x >= editor.canvas.width || y >= editor.canvas.height) return null;
+    return { x, y };
+  }
+
+  _paintPlayerSkinPixel(x, y) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.ctx) return;
+    if (editor.tool === 'erase') {
+      editor.ctx.clearRect(x, y, 1, 1);
+      return;
+    }
+    editor.ctx.fillStyle = editor.color || '#ffffff';
+    editor.ctx.fillRect(x, y, 1, 1);
+  }
+
+  _handlePlayerSkinPointerDown(event) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.canvas) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const point = this._getPlayerSkinPixelFromEvent(event);
+    if (!point) return;
+    editor.isDrawing = true;
+    editor.canvas.setPointerCapture?.(event.pointerId);
+    this._paintPlayerSkinPixel(point.x, point.y);
+  }
+
+  _handlePlayerSkinPointerMove(event) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.isDrawing) return;
+    const point = this._getPlayerSkinPixelFromEvent(event);
+    if (!point) return;
+    this._paintPlayerSkinPixel(point.x, point.y);
+  }
+
+  _handlePlayerSkinPointerUp(event) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.canvas) return;
+    editor.isDrawing = false;
+    editor.canvas.releasePointerCapture?.(event.pointerId);
+  }
+
+  _refreshPlayerSkinGuide() {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.guideCanvas || !editor.guideCtx) return;
+    const size = Math.round(editor.guideCanvas.clientWidth);
+    if (!size) return;
+    if (editor.guideCanvas.width !== size || editor.guideCanvas.height !== size) {
+      editor.guideCanvas.width = size;
+      editor.guideCanvas.height = size;
+    }
+    const ctx = editor.guideCtx;
+    ctx.clearRect(0, 0, size, size);
+    const scale = size / editor.canvas.width;
+    const center = size / 2;
+    const hitRadius = editor.hitRadius * scale;
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = Math.max(1, Math.round(scale * 0.4));
+    ctx.setLineDash([Math.max(2, scale * 1.2), Math.max(2, scale * 1.2)]);
+    ctx.beginPath();
+    ctx.arc(center, center, hitRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   _ensureSlotImage(slot) {
@@ -529,6 +748,7 @@ export class UIController {
   }
 
   setPlayerSkinPreview(skin) {
+    this._currentPlayerSkin = skin && typeof skin === 'object' ? skin : null;
     if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
       this._setPlayerPreview(skin.src);
       return;
@@ -1085,6 +1305,15 @@ export class UIController {
 
   hidePlayerCustomizeModal() {
     if (this.playerCustomizeModal) this.playerCustomizeModal.style.display = 'none';
+  }
+
+  showPlayerSkinEditorModal() {
+    if (this.playerSkinEditorModal) this.playerSkinEditorModal.style.display = 'flex';
+    this._preparePlayerSkinEditor();
+  }
+
+  hidePlayerSkinEditorModal() {
+    if (this.playerSkinEditorModal) this.playerSkinEditorModal.style.display = 'none';
   }
 
   showObstacleCustomizeModal() {

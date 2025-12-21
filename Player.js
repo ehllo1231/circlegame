@@ -34,7 +34,8 @@ export class Player {
         const skin = this.skin;
         const renderRadius = Number.isFinite(this.renderRadius) ? this.renderRadius : this.radius;
         if (skin && skin.type === 'image' && skin.image && skin.image.complete) {
-            const baseSize = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * 2;
+            const sizeScale = (Number.isFinite(skin.sizeScale) && skin.sizeScale > 0) ? skin.sizeScale : 2;
+            const baseSize = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * sizeScale;
             const drawSize = Math.max(1, snapToPixel ? Math.round(baseSize) : baseSize);
             const drawX = snapToPixel
                 ? Math.round(scaledX - drawSize / 2)
