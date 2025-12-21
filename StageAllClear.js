@@ -99,7 +99,15 @@ class StageAllClearOverlay {
     if (messageAlpha > 0 && this.messageText) {
       ctx.save();
       ctx.globalAlpha = messageAlpha;
-      ctx.font = this._scaleFont(this.messageFontSpec, viewportScale);
+      const messageMaxWidth = width * 0.9;
+      const messageFont = this._fitFontToWidth(
+        ctx,
+        this.messageText,
+        this.messageFontSpec,
+        viewportScale,
+        messageMaxWidth,
+      );
+      ctx.font = messageFont;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (this.messageShadowColor) {
@@ -110,12 +118,11 @@ class StageAllClearOverlay {
       const centerX = width / 2;
       const centerY = height / 2 + this.messageOffsetY;
       const messageCenterY = centerY + this.messageOffsetY;
-      const metrics = drawTextBlock({
+      const metrics = drawTextLines({
         ctx,
         text: this.messageText,
         x: centerX,
         y: messageCenterY,
-        maxWidth: width * 0.8,
         lineHeight: this._computeLineHeight(ctx),
         returnMetrics: true,
       });
@@ -192,6 +199,28 @@ class StageAllClearOverlay {
     const metrics = ctx.measureText('M');
     const base = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
     return Math.max(24, base * 1.4);
+  }
+
+  _fitFontToWidth(ctx, text, fontSpec, viewportScale, maxWidth) {
+    const baseFont = this._scaleFont(fontSpec, viewportScale);
+    if (!ctx || !text || !Number.isFinite(maxWidth) || maxWidth <= 0) return baseFont;
+    ctx.font = baseFont;
+    const lines = splitTextLines(text);
+    let widest = 0;
+    for (const line of lines) {
+      if (!line) continue;
+      const metrics = ctx.measureText(line);
+      widest = Math.max(widest, metrics.width);
+    }
+    if (!Number.isFinite(widest) || widest <= 0 || widest <= maxWidth) return baseFont;
+    const scale = maxWidth / widest;
+    const match = baseFont.match(/(\d+(?:\.\d+)?)px\b/);
+    if (!match) return baseFont;
+    const baseSize = Number.parseFloat(match[1]);
+    if (!Number.isFinite(baseSize) || baseSize <= 0) return baseFont;
+    const targetSize = baseSize * scale;
+    const rounded = Math.round(targetSize * 10) / 10;
+    return baseFont.replace(match[0], `${rounded}px`);
   }
 
   _computeViewportScale(canvas) {
@@ -629,6 +658,37 @@ function drawTextBlock({
     totalHeight,
     lines: lines.length,
   };
+}
+
+function drawTextLines({
+  ctx,
+  text,
+  x,
+  y,
+  lineHeight,
+  returnMetrics = false,
+}) {
+  if (!ctx || text == null) return null;
+  const lines = splitTextLines(text);
+  const totalHeight = lineHeight * (lines.length - 1);
+  const startY = y - totalHeight / 2;
+  let offsetY = 0;
+  let lastBaseline = startY;
+  for (const content of lines) {
+    ctx.fillText(content, x, startY + offsetY);
+    lastBaseline = startY + offsetY;
+    offsetY += lineHeight;
+  }
+  if (!returnMetrics) return null;
+  return {
+    lastBaseline,
+    totalHeight,
+    lines: lines.length,
+  };
+}
+
+function splitTextLines(text) {
+  return String(text).split(/\n/g).map((line) => line.trim());
 }
 
 function resolveFontString(font, fallback) {

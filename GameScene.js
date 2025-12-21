@@ -14,6 +14,7 @@ export class GameScene {
     this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
     this.playerSkin = null;
     this.obstacleSkin = null;
+    this.ringSkin = null;
 
     this.playerHitFlash = 0;
     this._snowShouldDraw = false;
@@ -72,6 +73,10 @@ export class GameScene {
     if (this.obstacleManager && typeof this.obstacleManager.setSkin === 'function') {
       this.obstacleManager.setSkin(skin);
     }
+  }
+
+  setRingSkin(skin) {
+    this.ringSkin = skin;
   }
 
   resetForNewRun() {
@@ -270,8 +275,29 @@ export class GameScene {
   }
 
   _drawOrbit(ctx, centerX, centerY, orbitRadius) {
-    ctx.strokeStyle = ORBIT.color ?? '#ffffff';
-    ctx.lineWidth = ORBIT.lineWidth ?? 2;
+    const ringSkin = this.ringSkin;
+    const baseColor = ORBIT.color ?? '#ffffff';
+    const baseLineWidth = ORBIT.lineWidth ?? 2;
+    const lineWidth = Number.isFinite(ringSkin?.lineWidth) ? ringSkin.lineWidth : baseLineWidth;
+    const ringColor = (ringSkin?.type === 'color' && typeof ringSkin.color === 'string' && ringSkin.color.length > 0)
+      ? ringSkin.color
+      : baseColor;
+    const ringImage = ringSkin?.type === 'image' ? ringSkin?.image : null;
+    const renderScale = (Number.isFinite(ringSkin?.renderScale) && ringSkin.renderScale > 0)
+      ? ringSkin.renderScale
+      : 1;
+
+    if (ringImage && ringImage.complete) {
+      const size = Math.max(1, orbitRadius * 2 * renderScale);
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.drawImage(ringImage, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      return;
+    }
+
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = lineWidth;
     ctx.beginPath();
     ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
     ctx.stroke();

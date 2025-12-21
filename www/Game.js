@@ -22,6 +22,7 @@ const PLAYER_START_ANGLE = Math.PI / 2;
 const EXTRA_STAGE_UNLOCK_KEY = 'orbit_extra_stage_unlocked';
 const PLAYER_SKIN_STORAGE_KEY = 'orbit_player_skin';
 const OBSTACLE_SKIN_STORAGE_KEY = 'orbit_obstacle_skin';
+const RING_SKIN_STORAGE_KEY = 'orbit_ring_skin';
 
 // Game - main controller
 export class Game {
@@ -81,6 +82,10 @@ export class Game {
     this.obstacleSkin = this._normalizeObstacleSkin({ type: 'default' });
     if (this.scene && typeof this.scene.setObstacleSkin === 'function') {
       this.scene.setObstacleSkin(this.obstacleSkin);
+    }
+    this.ringSkin = this._normalizeRingSkin({ type: 'default' });
+    if (this.scene && typeof this.scene.setRingSkin === 'function') {
+      this.scene.setRingSkin(this.ringSkin);
     }
     this._loadPersistedSkins();
     this.extraStageSnow = new ExtraStageSnowController({
@@ -188,6 +193,7 @@ export class Game {
       onConfirmReset: () => this.resetHighScores(),
       onPlayerSkinSelect: (skin) => this.applyPlayerSkin(skin),
       onObstacleSkinSelect: (skin) => this.applyObstacleSkin(skin),
+      onRingSkinSelect: (skin) => this.applyRingSkin(skin),
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
       onPauseStageSelect: () => this.handlePauseStageSelect(),
@@ -535,14 +541,25 @@ export class Game {
     const handler = (event) => {
       if (!this.gameStarted || this.gameOver || this.isPaused) return;
       const hidden = document.visibilityState === 'hidden';
-      if (hidden || event?.type === 'pagehide') {
+      if (hidden || event?.type === 'pagehide' || event?.type === 'pause' || event?.type === 'appStateChange') {
         this.pauseGame();
       }
     };
     document.addEventListener('visibilitychange', handler);
+    document.addEventListener('pause', handler);
     window.addEventListener('pagehide', handler);
     window.addEventListener('blur', handler);
     this._lifecycleHandler = handler;
+
+    const cap = (typeof globalThis !== 'undefined' && globalThis.Capacitor) ? globalThis.Capacitor : null;
+    const app = cap?.App || cap?.Plugins?.App;
+    if (app && typeof app.addListener === 'function') {
+      app.addListener('appStateChange', (state) => {
+        if (state?.isActive === false) {
+          handler({ type: 'appStateChange' });
+        }
+      });
+    }
   }
 
   applyFastForwardStageEnd() {
@@ -774,6 +791,10 @@ export class Game {
     if (storedObstacle) {
       this.applyObstacleSkin(storedObstacle);
     }
+    const storedRing = this._readSkinFromStorage(RING_SKIN_STORAGE_KEY);
+    if (storedRing) {
+      this.applyRingSkin(storedRing);
+    }
   }
 
   _readSkinFromStorage(storageKey) {
@@ -839,6 +860,27 @@ export class Game {
     return payload;
   }
 
+  _serializeRingSkin(skin) {
+    if (!skin || typeof skin !== 'object') return null;
+    const payload = {};
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      payload.type = 'image';
+      payload.src = skin.src;
+    } else if (typeof skin.color === 'string' && skin.color.length > 0) {
+      payload.type = 'color';
+      payload.color = skin.color;
+    } else {
+      payload.type = 'default';
+    }
+    if (Number.isFinite(skin.lineWidth)) {
+      payload.lineWidth = skin.lineWidth;
+    }
+    if (Number.isFinite(skin.renderScale) && skin.renderScale !== 1) {
+      payload.renderScale = skin.renderScale;
+    }
+    return payload;
+  }
+
   _persistPlayerSkin(skin) {
     const payload = this._serializePlayerSkin(skin);
     const shouldClear = !payload
@@ -855,6 +897,15 @@ export class Game {
         && !Number.isFinite(payload.renderScale)
         && !Number.isFinite(payload.hitScale));
     this._writeSkinToStorage(OBSTACLE_SKIN_STORAGE_KEY, shouldClear ? null : payload);
+  }
+
+  _persistRingSkin(skin) {
+    const payload = this._serializeRingSkin(skin);
+    const shouldClear = !payload
+      || (payload.type === 'default'
+        && !Number.isFinite(payload.lineWidth)
+        && !Number.isFinite(payload.renderScale));
+    this._writeSkinToStorage(RING_SKIN_STORAGE_KEY, shouldClear ? null : payload);
   }
 
   _getHighScoreStorageKey(stageId) {
@@ -1138,6 +1189,17 @@ export class Game {
     }
   }
 
+  applyRingSkin(skin = null) {
+    this.ringSkin = this._normalizeRingSkin(skin);
+    if (this.scene && typeof this.scene.setRingSkin === 'function') {
+      this.scene.setRingSkin(this.ringSkin);
+    }
+    this._persistRingSkin(this.ringSkin);
+    if (this.ui && typeof this.ui.setRingSkinPreview === 'function') {
+      this.ui.setRingSkinPreview(this.ringSkin);
+    }
+  }
+
   _normalizePlayerSkin(skin) {
     const fallback = {
       type: 'circle',
@@ -1192,6 +1254,30 @@ export class Game {
     }
     const color = (typeof skin.color === 'string' && skin.color.length > 0) ? skin.color : fallback.color;
     return { type: 'color', color, image: null, src: null, renderScale, hitScale };
+  }
+
+  _normalizeRingSkin(skin) {
+    const fallback = {
+      type: 'default',
+      color: null,
+      image: null,
+      src: null,
+      lineWidth: null,
+      renderScale: 1,
+    };
+    if (!skin || typeof skin !== 'object') return fallback;
+    const lineWidth = Number.isFinite(skin.lineWidth) ? skin.lineWidth : null;
+    const renderScale = (Number.isFinite(skin.renderScale) && skin.renderScale > 0) ? skin.renderScale : 1;
+    if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      const image = new Image();
+      image.src = skin.src;
+      return { type: 'image', color: null, image, src: skin.src, lineWidth, renderScale };
+    }
+    const color = typeof skin.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    if (skin.type === 'color' || color) {
+      return { type: 'color', color, image: null, src: null, lineWidth, renderScale };
+    }
+    return { type: 'default', color: null, image: null, src: null, lineWidth, renderScale };
   }
 
   resizeCanvas({ width, height } = {}) {

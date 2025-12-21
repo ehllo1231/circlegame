@@ -238,25 +238,25 @@ export const STAGE_THEMES = {
   },
   stageAllClear: {
     background: '#000000',
-    fadeDurationSec: 0.6,
+    fadeDurationSec: 5,
   },
 };
 
 export const STAGE_ALL_CLEAR = {
-  retractDelaySec: 0.2,
-  retractDurationSec: 2.1,
+  retractDelaySec: 1,
+  retractDurationSec: 5,
   retractEaseExponent: 1.25,
   disableCollisionBelowPx: 4,
   targetInsetPx: 48,
   removeAfterRetract: true,
   fade: {
-    delaySec: 1,
+    delaySec: 3,
     durationSec: 5.0,
     color: '#000000',
   },
   message: {
     text: 'Congratulations!! You cleared all stages.\n\n Thank you for playing!',
-    font: '50px "Pretendard", "Noto Sans KR", Arial, sans-serif',
+    font: '50px "DungGeunMo", "Galmuri9", "NeoDunggeunmo", "Press Start 2P", "PixelMplus10", "VT323", "Noto Sans KR", Arial, sans-serif',
     color: '#ffe600',
     shadowColor: 'rgba(0, 0, 0, 0.7)',
     offsetY: 0,
@@ -265,7 +265,7 @@ export const STAGE_ALL_CLEAR = {
   },
   prompt: {
     text: 'Press any key to continue',
-    font: '28px "Pretendard", "Noto Sans KR", Arial, sans-serif',
+    font: '28px "DungGeunMo", "Galmuri9", "NeoDunggeunmo", "Press Start 2P", "PixelMplus10", "VT323", "Noto Sans KR", Arial, sans-serif',
     color: '#4d4d4d',
     shadowColor: 'rgba(0, 0, 0, 0.45)',
     offsetY: 100,

@@ -26,6 +26,7 @@ export class UIController {
     this.customizeButton = document.getElementById('customizeButton');
     this.customizePlayerButton = document.getElementById('customizePlayerButton');
     this.customizeObstacleButton = document.getElementById('customizeObstacleButton');
+    this.customizeRingButton = document.getElementById('customizeRingButton');
     this.settingsModal = document.getElementById('settingsModal');
     this.settingsResetButton = document.getElementById('settingsResetButton');
     this.closeSettingsButton = document.getElementById('closeSettingsButton');
@@ -37,12 +38,16 @@ export class UIController {
     this.closeCustomizeButton = document.getElementById('closeCustomizeButton');
     this.playerCustomizeModal = document.getElementById('playerCustomizeModal');
     this.obstacleCustomizeModal = document.getElementById('obstacleCustomizeModal');
+    this.ringCustomizeModal = document.getElementById('ringCustomizeModal');
     this.closePlayerCustomizeButton = document.getElementById('closePlayerCustomizeButton');
     this.closeObstacleCustomizeButton = document.getElementById('closeObstacleCustomizeButton');
+    this.closeRingCustomizeButton = document.getElementById('closeRingCustomizeButton');
     this.playerPreviewImage = document.getElementById('playerPreviewImage');
     this.playerPreviewDefault = this.playerCustomizeModal?.querySelector('.preview-circle') ?? null;
     this.obstaclePreviewSpike = document.getElementById('obstaclePreviewSpike');
     this.obstaclePreviewImage = document.getElementById('obstaclePreviewImage');
+    this.ringPreviewRing = document.getElementById('ringPreviewRing');
+    this.ringPreviewImage = document.getElementById('ringPreviewImage');
     this.playerPages = Array.from(this.playerCustomizeModal?.querySelectorAll('.customize-page') ?? []);
     this.playerPagePrevButton = document.getElementById('playerPagePrev');
     this.playerPageNextButton = document.getElementById('playerPageNext');
@@ -51,10 +56,16 @@ export class UIController {
     this.obstaclePagePrevButton = document.getElementById('obstaclePagePrev');
     this.obstaclePageNextButton = document.getElementById('obstaclePageNext');
     this.obstaclePageIndicator = document.getElementById('obstaclePageIndicator');
+    this.ringPages = Array.from(this.ringCustomizeModal?.querySelectorAll('.customize-page') ?? []);
+    this.ringPagePrevButton = document.getElementById('ringPagePrev');
+    this.ringPageNextButton = document.getElementById('ringPageNext');
+    this.ringPageIndicator = document.getElementById('ringPageIndicator');
     this._onPlayerSkinSelect = null;
     this._onObstacleSkinSelect = null;
+    this._onRingSkinSelect = null;
     this._playerPageIndex = 0;
     this._obstaclePageIndex = 0;
+    this._ringPageIndex = 0;
     this.selectedStageId = null;
     this.stageExState = new Map();
     this.stageLabelDefaults = new Map();
@@ -80,6 +91,7 @@ export class UIController {
     this.applyUIConfig();
     this._initPlayerCustomizeSlots();
     this._initObstacleCustomizeSlots();
+    this._initRingCustomizeSlots();
     this._initCustomizePagination({
       pages: this.playerPages,
       prevButton: this.playerPagePrevButton,
@@ -93,6 +105,13 @@ export class UIController {
       nextButton: this.obstaclePageNextButton,
       indicator: this.obstaclePageIndicator,
       indexKey: '_obstaclePageIndex',
+    });
+    this._initCustomizePagination({
+      pages: this.ringPages,
+      prevButton: this.ringPagePrevButton,
+      nextButton: this.ringPageNextButton,
+      indicator: this.ringPageIndicator,
+      indexKey: '_ringPageIndex',
     });
   }
 
@@ -294,6 +313,40 @@ export class UIController {
     });
   }
 
+  _initRingCustomizeSlots() {
+    if (!this.ringCustomizeModal) return;
+    const defaultSlot = this.ringCustomizeModal.querySelector('[data-ring-default="true"]');
+    if (defaultSlot) {
+      defaultSlot.addEventListener('click', () => {
+        const overrides = this._getRingScaleOverrides(defaultSlot);
+        this._setRingPreviewColor(null);
+        this._emitRingSkinSelect({ type: 'default', ...overrides });
+      });
+    }
+    const colorSlots = Array.from(this.ringCustomizeModal.querySelectorAll('[data-ring-color]'));
+    colorSlots.forEach((slot) => {
+      const color = slot.dataset?.ringColor;
+      if (!color) return;
+      slot.addEventListener('click', () => {
+        const overrides = this._getRingScaleOverrides(slot);
+        this._setRingPreviewColor(color);
+        this._emitRingSkinSelect({ type: 'color', color, ...overrides });
+      });
+    });
+    const imageSlots = Array.from(this.ringCustomizeModal.querySelectorAll('[data-ring-image-src]'));
+    imageSlots.forEach((slot) => {
+      const src = slot.dataset?.ringImageSrc;
+      if (!src) return;
+      const img = this._ensureSlotImage(slot);
+      if (img) img.src = src;
+      slot.addEventListener('click', () => {
+        const overrides = this._getRingScaleOverrides(slot);
+        this._setRingPreviewImage(src);
+        this._emitRingSkinSelect({ type: 'image', src, ...overrides });
+      });
+    });
+  }
+
   _ensureSlotImage(slot) {
     if (!slot || typeof document === 'undefined') return null;
     let container = slot.querySelector('.customize-slot-content');
@@ -328,6 +381,16 @@ export class UIController {
     const hitScale = parseFloat(slot.dataset?.obstacleHitScale ?? '');
     const renderScale = parseFloat(slot.dataset?.obstacleRenderScale ?? '');
     if (Number.isFinite(hitScale)) overrides.hitScale = hitScale;
+    if (Number.isFinite(renderScale)) overrides.renderScale = renderScale;
+    return overrides;
+  }
+
+  _getRingScaleOverrides(slot) {
+    if (!slot) return {};
+    const overrides = {};
+    const lineWidth = parseFloat(slot.dataset?.ringLineWidth ?? '');
+    const renderScale = parseFloat(slot.dataset?.ringRenderScale ?? '');
+    if (Number.isFinite(lineWidth)) overrides.lineWidth = lineWidth;
     if (Number.isFinite(renderScale)) overrides.renderScale = renderScale;
     return overrides;
   }
@@ -414,6 +477,34 @@ export class UIController {
     }
   }
 
+  _setRingPreviewColor(color) {
+    if (this.ringPreviewImage) {
+      this.ringPreviewImage.src = '';
+      this.ringPreviewImage.style.display = 'none';
+    }
+    if (!this.ringPreviewRing) return;
+    this.ringPreviewRing.style.display = 'block';
+    if (color) {
+      this.ringPreviewRing.style.borderColor = color;
+    } else {
+      this.ringPreviewRing.style.borderColor = '';
+    }
+  }
+
+  _setRingPreviewImage(preview) {
+    const hasPreview = typeof preview === 'string' && preview.length > 0;
+    if (this.ringPreviewImage) {
+      this.ringPreviewImage.src = hasPreview ? preview : '';
+      this.ringPreviewImage.style.display = hasPreview ? 'block' : 'none';
+    }
+    if (this.ringPreviewRing) {
+      this.ringPreviewRing.style.display = hasPreview ? 'none' : 'block';
+    }
+    if (!hasPreview) {
+      this._setRingPreviewColor(null);
+    }
+  }
+
   setPlayerSkinPreview(skin) {
     if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
       this._setPlayerPreview(skin.src);
@@ -438,6 +529,19 @@ export class UIController {
       return;
     }
     this._setObstaclePreviewColor(null);
+  }
+
+  setRingSkinPreview(skin) {
+    if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
+      this._setRingPreviewImage(skin.src);
+      return;
+    }
+    const color = typeof skin?.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    if (color) {
+      this._setRingPreviewColor(color);
+      return;
+    }
+    this._setRingPreviewColor(null);
   }
 
   _initCustomizePagination({ pages, prevButton, nextButton, indicator, indexKey }) {
@@ -478,6 +582,12 @@ export class UIController {
   _emitObstacleSkinSelect(payload) {
     if (typeof this._onObstacleSkinSelect === 'function') {
       this._onObstacleSkinSelect(payload);
+    }
+  }
+
+  _emitRingSkinSelect(payload) {
+    if (typeof this._onRingSkinSelect === 'function') {
+      this._onRingSkinSelect(payload);
     }
   }
 
@@ -558,12 +668,14 @@ export class UIController {
     onConfirmReset,
     onPlayerSkinSelect,
     onObstacleSkinSelect,
+    onRingSkinSelect,
     onPause,
     onResume,
     onPauseStageSelect,
   } = {}) {
     this._onPlayerSkinSelect = typeof onPlayerSkinSelect === 'function' ? onPlayerSkinSelect : null;
     this._onObstacleSkinSelect = typeof onObstacleSkinSelect === 'function' ? onObstacleSkinSelect : null;
+    this._onRingSkinSelect = typeof onRingSkinSelect === 'function' ? onRingSkinSelect : null;
     if (this.gameStartButton) {
       this.gameStartButton.addEventListener('click', () => {
         if (onIntroStart) onIntroStart();
@@ -620,13 +732,22 @@ export class UIController {
     if (this.customizePlayerButton) {
       this.customizePlayerButton.addEventListener('click', () => {
         this.hideObstacleCustomizeModal();
+        this.hideRingCustomizeModal();
         this.showPlayerCustomizeModal();
       });
     }
     if (this.customizeObstacleButton) {
       this.customizeObstacleButton.addEventListener('click', () => {
         this.hidePlayerCustomizeModal();
+        this.hideRingCustomizeModal();
         this.showObstacleCustomizeModal();
+      });
+    }
+    if (this.customizeRingButton) {
+      this.customizeRingButton.addEventListener('click', () => {
+        this.hidePlayerCustomizeModal();
+        this.hideObstacleCustomizeModal();
+        this.showRingCustomizeModal();
       });
     }
     if (this.closeSettingsButton) {
@@ -643,6 +764,11 @@ export class UIController {
     if (this.closeObstacleCustomizeButton) {
       this.closeObstacleCustomizeButton.addEventListener('click', () => {
         this.hideObstacleCustomizeModal();
+      });
+    }
+    if (this.closeRingCustomizeButton) {
+      this.closeRingCustomizeButton.addEventListener('click', () => {
+        this.hideRingCustomizeModal();
       });
     }
     if (this.closeCustomizeButton) {
@@ -693,6 +819,7 @@ export class UIController {
     this.hideCustomizeModal();
     this.hidePlayerCustomizeModal();
     this.hideObstacleCustomizeModal();
+    this.hideRingCustomizeModal();
   }
 
   showIntro() {
@@ -707,6 +834,7 @@ export class UIController {
     this.hideCustomizeModal();
     this.hidePlayerCustomizeModal();
     this.hideObstacleCustomizeModal();
+    this.hideRingCustomizeModal();
     if (this.stageSelectLabel) {
       const stageId = this.selectedStageId || 'stage1';
       this.setStageSelection(stageId, { ex: this.isStageEx(stageId) });
@@ -727,6 +855,7 @@ export class UIController {
     this.hideCustomizeModal();
     this.hidePlayerCustomizeModal();
     this.hideObstacleCustomizeModal();
+    this.hideRingCustomizeModal();
   }
 
   isIntroVisible() {
@@ -941,6 +1070,14 @@ export class UIController {
 
   hideObstacleCustomizeModal() {
     if (this.obstacleCustomizeModal) this.obstacleCustomizeModal.style.display = 'none';
+  }
+
+  showRingCustomizeModal() {
+    if (this.ringCustomizeModal) this.ringCustomizeModal.style.display = 'flex';
+  }
+
+  hideRingCustomizeModal() {
+    if (this.ringCustomizeModal) this.ringCustomizeModal.style.display = 'none';
   }
 
   showResetConfirmModal() {
