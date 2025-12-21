@@ -18,8 +18,14 @@ export class Obstacle {
     }
     
     draw(ctx, centerX, centerY) {
-        const drawLength = Number.isFinite(this.renderLength) ? this.renderLength : this.length;
+        const hitLength = Number.isFinite(this.length) ? this.length : 0;
+        const drawLength = Number.isFinite(this.renderLength) ? this.renderLength : hitLength;
         const drawBaseWidth = Number.isFinite(this.renderBaseWidth) ? this.renderBaseWidth : this.baseWidth;
+        // Anchor render size at the hit tip so visual scaling grows outward from the tip.
+        const renderOffset = (Number.isFinite(drawLength) && Number.isFinite(hitLength))
+            ? (drawLength - hitLength)
+            : 0;
+        const baseRadius = this.radius + renderOffset;
         const image = this.image;
         if (image && image.complete) {
             const imgW = image.naturalWidth || image.width;
@@ -39,12 +45,12 @@ export class Obstacle {
                 ctx.translate(centerX, centerY);
                 ctx.rotate(this.angle);
                 if (rotateImage) {
-                    const centerXPos = this.radius - (drawH / 2);
+                    const centerXPos = baseRadius - (drawH / 2);
                     ctx.translate(centerXPos, 0);
                     ctx.rotate(Math.PI / 2);
                     ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
                 } else {
-                    ctx.drawImage(image, this.radius - drawW, -drawH / 2, drawW, drawH);
+                    ctx.drawImage(image, baseRadius - drawW, -drawH / 2, drawW, drawH);
                 }
                 ctx.restore();
                 return;
@@ -55,9 +61,9 @@ export class Obstacle {
         ctx.rotate(this.angle);
         
         ctx.beginPath();
-        ctx.moveTo(this.radius - drawLength, 0);
-        ctx.lineTo(this.radius, -drawBaseWidth / 2);
-        ctx.lineTo(this.radius, drawBaseWidth / 2);
+        ctx.moveTo(baseRadius - drawLength, 0);
+        ctx.lineTo(baseRadius, -drawBaseWidth / 2);
+        ctx.lineTo(baseRadius, drawBaseWidth / 2);
         ctx.closePath();
         ctx.fillStyle = this.color || '#ffffff';
         ctx.fill();
