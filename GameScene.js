@@ -254,18 +254,13 @@ export class GameScene {
       : '#ffffff';
     this.player.color = (this.playerHitFlash > 0) ? '#ff4444' : baseColor;
     const playerHasImage = this.player?.skin?.type === 'image';
-    if (rhythmActive && !playerHasImage) {
-      this.rhythmEffect.applyTransform(ctx, centerX, centerY);
-    }
+    const rhythmScale = rhythmActive ? this.rhythmEffect.scale : 1;
     this.player.draw(ctx, {
       centerX,
       centerY,
-      rhythmScale: playerHasImage ? 1 : (rhythmActive ? this.rhythmEffect.scale : 1),
+      rhythmScale,
       snapToPixel: playerHasImage,
     });
-    if (rhythmActive && !playerHasImage) {
-      this.rhythmEffect.restoreTransform(ctx);
-    }
   }
 
   reversePlayerDirection() {

@@ -25,20 +25,17 @@ export class Player {
         const snapToPixel = options.snapToPixel !== false;
         const playerX = centerX + Math.cos(this.angle) * this.orbitRadius;
         const playerY = centerY + Math.sin(this.angle) * this.orbitRadius;
+        const scaledX = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
+            ? centerX + (playerX - centerX) * rhythmScale
+            : playerX;
+        const scaledY = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
+            ? centerY + (playerY - centerY) * rhythmScale
+            : playerY;
         const skin = this.skin;
         const renderRadius = Number.isFinite(this.renderRadius) ? this.renderRadius : this.radius;
         if (skin && skin.type === 'image' && skin.image && skin.image.complete) {
             const baseSize = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * 2;
-            const scaledX = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
-                ? centerX + (playerX - centerX) * rhythmScale
-                : playerX;
-            const scaledY = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
-                ? centerY + (playerY - centerY) * rhythmScale
-                : playerY;
-            const scaledSize = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
-                ? baseSize * rhythmScale
-                : baseSize;
-            const drawSize = Math.max(1, snapToPixel ? Math.round(scaledSize) : scaledSize);
+            const drawSize = Math.max(1, snapToPixel ? Math.round(baseSize) : baseSize);
             const drawX = snapToPixel
                 ? Math.round(scaledX - drawSize / 2)
                 : (scaledX - drawSize / 2);
@@ -54,7 +51,7 @@ export class Player {
 
         ctx.fillStyle = this.color || this.baseColor || '#ffffff';
         ctx.beginPath();
-        ctx.arc(playerX, playerY, renderRadius, 0, 2 * Math.PI);
+        ctx.arc(scaledX, scaledY, renderRadius, 0, 2 * Math.PI);
         ctx.fill();
     }
     
