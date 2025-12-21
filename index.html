@@ -51,6 +51,9 @@
         #customizeButton .customize-label { font-weight: 700; font-size: calc(var(--settings-btn-size, 46px) * 0.45); font-family: Arial, sans-serif; line-height: 1; letter-spacing: 0.03em; }
         .modal-overlay { position: absolute; inset: 0; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); z-index: 16; padding: 16px; }
         .modal-card { position: relative; background: rgba(12,12,12,0.92); padding: 24px 28px; border-radius: 16px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 10px 36px rgba(0,0,0,0.35); min-width: 260px; max-width: 400px; align-items: stretch; }
+        .unlock-requirement-modal { z-index: 20; }
+        .unlock-requirement-card { max-width: 360px; text-align: center; }
+        .unlock-requirement-message { font: 600 16px Arial, sans-serif; color: #ffffff; text-align: center; }
         .modal-title { font: bold 28px Arial, sans-serif; color: #fff; text-align: center; }
         .modal-body { color: #d0d0d0; font: 15px Arial, sans-serif; line-height: 1.5; text-align: center; }
         .modal-actions { display: flex; flex-direction: column; gap: 10px; }
@@ -708,6 +711,12 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="unlockRequirementModal" class="modal-overlay unlock-requirement-modal" role="dialog" aria-modal="true" aria-label="Unlock requirement" data-prevent-reverse="true">
+        <div class="modal-card unlock-requirement-card">
+            <div id="unlockRequirementMessage" class="unlock-requirement-message"></div>
         </div>
     </div>
 

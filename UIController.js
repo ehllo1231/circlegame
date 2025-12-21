@@ -35,6 +35,8 @@ export class UIController {
     this.resetConfirmModal = document.getElementById('resetConfirmModal');
     this.confirmResetButton = document.getElementById('confirmResetButton');
     this.cancelResetButton = document.getElementById('cancelResetButton');
+    this.unlockRequirementModal = document.getElementById('unlockRequirementModal');
+    this.unlockRequirementMessage = document.getElementById('unlockRequirementMessage');
     this.customizeModal = document.getElementById('customizeModal');
     this.closeCustomizeButton = document.getElementById('closeCustomizeButton');
     this.playerCustomizeModal = document.getElementById('playerCustomizeModal');
@@ -83,6 +85,8 @@ export class UIController {
     this._customPlayerSkin = null;
     this._playerSkinEditor = null;
     this._playerSkinEditorResizeHandler = null;
+    this._unlockRequirementKeyHandler = null;
+    this._unlockRequirementPointerHandler = null;
     this._playerPageIndex = 0;
     this._obstaclePageIndex = 0;
     this._ringPageIndex = 0;
@@ -250,6 +254,7 @@ export class UIController {
     const defaultSlot = this.playerCustomizeModal.querySelector('[data-player-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(defaultSlot)) return;
         const overrides = this._getPlayerRadiusOverrides(defaultSlot);
         this._setPlayerPreview(null);
         this._emitPlayerSkinSelect({ type: 'default', ...overrides });
@@ -260,6 +265,7 @@ export class UIController {
       const color = slot.dataset?.playerColor;
       if (!color) return;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getPlayerRadiusOverrides(slot);
         this._setPlayerPreviewColor(color);
         this._emitPlayerSkinSelect({ type: 'color', color, ...overrides });
@@ -278,6 +284,7 @@ export class UIController {
         if (img) img.src = preview;
       });
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const preview = slot.dataset?.pixilPreview;
         if (preview) {
           const overrides = this._getPlayerRadiusOverrides(slot);
@@ -293,6 +300,7 @@ export class UIController {
       const img = this._ensureSlotImage(slot);
       if (img) img.src = src;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getPlayerRadiusOverrides(slot);
         this._setPlayerPreview(src);
         this._emitPlayerSkinSelect({ type: 'image', src, ...overrides });
@@ -301,6 +309,7 @@ export class UIController {
     const customSlot = this.playerCustomizeModal.querySelector('[data-player-custom="true"]');
     if (customSlot) {
       customSlot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(customSlot)) return;
         this.showPlayerSkinEditorModal();
       });
     }
@@ -311,6 +320,7 @@ export class UIController {
     const defaultSlot = this.obstacleCustomizeModal.querySelector('[data-obstacle-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(defaultSlot)) return;
         const overrides = this._getObstacleScaleOverrides(defaultSlot);
         this._setObstaclePreviewColor(null);
         this._emitObstacleSkinSelect({ type: 'default', ...overrides });
@@ -321,6 +331,7 @@ export class UIController {
       const color = slot.dataset?.obstacleColor;
       if (!color) return;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getObstacleScaleOverrides(slot);
         this._setObstaclePreviewColor(color);
         this._emitObstacleSkinSelect({ type: 'color', color, ...overrides });
@@ -333,6 +344,7 @@ export class UIController {
       const img = this._ensureSlotImage(slot);
       if (img) img.src = src;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getObstacleScaleOverrides(slot);
         this._setObstaclePreviewImage(src);
         this._emitObstacleSkinSelect({ type: 'image', src, ...overrides });
@@ -345,6 +357,7 @@ export class UIController {
     const defaultSlot = this.ringCustomizeModal.querySelector('[data-ring-default="true"]');
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(defaultSlot)) return;
         const overrides = this._getRingScaleOverrides(defaultSlot);
         this._setRingPreviewColor(null, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'default', ...overrides });
@@ -355,6 +368,7 @@ export class UIController {
       const color = slot.dataset?.ringColor;
       if (!color) return;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getRingScaleOverrides(slot);
         this._setRingPreviewColor(color, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'color', color, ...overrides });
@@ -367,6 +381,7 @@ export class UIController {
       const img = this._ensureSlotImage(slot);
       if (img) img.src = src;
       slot.addEventListener('click', () => {
+        if (this._handleLockedSlotClick(slot)) return;
         const overrides = this._getRingScaleOverrides(slot);
         this._setRingPreviewImage(src, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'image', src, ...overrides });
@@ -393,8 +408,14 @@ export class UIController {
     }
     if (type === 'ring') {
       if (data.ringDefault === 'true') return 'ring:default';
-      if (data.ringColor) return `ring:color:${data.ringColor}`;
-      if (data.ringImageSrc) return `ring:image:${data.ringImageSrc}`;
+      if (data.ringColor) {
+        const key = `ring:color:${data.ringColor}`;
+        return data.ringGlow === 'true' ? `${key}:glow` : key;
+      }
+      if (data.ringImageSrc) {
+        const key = `ring:image:${data.ringImageSrc}`;
+        return data.ringGlow === 'true' ? `${key}:glow` : key;
+      }
       return null;
     }
     return null;
@@ -409,16 +430,72 @@ export class UIController {
     return score >= minScore;
   }
 
+  _setSlotUnlockRequirement(slot, requirement) {
+    if (!slot) return;
+    if (!requirement || requirement.unlocked === true) {
+      delete slot.dataset.unlockStage;
+      delete slot.dataset.unlockScore;
+      return;
+    }
+    if (requirement.stageId) {
+      slot.dataset.unlockStage = requirement.stageId;
+    } else {
+      delete slot.dataset.unlockStage;
+    }
+    if (Number.isFinite(requirement.minScore)) {
+      slot.dataset.unlockScore = String(requirement.minScore);
+    } else {
+      delete slot.dataset.unlockScore;
+    }
+  }
+
   _setSlotLocked(slot, locked) {
     if (!slot) return;
     const isLocked = !!locked;
     slot.classList.toggle('is-locked', isLocked);
-    slot.disabled = isLocked;
+    if (slot.disabled) slot.disabled = false;
+    if (isLocked) {
+      slot.dataset.locked = 'true';
+    } else {
+      delete slot.dataset.locked;
+    }
     if (isLocked) {
       slot.setAttribute('aria-disabled', 'true');
     } else {
       slot.removeAttribute('aria-disabled');
     }
+  }
+
+  _isSlotLocked(slot) {
+    if (!slot) return false;
+    return slot.dataset?.locked === 'true' || slot.classList.contains('is-locked');
+  }
+
+  _formatStageLabel(stageId) {
+    if (!stageId) return '';
+    const match = /^stage(\d+)(?:_ex)?$/i.exec(stageId);
+    if (match) {
+      const suffix = stageId.toLowerCase().endsWith('_ex') ? 'EX' : '';
+      return `stage${match[1]}${suffix}`;
+    }
+    return stageId.replace(/_/g, '');
+  }
+
+  _buildUnlockRequirementMessage(slot) {
+    const stageId = slot?.dataset?.unlockStage ?? '';
+    const rawScore = slot?.dataset?.unlockScore ?? '';
+    const minScore = rawScore ? Number.parseInt(rawScore, 10) : NaN;
+    if (!stageId) return 'Unlock requirement: ???';
+    if (Number.isFinite(minScore) && minScore > 60) return 'Unlock requirement: ???';
+    const stageLabel = this._formatStageLabel(stageId);
+    const scoreLabel = Number.isFinite(minScore) ? ` ${minScore} points` : '';
+    return `Unlock requirement: ${stageLabel}${scoreLabel}`;
+  }
+
+  _handleLockedSlotClick(slot) {
+    if (!this._isSlotLocked(slot)) return false;
+    this.showUnlockRequirement(this._buildUnlockRequirementMessage(slot));
+    return true;
   }
 
   applySlotLocks(stageScores = {}) {
@@ -439,6 +516,7 @@ export class UIController {
         const requirement = Object.prototype.hasOwnProperty.call(overrides, key)
           ? overrides[key]
           : defaultRequirement;
+        this._setSlotUnlockRequirement(slot, requirement);
         const unlocked = this._isSlotRequirementMet(requirement, stageScores);
         this._setSlotLocked(slot, !unlocked);
       });
@@ -1623,6 +1701,46 @@ export class UIController {
 
   hideResetConfirmModal() {
     if (this.resetConfirmModal) this.resetConfirmModal.style.display = 'none';
+  }
+
+  showUnlockRequirement(message) {
+    if (!this.unlockRequirementModal) return;
+    if (this.unlockRequirementMessage) {
+      this.unlockRequirementMessage.textContent = message || '';
+    }
+    this.unlockRequirementModal.style.display = 'flex';
+    if (!this._unlockRequirementKeyHandler && typeof document !== 'undefined') {
+      this._unlockRequirementKeyHandler = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        this.hideUnlockRequirement();
+      };
+      document.addEventListener('keydown', this._unlockRequirementKeyHandler, true);
+    }
+    if (!this._unlockRequirementPointerHandler && this.unlockRequirementModal) {
+      this._unlockRequirementPointerHandler = (event) => {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        this.hideUnlockRequirement();
+      };
+      this.unlockRequirementModal.addEventListener('click', this._unlockRequirementPointerHandler, true);
+    }
+  }
+
+  hideUnlockRequirement() {
+    if (this.unlockRequirementModal) this.unlockRequirementModal.style.display = 'none';
+    if (this._unlockRequirementKeyHandler && typeof document !== 'undefined') {
+      document.removeEventListener('keydown', this._unlockRequirementKeyHandler, true);
+      this._unlockRequirementKeyHandler = null;
+    }
+    if (this._unlockRequirementPointerHandler && this.unlockRequirementModal) {
+      this.unlockRequirementModal.removeEventListener('click', this._unlockRequirementPointerHandler, true);
+      this._unlockRequirementPointerHandler = null;
+    }
   }
 
   setMuteState(isMuted) {
