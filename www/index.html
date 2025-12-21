@@ -105,6 +105,13 @@
         .slot-ring-yellow { border-color: #ffe44d; box-shadow: 0 0 12px rgba(255,228,77,0.4); }
         .slot-ring-lime { border-color: #a6ff4d; box-shadow: 0 0 12px rgba(166,255,77,0.4); }
         .slot-ring-sky { border-color: #7cd4ff; box-shadow: 0 0 12px rgba(124,212,255,0.4); }
+        .slot-ring-neon-white { border-color: #ffffff; box-shadow: 0 0 10px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.9); }
+        .slot-ring-neon-red { border-color: #ff3b3b; box-shadow: 0 0 10px rgba(255,59,59,0.75), 0 0 18px rgba(255,59,59,0.95); }
+        .slot-ring-neon-pink { border-color: #ff5ca8; box-shadow: 0 0 10px rgba(255,92,168,0.75), 0 0 18px rgba(255,92,168,0.95); }
+        .slot-ring-neon-orange { border-color: #ff9b2f; box-shadow: 0 0 10px rgba(255,155,47,0.75), 0 0 18px rgba(255,155,47,0.95); }
+        .slot-ring-neon-yellow { border-color: #ffe44d; box-shadow: 0 0 10px rgba(255,228,77,0.75), 0 0 18px rgba(255,228,77,0.95); }
+        .slot-ring-neon-lime { border-color: #a6ff4d; box-shadow: 0 0 10px rgba(166,255,77,0.75), 0 0 18px rgba(166,255,77,0.95); }
+        .slot-ring-neon-sky { border-color: #7cd4ff; box-shadow: 0 0 10px rgba(124,212,255,0.75), 0 0 18px rgba(124,212,255,0.95); }
         .slot-preview-spike { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 28px solid #ffffff; filter: drop-shadow(0 3px 8px rgba(255,255,255,0.3)); }
         .slot-spike-red { border-top-color: #ff3b3b; }
         .slot-spike-pink { border-top-color: #ff5ca8; }
@@ -416,8 +423,8 @@
                             <button class="customize-slot" type="button" aria-label="Obstacle image 라쿤" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/라쿤.png" data-obstacle-render-scale="2"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 래서판다" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/래서판다.png" data-obstacle-render-scale="2"></button>
                             <button class="customize-slot" type="button" aria-label="Obstacle image 웰시코기" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/웰시코기.png" data-obstacle-render-scale="2"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 양" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/양.png" data-obstacle-render-scale="2"></button>
+                            <button class="customize-slot" type="button" aria-label="Obstacle image 악마양" data-prevent-reverse="true" data-obstacle-image-src="Assets/custom/obstacle/추가건/악마양.png" data-obstacle-render-scale="2"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
@@ -551,13 +558,41 @@
                             <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
                         </div>
                         <div class="customize-page" data-page="2">
-                            <button class="customize-slot" type="button" aria-label="Empty slot 1" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 2" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 3" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 4" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 5" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 6" data-prevent-reverse="true"></button>
-                            <button class="customize-slot" type="button" aria-label="Empty slot 7" data-prevent-reverse="true"></button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon white" data-prevent-reverse="true" data-ring-color="#ffffff" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-white"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon red" data-prevent-reverse="true" data-ring-color="#ff3b3b" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-red"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon pink" data-prevent-reverse="true" data-ring-color="#ff5ca8" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-pink"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon orange" data-prevent-reverse="true" data-ring-color="#ff9b2f" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-orange"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon yellow" data-prevent-reverse="true" data-ring-color="#ffe44d" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-yellow"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon lime" data-prevent-reverse="true" data-ring-color="#a6ff4d" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-lime"></span>
+                                </span>
+                            </button>
+                            <button class="customize-slot" type="button" aria-label="Ring neon sky" data-prevent-reverse="true" data-ring-color="#7cd4ff" data-ring-glow="true" data-ring-glow-blur="18">
+                                <span class="customize-slot-content" aria-hidden="true">
+                                    <span class="slot-preview-ring slot-ring-neon-sky"></span>
+                                </span>
+                            </button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 8" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 9" data-prevent-reverse="true"></button>
                             <button class="customize-slot" type="button" aria-label="Empty slot 10" data-prevent-reverse="true"></button>

@@ -278,7 +278,9 @@ export class GameScene {
     const ringSkin = this.ringSkin;
     const baseColor = ORBIT.color ?? '#ffffff';
     const baseLineWidth = ORBIT.lineWidth ?? 2;
-    const lineWidth = Number.isFinite(ringSkin?.lineWidth) ? ringSkin.lineWidth : baseLineWidth;
+    const lineWidth = (Number.isFinite(ringSkin?.lineWidth) && ringSkin.lineWidth > 0)
+      ? ringSkin.lineWidth
+      : baseLineWidth;
     const ringColor = (ringSkin?.type === 'color' && typeof ringSkin.color === 'string' && ringSkin.color.length > 0)
       ? ringSkin.color
       : baseColor;
@@ -287,12 +289,24 @@ export class GameScene {
       ? ringSkin.renderScale
       : 1;
 
+    const glowEnabled = ringSkin?.glow === true;
+    const glowBlur = (Number.isFinite(ringSkin?.glowBlur) && ringSkin.glowBlur > 0)
+      ? ringSkin.glowBlur
+      : Math.max(8, Math.round(lineWidth * 2.4));
+
+    if (glowEnabled) {
+      ctx.save();
+      ctx.shadowBlur = glowBlur;
+      ctx.shadowColor = ringColor;
+    }
+
     if (ringImage && ringImage.complete) {
       const size = Math.max(1, orbitRadius * 2 * renderScale);
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.drawImage(ringImage, -size / 2, -size / 2, size, size);
       ctx.restore();
+      if (glowEnabled) ctx.restore();
       return;
     }
 
@@ -301,6 +315,8 @@ export class GameScene {
     ctx.beginPath();
     ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
     ctx.stroke();
+
+    if (glowEnabled) ctx.restore();
   }
 
   _defaultOffscreenRadius(width, height) {

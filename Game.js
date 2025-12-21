@@ -878,6 +878,12 @@ export class Game {
     if (Number.isFinite(skin.renderScale) && skin.renderScale !== 1) {
       payload.renderScale = skin.renderScale;
     }
+    if (skin.glow === true) {
+      payload.glow = true;
+    }
+    if (Number.isFinite(skin.glowBlur)) {
+      payload.glowBlur = skin.glowBlur;
+    }
     return payload;
   }
 
@@ -904,7 +910,9 @@ export class Game {
     const shouldClear = !payload
       || (payload.type === 'default'
         && !Number.isFinite(payload.lineWidth)
-        && !Number.isFinite(payload.renderScale));
+        && !Number.isFinite(payload.renderScale)
+        && payload.glow !== true
+        && !Number.isFinite(payload.glowBlur));
     this._writeSkinToStorage(RING_SKIN_STORAGE_KEY, shouldClear ? null : payload);
   }
 
@@ -1264,20 +1272,24 @@ export class Game {
       src: null,
       lineWidth: null,
       renderScale: 1,
+      glow: false,
+      glowBlur: null,
     };
     if (!skin || typeof skin !== 'object') return fallback;
     const lineWidth = Number.isFinite(skin.lineWidth) ? skin.lineWidth : null;
     const renderScale = (Number.isFinite(skin.renderScale) && skin.renderScale > 0) ? skin.renderScale : 1;
+    const glow = skin.glow === true;
+    const glowBlur = Number.isFinite(skin.glowBlur) ? skin.glowBlur : null;
     if (skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
       const image = new Image();
       image.src = skin.src;
-      return { type: 'image', color: null, image, src: skin.src, lineWidth, renderScale };
+      return { type: 'image', color: null, image, src: skin.src, lineWidth, renderScale, glow, glowBlur };
     }
     const color = typeof skin.color === 'string' && skin.color.length > 0 ? skin.color : null;
     if (skin.type === 'color' || color) {
-      return { type: 'color', color, image: null, src: null, lineWidth, renderScale };
+      return { type: 'color', color, image: null, src: null, lineWidth, renderScale, glow, glowBlur };
     }
-    return { type: 'default', color: null, image: null, src: null, lineWidth, renderScale };
+    return { type: 'default', color: null, image: null, src: null, lineWidth, renderScale, glow, glowBlur };
   }
 
   resizeCanvas({ width, height } = {}) {

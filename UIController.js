@@ -319,7 +319,7 @@ export class UIController {
     if (defaultSlot) {
       defaultSlot.addEventListener('click', () => {
         const overrides = this._getRingScaleOverrides(defaultSlot);
-        this._setRingPreviewColor(null);
+        this._setRingPreviewColor(null, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'default', ...overrides });
       });
     }
@@ -329,7 +329,7 @@ export class UIController {
       if (!color) return;
       slot.addEventListener('click', () => {
         const overrides = this._getRingScaleOverrides(slot);
-        this._setRingPreviewColor(color);
+        this._setRingPreviewColor(color, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'color', color, ...overrides });
       });
     });
@@ -341,7 +341,7 @@ export class UIController {
       if (img) img.src = src;
       slot.addEventListener('click', () => {
         const overrides = this._getRingScaleOverrides(slot);
-        this._setRingPreviewImage(src);
+        this._setRingPreviewImage(src, overrides.glow, overrides.glowBlur);
         this._emitRingSkinSelect({ type: 'image', src, ...overrides });
       });
     });
@@ -390,8 +390,14 @@ export class UIController {
     const overrides = {};
     const lineWidth = parseFloat(slot.dataset?.ringLineWidth ?? '');
     const renderScale = parseFloat(slot.dataset?.ringRenderScale ?? '');
+    const glowValue = slot.dataset?.ringGlow;
+    const glowBlur = parseFloat(slot.dataset?.ringGlowBlur ?? '');
     if (Number.isFinite(lineWidth)) overrides.lineWidth = lineWidth;
     if (Number.isFinite(renderScale)) overrides.renderScale = renderScale;
+    if (glowValue != null) {
+      overrides.glow = glowValue === '' || glowValue === 'true' || glowValue === '1';
+    }
+    if (Number.isFinite(glowBlur)) overrides.glowBlur = glowBlur;
     return overrides;
   }
 
@@ -477,10 +483,11 @@ export class UIController {
     }
   }
 
-  _setRingPreviewColor(color) {
+  _setRingPreviewColor(color, glow = false, glowBlur = null) {
     if (this.ringPreviewImage) {
       this.ringPreviewImage.src = '';
       this.ringPreviewImage.style.display = 'none';
+      this.ringPreviewImage.style.removeProperty('filter');
     }
     if (!this.ringPreviewRing) return;
     this.ringPreviewRing.style.display = 'block';
@@ -489,13 +496,29 @@ export class UIController {
     } else {
       this.ringPreviewRing.style.borderColor = '';
     }
+    if (glow) {
+      const shadowColor = color || '#ffffff';
+      const outer = Math.max(6, Math.round(Number.isFinite(glowBlur) ? glowBlur : 18));
+      const inner = Math.max(4, Math.round(outer * 0.6));
+      this.ringPreviewRing.style.boxShadow = `0 0 ${inner}px ${shadowColor}, 0 0 ${outer}px ${shadowColor}`;
+    } else {
+      this.ringPreviewRing.style.boxShadow = '';
+    }
   }
 
-  _setRingPreviewImage(preview) {
+  _setRingPreviewImage(preview, glow = false, glowBlur = null, glowColor = null) {
     const hasPreview = typeof preview === 'string' && preview.length > 0;
     if (this.ringPreviewImage) {
       this.ringPreviewImage.src = hasPreview ? preview : '';
       this.ringPreviewImage.style.display = hasPreview ? 'block' : 'none';
+      if (glow && hasPreview) {
+        const shadowColor = glowColor || '#ffffff';
+        const outer = Math.max(6, Math.round(Number.isFinite(glowBlur) ? glowBlur : 18));
+        const inner = Math.max(4, Math.round(outer * 0.6));
+        this.ringPreviewImage.style.filter = `drop-shadow(0 0 ${inner}px ${shadowColor}) drop-shadow(0 0 ${outer}px ${shadowColor})`;
+      } else {
+        this.ringPreviewImage.style.removeProperty('filter');
+      }
     }
     if (this.ringPreviewRing) {
       this.ringPreviewRing.style.display = hasPreview ? 'none' : 'block';
@@ -533,15 +556,15 @@ export class UIController {
 
   setRingSkinPreview(skin) {
     if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
-      this._setRingPreviewImage(skin.src);
+      this._setRingPreviewImage(skin.src, skin.glow, skin.glowBlur, skin.color);
       return;
     }
     const color = typeof skin?.color === 'string' && skin.color.length > 0 ? skin.color : null;
     if (color) {
-      this._setRingPreviewColor(color);
+      this._setRingPreviewColor(color, skin?.glow, skin?.glowBlur);
       return;
     }
-    this._setRingPreviewColor(null);
+    this._setRingPreviewColor(null, skin?.glow, skin?.glowBlur);
   }
 
   _initCustomizePagination({ pages, prevButton, nextButton, indicator, indexKey }) {
