@@ -18,16 +18,36 @@ export class Player {
         this.angle += this.speed * this.rotationDirection * dt;
     }
     
-    draw(ctx) {
-        const playerX = this.centerX + Math.cos(this.angle) * this.orbitRadius;
-        const playerY = this.centerY + Math.sin(this.angle) * this.orbitRadius;
+    draw(ctx, options = {}) {
+        const centerX = Number.isFinite(options.centerX) ? options.centerX : this.centerX;
+        const centerY = Number.isFinite(options.centerY) ? options.centerY : this.centerY;
+        const rhythmScale = Number.isFinite(options.rhythmScale) ? options.rhythmScale : 1;
+        const snapToPixel = options.snapToPixel !== false;
+        const playerX = centerX + Math.cos(this.angle) * this.orbitRadius;
+        const playerY = centerY + Math.sin(this.angle) * this.orbitRadius;
         const skin = this.skin;
         const renderRadius = Number.isFinite(this.renderRadius) ? this.renderRadius : this.radius;
         if (skin && skin.type === 'image' && skin.image && skin.image.complete) {
-            const size = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * 2;
+            const baseSize = Number.isFinite(skin.sizePx) ? skin.sizePx : renderRadius * 2;
+            const scaledX = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
+                ? centerX + (playerX - centerX) * rhythmScale
+                : playerX;
+            const scaledY = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
+                ? centerY + (playerY - centerY) * rhythmScale
+                : playerY;
+            const scaledSize = (Number.isFinite(rhythmScale) && rhythmScale !== 1)
+                ? baseSize * rhythmScale
+                : baseSize;
+            const drawSize = Math.max(1, snapToPixel ? Math.round(scaledSize) : scaledSize);
+            const drawX = snapToPixel
+                ? Math.round(scaledX - drawSize / 2)
+                : (scaledX - drawSize / 2);
+            const drawY = snapToPixel
+                ? Math.round(scaledY - drawSize / 2)
+                : (scaledY - drawSize / 2);
             const prevSmoothing = ctx.imageSmoothingEnabled;
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(skin.image, playerX - size / 2, playerY - size / 2, size, size);
+            ctx.drawImage(skin.image, drawX, drawY, drawSize, drawSize);
             ctx.imageSmoothingEnabled = prevSmoothing;
             return;
         }
