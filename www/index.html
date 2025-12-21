@@ -123,17 +123,31 @@
         .slot-spike-lime { border-top-color: #a6ff4d; }
         .slot-spike-sky { border-top-color: #7cd4ff; }
         .pixel-editor-modal { z-index: 18; }
-        .pixel-editor-card { width: min(720px, 94vw); max-width: 720px; }
-        .pixel-editor-layout { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(200px, 260px); gap: 18px; align-items: center; }
-        .pixel-editor-stage { position: relative; --editor-scale: 5; width: calc(52px * var(--editor-scale)); height: calc(52px * var(--editor-scale)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(10,10,10,0.8); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); overflow: hidden; }
+        .pixel-editor-card { width: min(820px, 96vw); max-width: 820px; padding: 20px 22px; }
+        .pixel-editor-layout { display: grid; grid-template-columns: minmax(150px, 200px) minmax(320px, 1fr) minmax(240px, 280px); gap: 16px; align-items: center; }
+        .pixel-editor-controls { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .pixel-editor-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .pixel-editor-stage { position: relative; --editor-scale: 6; width: calc(52px * var(--editor-scale)); height: calc(52px * var(--editor-scale)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(10,10,10,0.8); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); overflow: hidden; }
         .pixel-editor-canvas, .pixel-editor-guide { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
         .pixel-editor-canvas { touch-action: none; }
         .pixel-editor-guide { pointer-events: none; }
-        .pixel-editor-tools { display: flex; flex-direction: column; gap: 12px; }
+        .pixel-editor-tools { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
         .pixel-editor-note { font: 12px Arial, sans-serif; color: rgba(255,255,255,0.6); text-align: center; }
         .pixel-tool { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 14px Arial, sans-serif; color: #d8d8d8; }
         .pixel-tool input[type="color"] { width: 46px; height: 32px; border: none; background: transparent; padding: 0; cursor: pointer; }
         .pixel-editor-row { display: flex; gap: 10px; }
+        .pixel-dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 8px; }
+        .pixel-dpad .dpad-btn { width: 52px; height: 52px; border-radius: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; position: relative; }
+        .pixel-dpad .dpad-btn:hover { background: rgba(255,255,255,0.18); }
+        .pixel-dpad .dpad-btn::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0; height: 0; }
+        .pixel-dpad .dpad-btn.up::before { border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 16px solid rgba(255,255,255,0.92); }
+        .pixel-dpad .dpad-btn.down::before { border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 16px solid rgba(255,255,255,0.92); }
+        .pixel-dpad .dpad-btn.left::before { border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 16px solid rgba(255,255,255,0.92); }
+        .pixel-dpad .dpad-btn.right::before { border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 16px solid rgba(255,255,255,0.92); }
+        .pixel-dpad .empty { visibility: hidden; }
+        .pixel-palette { display: grid; grid-template-columns: repeat(8, 22px); gap: 6px; padding: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; }
+        .palette-swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
+        .palette-swatch.active { outline: 2px solid rgba(255,255,255,0.9); outline-offset: 1px; }
         .modal-button.compact { padding: 8px 12px; font-size: 14px; border-radius: 10px; }
         .modal-button.toggle.active { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,0.35); }
         @media (max-width: 640px) {
@@ -154,8 +168,11 @@
             .nav-triangle { border-top-width: 6px; border-bottom-width: 6px; }
             .nav-left { border-right-width: 9px; }
             .nav-right { border-left-width: 9px; }
-            .pixel-editor-layout { grid-template-columns: 1fr; }
+            .pixel-editor-layout { grid-template-columns: 1fr; gap: 12px; }
+            .pixel-editor-controls { flex-direction: row; justify-content: center; }
             .pixel-editor-stage { --editor-scale: 4; margin: 0 auto; }
+            .pixel-dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); gap: 6px; }
+            .pixel-dpad .dpad-btn { width: 44px; height: 44px; border-radius: 10px; }
         }
     </style>
 </head>
@@ -377,21 +394,39 @@
         </div>
     </div>
 
-    <div id="playerSkinEditorModal" class="modal-overlay pixel-editor-modal" role="dialog" aria-modal="true" aria-labelledby="playerSkinEditorTitle" data-prevent-reverse="true">
+    <div id="playerSkinEditorModal" class="modal-overlay pixel-editor-modal" role="dialog" aria-modal="true" aria-label="Custom skin editor" data-prevent-reverse="true">
         <div class="modal-card pixel-editor-card">
             <button id="closePlayerSkinEditorButton" class="modal-close" aria-label="Close custom skin editor" data-prevent-reverse="true">&times;</button>
-            <div class="modal-title" id="playerSkinEditorTitle">Custom Skin</div>
             <div class="pixel-editor-layout">
-                <div class="pixel-editor-stage" aria-label="Pixel editor" data-prevent-reverse="true">
-                    <canvas id="playerSkinCanvas" class="pixel-editor-canvas" width="52" height="52" aria-label="Pixel canvas" data-prevent-reverse="true"></canvas>
-                    <canvas id="playerSkinGuide" class="pixel-editor-guide" width="52" height="52" aria-hidden="true"></canvas>
+                <div class="pixel-editor-controls">
+                    <div class="pixel-editor-note">Move</div>
+                    <div class="pixel-dpad" aria-label="Move cursor">
+                        <span class="empty" aria-hidden="true"></span>
+                        <button id="playerSkinMoveUp" class="dpad-btn up" type="button" aria-label="Move up" data-prevent-reverse="true"></button>
+                        <span class="empty" aria-hidden="true"></span>
+                        <button id="playerSkinMoveLeft" class="dpad-btn left" type="button" aria-label="Move left" data-prevent-reverse="true"></button>
+                        <span class="empty" aria-hidden="true"></span>
+                        <button id="playerSkinMoveRight" class="dpad-btn right" type="button" aria-label="Move right" data-prevent-reverse="true"></button>
+                        <span class="empty" aria-hidden="true"></span>
+                        <button id="playerSkinMoveDown" class="dpad-btn down" type="button" aria-label="Move down" data-prevent-reverse="true"></button>
+                        <span class="empty" aria-hidden="true"></span>
+                    </div>
+                </div>
+                <div class="pixel-editor-center">
+                    <div class="pixel-editor-stage" aria-label="Pixel editor" data-prevent-reverse="true">
+                        <canvas id="playerSkinCanvas" class="pixel-editor-canvas" width="52" height="52" aria-label="Pixel canvas" data-prevent-reverse="true"></canvas>
+                        <canvas id="playerSkinGuide" class="pixel-editor-guide" width="52" height="52" aria-hidden="true"></canvas>
+                    </div>
                 </div>
                 <div class="pixel-editor-tools">
-                    <div class="pixel-editor-note">Hit radius guide: 13px</div>
-                    <label class="pixel-tool">
-                        <span>Color</span>
-                        <input id="playerSkinColor" type="color" value="#ffffff" aria-label="Pick color" data-prevent-reverse="true">
-                    </label>
+                    <div class="pixel-editor-note">Palette</div>
+                    <div id="playerSkinPalette" class="pixel-palette" aria-label="Color palette" data-prevent-reverse="true"></div>
+                    <div class="pixel-editor-note">Mode</div>
+                    <div class="pixel-editor-row">
+                        <button id="playerSkinModeFree" class="modal-button compact toggle active" type="button" data-prevent-reverse="true">Free</button>
+                        <button id="playerSkinModeCursor" class="modal-button compact toggle" type="button" data-prevent-reverse="true">Cursor</button>
+                    </div>
+                    <div class="pixel-editor-note">Tool</div>
                     <div class="pixel-editor-row">
                         <button id="playerSkinToolDraw" class="modal-button compact toggle active" type="button" data-prevent-reverse="true">Draw</button>
                         <button id="playerSkinToolErase" class="modal-button compact toggle" type="button" data-prevent-reverse="true">Erase</button>

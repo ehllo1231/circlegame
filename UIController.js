@@ -52,11 +52,17 @@ export class UIController {
     this.closePlayerSkinEditorButton = document.getElementById('closePlayerSkinEditorButton');
     this.playerSkinCanvas = document.getElementById('playerSkinCanvas');
     this.playerSkinGuide = document.getElementById('playerSkinGuide');
-    this.playerSkinColorInput = document.getElementById('playerSkinColor');
+    this.playerSkinPalette = document.getElementById('playerSkinPalette');
+    this.playerSkinModeFreeButton = document.getElementById('playerSkinModeFree');
+    this.playerSkinModeCursorButton = document.getElementById('playerSkinModeCursor');
     this.playerSkinToolDrawButton = document.getElementById('playerSkinToolDraw');
     this.playerSkinToolEraseButton = document.getElementById('playerSkinToolErase');
     this.playerSkinClearButton = document.getElementById('playerSkinClear');
     this.playerSkinApplyButton = document.getElementById('playerSkinApply');
+    this.playerSkinMoveUpButton = document.getElementById('playerSkinMoveUp');
+    this.playerSkinMoveDownButton = document.getElementById('playerSkinMoveDown');
+    this.playerSkinMoveLeftButton = document.getElementById('playerSkinMoveLeft');
+    this.playerSkinMoveRightButton = document.getElementById('playerSkinMoveRight');
     this.playerPages = Array.from(this.playerCustomizeModal?.querySelectorAll('.customize-page') ?? []);
     this.playerPagePrevButton = document.getElementById('playerPagePrev');
     this.playerPageNextButton = document.getElementById('playerPageNext');
@@ -73,6 +79,7 @@ export class UIController {
     this._onObstacleSkinSelect = null;
     this._onRingSkinSelect = null;
     this._currentPlayerSkin = null;
+    this._customPlayerSkin = null;
     this._playerSkinEditor = null;
     this._playerSkinEditorResizeHandler = null;
     this._playerPageIndex = 0;
@@ -371,36 +378,37 @@ export class UIController {
     const ctx = this.playerSkinCanvas.getContext('2d');
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
+    const size = this.playerSkinCanvas.width || 52;
     this._playerSkinEditor = {
       canvas: this.playerSkinCanvas,
       guideCanvas: this.playerSkinGuide,
       ctx,
       guideCtx: this.playerSkinGuide?.getContext('2d') ?? null,
-      size: this.playerSkinCanvas.width || 52,
+      size,
       hitRadius: 13,
       tool: 'draw',
-      color: this.playerSkinColorInput?.value || '#ffffff',
+      mode: 'free',
+      cursor: { x: Math.floor(size / 2), y: Math.floor(size / 2) },
+      color: '#ffffff',
       isDrawing: false,
+      isDraggingCursor: false,
     };
     this.playerSkinCanvas.addEventListener('pointerdown', (event) => this._handlePlayerSkinPointerDown(event));
     this.playerSkinCanvas.addEventListener('pointermove', (event) => this._handlePlayerSkinPointerMove(event));
     this.playerSkinCanvas.addEventListener('pointerup', (event) => this._handlePlayerSkinPointerUp(event));
     this.playerSkinCanvas.addEventListener('pointerleave', (event) => this._handlePlayerSkinPointerUp(event));
     this.playerSkinCanvas.addEventListener('pointercancel', (event) => this._handlePlayerSkinPointerUp(event));
-    if (this.playerSkinColorInput) {
-      this.playerSkinColorInput.addEventListener('input', (event) => {
-        const nextColor = event?.target?.value;
-        this._setPlayerSkinColor(nextColor);
-      });
-    }
+    this._buildPlayerSkinPalette();
     if (this.playerSkinToolDrawButton) {
       this.playerSkinToolDrawButton.addEventListener('click', () => {
-        this._setPlayerSkinTool('draw');
+        const apply = this._playerSkinEditor?.mode === 'cursor';
+        this._setPlayerSkinTool('draw', { apply });
       });
     }
     if (this.playerSkinToolEraseButton) {
       this.playerSkinToolEraseButton.addEventListener('click', () => {
-        this._setPlayerSkinTool('erase');
+        const apply = this._playerSkinEditor?.mode === 'cursor';
+        this._setPlayerSkinTool('erase', { apply });
       });
     }
     if (this.playerSkinClearButton) {
@@ -411,6 +419,36 @@ export class UIController {
     if (this.playerSkinApplyButton) {
       this.playerSkinApplyButton.addEventListener('click', () => {
         this._applyPlayerSkinFromEditor();
+      });
+    }
+    if (this.playerSkinModeFreeButton) {
+      this.playerSkinModeFreeButton.addEventListener('click', () => {
+        this._setPlayerSkinMode('free');
+      });
+    }
+    if (this.playerSkinModeCursorButton) {
+      this.playerSkinModeCursorButton.addEventListener('click', () => {
+        this._setPlayerSkinMode('cursor');
+      });
+    }
+    if (this.playerSkinMoveUpButton) {
+      this.playerSkinMoveUpButton.addEventListener('click', () => {
+        this._movePlayerSkinCursor(0, -1);
+      });
+    }
+    if (this.playerSkinMoveDownButton) {
+      this.playerSkinMoveDownButton.addEventListener('click', () => {
+        this._movePlayerSkinCursor(0, 1);
+      });
+    }
+    if (this.playerSkinMoveLeftButton) {
+      this.playerSkinMoveLeftButton.addEventListener('click', () => {
+        this._movePlayerSkinCursor(-1, 0);
+      });
+    }
+    if (this.playerSkinMoveRightButton) {
+      this.playerSkinMoveRightButton.addEventListener('click', () => {
+        this._movePlayerSkinCursor(1, 0);
       });
     }
     if (this.closePlayerSkinEditorButton) {
@@ -432,9 +470,7 @@ export class UIController {
     const editor = this._playerSkinEditor;
     if (!editor || !editor.ctx) return;
     editor.isDrawing = false;
-    if (this.playerSkinColorInput && typeof this.playerSkinColorInput.value === 'string') {
-      editor.color = this.playerSkinColorInput.value || editor.color;
-    }
+    editor.isDraggingCursor = false;
     this._clearPlayerSkinCanvas();
     const src = this._getCustomPlayerSkinSrc();
     if (src) {
@@ -446,19 +482,99 @@ export class UIController {
       image.src = src;
     }
     this._refreshPlayerSkinGuide();
+    this._syncPlayerSkinPaletteSelection(editor.color);
+    this._setPlayerSkinMode(editor.mode);
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => this._refreshPlayerSkinGuide());
     }
   }
 
   _getCustomPlayerSkinSrc() {
+    const custom = this._customPlayerSkin;
+    if (custom && typeof custom.src === 'string' && custom.src.length > 0) {
+      return custom.src;
+    }
     const skin = this._currentPlayerSkin;
     if (!skin || skin.type !== 'image') return null;
     if (typeof skin.src !== 'string' || skin.src.length === 0) return null;
     return skin.src.startsWith('data:image') ? skin.src : null;
   }
 
-  _setPlayerSkinTool(tool) {
+  _buildPlayerSkinPalette() {
+    if (!this.playerSkinPalette) return;
+    const columns = [
+      ['#ffb3b3', '#ff5c5c', '#d82626', '#7a0b0b'], // red
+      ['#ffd2a1', '#ff9b3d', '#d86500', '#7a3a00'], // orange
+      ['#fff3b0', '#ffd84d', '#e0a800', '#7a5a00'], // yellow
+      ['#d8ffb0', '#8dff5a', '#3ecf3e', '#136a1f'], // green
+      ['#c2e8ff', '#5ab7ff', '#1f6fd9', '#10307a'], // blue
+      ['#c6d2ff', '#6b7bff', '#3b44c9', '#1c1f6a'], // navy
+      ['#e6c2ff', '#b86bff', '#7a2bd6', '#3a0f6a'], // purple
+      ['#ffffff', '#d9d9d9', '#8b5a2b', '#000000'], // white/gray/brown/black
+    ];
+    const colors = [];
+    for (let row = 0; row < 4; row += 1) {
+      for (let col = 0; col < columns.length; col += 1) {
+        colors.push(columns[col][row]);
+      }
+    }
+    this.playerSkinPalette.innerHTML = '';
+    colors.forEach((color, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'palette-swatch';
+      button.dataset.color = color;
+      button.setAttribute('aria-label', `Color ${index + 1}`);
+      button.setAttribute('data-prevent-reverse', 'true');
+      button.style.backgroundColor = color;
+      button.addEventListener('click', () => {
+        this._setPlayerSkinColor(color);
+      });
+      this.playerSkinPalette.appendChild(button);
+    });
+    const editor = this._playerSkinEditor;
+    if (editor) {
+      this._syncPlayerSkinPaletteSelection(editor.color);
+    }
+  }
+
+  _setPlayerSkinMode(mode) {
+    const editor = this._playerSkinEditor;
+    if (!editor) return;
+    editor.mode = mode === 'cursor' ? 'cursor' : 'free';
+    if (this.playerSkinModeFreeButton) {
+      this.playerSkinModeFreeButton.classList.toggle('active', editor.mode === 'free');
+    }
+    if (this.playerSkinModeCursorButton) {
+      this.playerSkinModeCursorButton.classList.toggle('active', editor.mode === 'cursor');
+    }
+    this._refreshPlayerSkinGuide();
+  }
+
+  _setPlayerSkinCursor(x, y) {
+    const editor = this._playerSkinEditor;
+    if (!editor) return;
+    const max = editor.size - 1;
+    const nextX = Math.max(0, Math.min(max, Math.round(x)));
+    const nextY = Math.max(0, Math.min(max, Math.round(y)));
+    if (editor.cursor && editor.cursor.x === nextX && editor.cursor.y === nextY) return;
+    editor.cursor = { x: nextX, y: nextY };
+    this._refreshPlayerSkinGuide();
+  }
+
+  _movePlayerSkinCursor(dx, dy) {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.cursor) return;
+    this._setPlayerSkinCursor(editor.cursor.x + dx, editor.cursor.y + dy);
+  }
+
+  _applyPlayerSkinAtCursor() {
+    const editor = this._playerSkinEditor;
+    if (!editor || !editor.cursor) return;
+    this._paintPlayerSkinPixel(editor.cursor.x, editor.cursor.y);
+  }
+
+  _setPlayerSkinTool(tool, { apply = false } = {}) {
     const editor = this._playerSkinEditor;
     if (!editor) return;
     editor.tool = tool === 'erase' ? 'erase' : 'draw';
@@ -468,6 +584,9 @@ export class UIController {
     if (this.playerSkinToolEraseButton) {
       this.playerSkinToolEraseButton.classList.toggle('active', editor.tool === 'erase');
     }
+    if (apply) {
+      this._applyPlayerSkinAtCursor();
+    }
   }
 
   _setPlayerSkinColor(color) {
@@ -476,6 +595,16 @@ export class UIController {
     if (typeof color === 'string' && color.length > 0) {
       editor.color = color;
     }
+    this._syncPlayerSkinPaletteSelection(editor.color);
+  }
+
+  _syncPlayerSkinPaletteSelection(color) {
+    if (!this.playerSkinPalette) return;
+    const swatches = Array.from(this.playerSkinPalette.querySelectorAll('.palette-swatch'));
+    swatches.forEach((swatch) => {
+      const swatchColor = swatch.dataset?.color;
+      swatch.classList.toggle('active', swatchColor === color);
+    });
   }
 
   _clearPlayerSkinCanvas() {
@@ -491,6 +620,7 @@ export class UIController {
     const sizeScale = Number.isFinite(editor.size) && Number.isFinite(editor.hitRadius) && editor.hitRadius > 0
       ? editor.size / editor.hitRadius
       : 4;
+    this._customPlayerSkin = { src: dataUrl, sizeScale };
     this._emitPlayerSkinSelect({ type: 'image', src: dataUrl, sizeScale });
     this.hidePlayerSkinEditorModal();
   }
@@ -523,6 +653,12 @@ export class UIController {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     const point = this._getPlayerSkinPixelFromEvent(event);
     if (!point) return;
+    if (editor.mode === 'cursor') {
+      editor.isDraggingCursor = true;
+      editor.canvas.setPointerCapture?.(event.pointerId);
+      this._setPlayerSkinCursor(point.x, point.y);
+      return;
+    }
     editor.isDrawing = true;
     editor.canvas.setPointerCapture?.(event.pointerId);
     this._paintPlayerSkinPixel(point.x, point.y);
@@ -530,7 +666,15 @@ export class UIController {
 
   _handlePlayerSkinPointerMove(event) {
     const editor = this._playerSkinEditor;
-    if (!editor || !editor.isDrawing) return;
+    if (!editor) return;
+    if (editor.mode === 'cursor') {
+      if (!editor.isDraggingCursor) return;
+      const point = this._getPlayerSkinPixelFromEvent(event);
+      if (!point) return;
+      this._setPlayerSkinCursor(point.x, point.y);
+      return;
+    }
+    if (!editor.isDrawing) return;
     const point = this._getPlayerSkinPixelFromEvent(event);
     if (!point) return;
     this._paintPlayerSkinPixel(point.x, point.y);
@@ -540,6 +684,7 @@ export class UIController {
     const editor = this._playerSkinEditor;
     if (!editor || !editor.canvas) return;
     editor.isDrawing = false;
+    editor.isDraggingCursor = false;
     editor.canvas.releasePointerCapture?.(event.pointerId);
   }
 
@@ -554,9 +699,25 @@ export class UIController {
     }
     const ctx = editor.guideCtx;
     ctx.clearRect(0, 0, size, size);
-    const scale = size / editor.canvas.width;
+    const pixelCount = editor.canvas.width;
+    const scale = size / pixelCount;
+    const lineOffset = 0.5;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= pixelCount; i += 1) {
+      const pos = Math.round(i * scale) + lineOffset;
+      ctx.moveTo(pos, 0);
+      ctx.lineTo(pos, size);
+      ctx.moveTo(0, pos);
+      ctx.lineTo(size, pos);
+    }
+    ctx.stroke();
+    ctx.restore();
     const center = size / 2;
     const hitRadius = editor.hitRadius * scale;
+    ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.45)';
     ctx.lineWidth = Math.max(1, Math.round(scale * 0.4));
     ctx.setLineDash([Math.max(2, scale * 1.2), Math.max(2, scale * 1.2)]);
@@ -564,6 +725,28 @@ export class UIController {
     ctx.arc(center, center, hitRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
+    if (editor.mode === 'cursor' && editor.cursor) {
+      const cellSize = scale;
+      const x = Math.round(editor.cursor.x * scale);
+      const y = Math.round(editor.cursor.y * scale);
+      let cursorColor = 'rgba(255,255,255,0.9)';
+      try {
+        const pixel = editor.ctx.getImageData(editor.cursor.x, editor.cursor.y, 1, 1).data;
+        const alpha = pixel[3] / 255;
+        const luminance = (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]) / 255;
+        if (alpha > 0.2 && luminance > 0.85) {
+          cursorColor = 'rgba(0,0,0,0.9)';
+        }
+      } catch (_) {
+        // ignore sampling errors
+      }
+      ctx.save();
+      ctx.strokeStyle = cursorColor;
+      ctx.lineWidth = Math.max(1, Math.round(scale * 0.25));
+      ctx.strokeRect(x + lineOffset, y + lineOffset, Math.max(1, cellSize - 1), Math.max(1, cellSize - 1));
+      ctx.restore();
+    }
   }
 
   _ensureSlotImage(slot) {
@@ -748,12 +931,20 @@ export class UIController {
   }
 
   setPlayerSkinPreview(skin) {
-    this._currentPlayerSkin = skin && typeof skin === 'object' ? skin : null;
-    if (skin && skin.type === 'image' && typeof skin.src === 'string' && skin.src.length > 0) {
-      this._setPlayerPreview(skin.src);
+    const normalized = skin && typeof skin === 'object' ? skin : null;
+    this._currentPlayerSkin = normalized;
+    if (normalized?.type === 'image'
+      && typeof normalized.src === 'string'
+      && normalized.src.startsWith('data:image')
+      && Number.isFinite(normalized.sizeScale)
+      && normalized.sizeScale > 2) {
+      this._customPlayerSkin = { src: normalized.src, sizeScale: normalized.sizeScale };
+    }
+    if (normalized && normalized.type === 'image' && typeof normalized.src === 'string' && normalized.src.length > 0) {
+      this._setPlayerPreview(normalized.src);
       return;
     }
-    const color = typeof skin?.color === 'string' && skin.color.length > 0 ? skin.color : null;
+    const color = typeof normalized?.color === 'string' && normalized.color.length > 0 ? normalized.color : null;
     if (color) {
       this._setPlayerPreviewColor(color);
       return;
