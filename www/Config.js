@@ -373,3 +373,15 @@ export const ADS = {
   tagForUnderAgeOfConsent: false,
   maxAdContentRating: 'General',
 };
+
+export const PLAY_GAMES = {
+  enabled: true,
+  leaderboards: {
+    stage1: 'CgkImJGrrtwFEAIQAQ',
+    stage2: 'CgkImJGrrtwFEAIQAg',
+    stage3: 'CgkImJGrrtwFEAIQAw',
+    stage1_ex: 'CgkImJGrrtwFEAIQBA',
+    stage2_ex: 'CgkImJGrrtwFEAIQBQ',
+    stage3_ex: 'CgkImJGrrtwFEAIQBg',
+  },
+};

@@ -1,7 +1,7 @@
 ﻿import { UIController } from './UIController.js';
 import { InputController } from './InputController.js';
 import { Score } from './Score.js';
-import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW, ADS } from './Config.js';
+import { CANVAS, ORBIT, PLAYER, STAGE_THEMES, AUDIO, EFFECTS, SCORE, EXTRA_STAGE, SNOW, ADS, PLAY_GAMES } from './Config.js';
 import { resetAllConfigToDefaults } from './ConfigDefaults.js';
 import { DebugController } from './DebugController.js';
 import { Stage1, Stage1Ex } from './Stage1.js';
@@ -17,6 +17,7 @@ import { StageRuntime } from './StageRuntime.js';
 import { SoundEffectManager } from './SoundEffectManager.js';
 import { ExtraStageSnowController } from './ExtraStageSnowController.js';
 import { AdManager } from './AdManager.js';
+import { PlayGamesService } from './PlayGamesService.js';
 
 const PLAYER_START_ANGLE = Math.PI / 2;
 const EXTRA_STAGE_UNLOCK_KEY = 'orbit_extra_stage_unlocked';
@@ -47,6 +48,7 @@ export class Game {
 
     this.ui = new UIController();
     this.input = new InputController();
+    this.playGames = new PlayGamesService({ config: PLAY_GAMES });
 
     this.stageMap = {
       stage1: Stage1,
@@ -159,6 +161,7 @@ export class Game {
 
     this._updateStageLocks();
     this._updateCustomizeSlotLocks();
+    this._syncPlayGamesUI();
     if (this.ui && typeof this.ui.setStageSelection === 'function') {
       this.ui.setStageSelection(this.selectedStage, { ex: this.selectedStageIsEx });
     }
@@ -167,6 +170,9 @@ export class Game {
 
     if (this.ui && typeof this.ui.showIntro === 'function') {
       this.ui.showIntro();
+    }
+    if (this.playGames) {
+      this.playGames.signIn();
     }
   }
 
@@ -198,6 +204,7 @@ export class Game {
       onPause: () => this.pauseGame(),
       onResume: () => this.resumeGame(),
       onPauseStageSelect: () => this.handlePauseStageSelect(),
+      onShowLeaderboard: (stageId, options) => this.showLeaderboard(stageId, options),
     });
     this.input.bindHandlers({
       onStart: () => {
@@ -303,6 +310,7 @@ export class Game {
     const displayScore = this.runtime ? this.runtime.getDisplayScore() : this.score.getSeconds();
     const finalScore = Math.floor(displayScore ?? this.score.getSeconds());
     const stageId = this.stageController?.getStartingStageId?.() ?? 'stage1';
+    this._submitPlayGamesScore(stageId, finalScore);
     let high = this._readHighScore(stageId);
     let isNew = false;
     if (high < 0) high = 0;
@@ -517,6 +525,13 @@ export class Game {
       if (typeof this.ui.hidePauseButton === 'function') this.ui.hidePauseButton();
     }
     this.returnToStageSelect();
+  }
+
+  showLeaderboard(stageId, { ex = false } = {}) {
+    if (!this.playGames) return;
+    const resolved = this._resolveStageId(stageId, ex);
+    if (!resolved || resolved === STAGE_ALL_CLEAR_ID) return;
+    this.playGames.showLeaderboard(resolved);
   }
 
   enableFastForwardDebug() {
@@ -1112,6 +1127,18 @@ export class Game {
         this.adManager.preload();
       }
     }
+  }
+
+  _syncPlayGamesUI() {
+    if (!this.ui || typeof this.ui.setLeaderboardButtonVisible !== 'function') return;
+    const visible = !!(this.playGames && typeof this.playGames.isAvailable === 'function' && this.playGames.isAvailable());
+    this.ui.setLeaderboardButtonVisible(visible);
+  }
+
+  _submitPlayGamesScore(stageId, score) {
+    if (!this.playGames) return;
+    if (!stageId || stageId === STAGE_ALL_CLEAR_ID) return;
+    this.playGames.submitScore(stageId, score);
   }
 
   _handleAdOnGameComplete() {

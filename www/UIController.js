@@ -24,6 +24,7 @@ export class UIController {
     this.pauseResumeButton = document.getElementById('pauseResumeButton');
     this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
     this.settingsButton = document.getElementById('settingsButton');
+    this.leaderboardButton = document.getElementById('leaderboardButton');
     this.customizeButton = document.getElementById('customizeButton');
     this.customizePlayerButton = document.getElementById('customizePlayerButton');
     this.customizeObstacleButton = document.getElementById('customizeObstacleButton');
@@ -245,6 +246,12 @@ export class UIController {
     }
     if (this.customizeButton && iconSize) {
       this.customizeButton.style.setProperty('--settings-icon-size', iconSize);
+    }
+    if (this.leaderboardButton && size) {
+      this.leaderboardButton.style.setProperty('--settings-btn-size', size);
+    }
+    if (this.leaderboardButton && iconSize) {
+      this.leaderboardButton.style.setProperty('--settings-icon-size', iconSize);
     }
   }
 
@@ -1278,6 +1285,7 @@ export class UIController {
     onPause,
     onResume,
     onPauseStageSelect,
+    onShowLeaderboard,
   } = {}) {
     this._onPlayerSkinSelect = typeof onPlayerSkinSelect === 'function' ? onPlayerSkinSelect : null;
     this._onObstacleSkinSelect = typeof onObstacleSkinSelect === 'function' ? onObstacleSkinSelect : null;
@@ -1320,6 +1328,13 @@ export class UIController {
     }
     if (this.pauseStageSelectButton && onPauseStageSelect) {
       this.pauseStageSelectButton.addEventListener('click', onPauseStageSelect);
+    }
+    if (this.leaderboardButton && onShowLeaderboard) {
+      this.leaderboardButton.addEventListener('click', () => {
+        const stageId = this.selectedStageId || 'stage1';
+        const ex = this.isStageEx(stageId);
+        onShowLeaderboard(stageId, { ex });
+      });
     }
     if (this.settingsButton) {
       this.settingsButton.addEventListener('click', () => {
@@ -1701,6 +1716,11 @@ export class UIController {
 
   hideResetConfirmModal() {
     if (this.resetConfirmModal) this.resetConfirmModal.style.display = 'none';
+  }
+
+  setLeaderboardButtonVisible(visible) {
+    if (!this.leaderboardButton) return;
+    this.leaderboardButton.style.display = visible ? 'inline-flex' : 'none';
   }
 
   showUnlockRequirement(message) {
