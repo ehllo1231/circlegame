@@ -5,4 +5,5 @@
     <string name="package_name">com.jwonstudio.runthering</string>
     <string name="custom_url_scheme">com.jwonstudio.runthering</string>
     <string name="games_app_id">196591929496</string>
+    <string name="game_services_project_id" translatable="false">196591929496</string>
 </resources>

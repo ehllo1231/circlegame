@@ -46,10 +46,11 @@
         #settingsButton .settings-icon img,
         #settingsButton .settings-icon svg { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 6px rgba(0,0,0,0.35)); }
         #settingsButton .settings-icon svg { fill: currentColor; }
-        #leaderboardButton { position: absolute; right: 24px; top: 24px; z-index: 12; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); width: var(--settings-btn-size, 46px); height: var(--settings-btn-size, 46px); border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; opacity: var(--pause-btn-opacity, 0.65); backdrop-filter: blur(6px); }
+        #leaderboardButton { position: absolute; left: 24px; top: 24px; z-index: 12; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); width: var(--settings-btn-size, 46px); height: var(--settings-btn-size, 46px); border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; opacity: var(--pause-btn-opacity, 0.65); backdrop-filter: blur(6px); }
         #leaderboardButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
         #leaderboardButton .leaderboard-icon { width: var(--settings-icon-size, 18px); height: var(--settings-icon-size, 18px); display: inline-flex; align-items: center; justify-content: center; }
-        #leaderboardButton .leaderboard-icon svg { width: 100%; height: 100%; object-fit: contain; fill: currentColor; filter: drop-shadow(0 0 6px rgba(0,0,0,0.35)); }
+        #leaderboardButton .leaderboard-icon svg { width: 100%; height: 100%; display: block; object-fit: contain; fill: currentColor; filter: drop-shadow(0 0 6px rgba(0,0,0,0.35)); }
+        #playGamesStatus { position: absolute; left: 24px; top: 84px; z-index: 15; max-width: calc(100% - 48px); padding: 10px 14px; background: rgba(10,10,10,0.72); color: rgba(255,255,255,0.95); border: 1px solid rgba(255,255,255,0.25); border-radius: 12px; font: 13px Arial, sans-serif; letter-spacing: 0.02em; display: none; box-shadow: 0 10px 24px rgba(0,0,0,0.35); backdrop-filter: blur(6px); pointer-events: none; }
         #customizeButton { position: absolute; left: 24px; bottom: 24px; z-index: 12; background: var(--pause-btn-background, rgba(10,10,10,0.35)); color: var(--pause-btn-color, rgba(255,255,255,0.85)); border: 1px solid var(--pause-btn-border, rgba(255,255,255,0.25)); width: var(--settings-btn-size, 46px); height: var(--settings-btn-size, 46px); border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; opacity: var(--pause-btn-opacity, 0.65); backdrop-filter: blur(6px); }
         #customizeButton:hover { opacity: var(--pause-btn-hover-opacity, 0.9); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
         #customizeButton .customize-label { font-weight: 700; font-size: calc(var(--settings-btn-size, 46px) * 0.45); font-family: Arial, sans-serif; line-height: 1; letter-spacing: 0.03em; }
@@ -213,19 +214,11 @@
         <button id="startButton">Start Game</button>
         <button id="settingsButton" aria-label="Open settings">
             <span class="settings-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
+                <svg viewBox="0 0 24 24" focusable="false" preserveAspectRatio="xMidYMid meet">
                     <path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.05 7.05 0 0 0-1.7-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.62.24-1.2.56-1.7.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.63l2.11 1.65c-.05.32-.07.65-.07.98s.02.66.07.98L2.06 14.63a.5.5 0 0 0-.12.63l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.5.42 1.08.74 1.7.98l.38 2.65c.05.24.27.42.5.42h4c.24 0 .45-.18.5-.42l.38-2.65c.62-.24 1.2-.56 1.7-.98l2.49 1c.23.1.5 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.63l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
                 </svg>
             </span>
             <span class="sr-only">Settings</span>
-        </button>
-        <button id="leaderboardButton" aria-label="Open leaderboard" data-prevent-reverse="true">
-            <span class="leaderboard-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="M7 4h10v2h3a1 1 0 0 1 1 1c0 3.31-2.69 6-6 6h-1.1A5.01 5.01 0 0 1 13 16.58V18h3v2H8v-2h3v-1.42A5.01 5.01 0 0 1 7.1 13H6c-3.31 0-6-2.69-6-6a1 1 0 0 1 1-1h3V4h3Zm-1 4V6H2c0 2.21 1.79 4 4 4h1a5.04 5.04 0 0 1-1-2Zm12-2v2a5.04 5.04 0 0 1-1 2h1c2.21 0 4-1.79 4-4h-4Z"/>
-                </svg>
-            </span>
-            <span class="sr-only">Leaderboard</span>
         </button>
         <button id="customizeButton" aria-label="Customize" data-prevent-reverse="true">
             <span class="customize-label" aria-hidden="true">C</span>
@@ -734,6 +727,14 @@
 
     <!-- Game over screen -->
     <div id="gameOverScreen">
+        <button id="leaderboardButton" aria-label="Open leaderboard" data-prevent-reverse="true">
+            <span class="leaderboard-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M7 4h10v2h3a1 1 0 0 1 1 1c0 3.31-2.69 6-6 6h-1.1A5.01 5.01 0 0 1 13 16.58V18h3v2H8v-2h3v-1.42A5.01 5.01 0 0 1 7.1 13H6c-3.31 0-6-2.69-6-6a1 1 0 0 1 1-1h3V4h3Zm-1 4V6H2c0 2.21 1.79 4 4 4h1a5.04 5.04 0 0 1-1-2Zm12-2v2a5.04 5.04 0 0 1-1 2h1c2.21 0 4-1.79 4-4h-4Z"/>
+                </svg>
+            </span>
+            <span class="sr-only">Leaderboard</span>
+        </button>
         <div id="gameOverTitle">Game Over!</div>
         <div id="scoreDisplay">Score: 0</div>
         <div id="gameOverActions">
@@ -750,6 +751,7 @@
         </span>
         <span class="sr-only">피격 장면 보기</span>
     </button>
+    <div id="playGamesStatus" role="status" aria-live="polite" data-prevent-reverse="true"></div>
 
     <button id="pauseButton" aria-label="Pause" data-prevent-reverse="true">
         <span class="pause-icon" aria-hidden="true"></span>

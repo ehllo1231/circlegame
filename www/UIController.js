@@ -25,6 +25,7 @@ export class UIController {
     this.pauseStageSelectButton = document.getElementById('pauseStageSelectButton');
     this.settingsButton = document.getElementById('settingsButton');
     this.leaderboardButton = document.getElementById('leaderboardButton');
+    this.playGamesStatus = document.getElementById('playGamesStatus');
     this.customizeButton = document.getElementById('customizeButton');
     this.customizePlayerButton = document.getElementById('customizePlayerButton');
     this.customizeObstacleButton = document.getElementById('customizeObstacleButton');
@@ -100,6 +101,7 @@ export class UIController {
     this._gameOverOverlayVisible = false;
     this._gameOverOverlayHidden = false;
     this._gameOverPeekActive = false;
+    this._playGamesStatusTimer = null;
     for (const btn of this.stageButtons) {
       const stage = btn?.dataset?.stage;
       if (stage) {
@@ -1432,6 +1434,7 @@ export class UIController {
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
     this._gameOverOverlayVisible = false;
     this._gameOverOverlayHidden = false;
+    this.hidePlayGamesStatus();
     this._setGameOverPeekButtonVisible(false);
     this._updateGameOverPeekButtonState(false);
     this.hidePauseMenu();
@@ -1721,6 +1724,34 @@ export class UIController {
   setLeaderboardButtonVisible(visible) {
     if (!this.leaderboardButton) return;
     this.leaderboardButton.style.display = visible ? 'inline-flex' : 'none';
+  }
+
+  showPlayGamesStatus(message, { timeoutMs = 4000 } = {}) {
+    if (!this.playGamesStatus) return;
+    const text = typeof message === 'string' ? message.trim() : String(message ?? '').trim();
+    if (!text) {
+      this.hidePlayGamesStatus();
+      return;
+    }
+    this.playGamesStatus.textContent = text;
+    this.playGamesStatus.style.display = 'block';
+    if (this._playGamesStatusTimer) {
+      clearTimeout(this._playGamesStatusTimer);
+      this._playGamesStatusTimer = null;
+    }
+    if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+      this._playGamesStatusTimer = setTimeout(() => {
+        this.hidePlayGamesStatus();
+      }, timeoutMs);
+    }
+  }
+
+  hidePlayGamesStatus() {
+    if (this._playGamesStatusTimer) {
+      clearTimeout(this._playGamesStatusTimer);
+      this._playGamesStatusTimer = null;
+    }
+    if (this.playGamesStatus) this.playGamesStatus.style.display = 'none';
   }
 
   showUnlockRequirement(message) {

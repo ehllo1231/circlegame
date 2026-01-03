@@ -527,11 +527,17 @@ export class Game {
     this.returnToStageSelect();
   }
 
-  showLeaderboard(stageId, { ex = false } = {}) {
+  async showLeaderboard(stageId, { ex = false } = {}) {
     if (!this.playGames) return;
     const resolved = this._resolveStageId(stageId, ex);
-    if (!resolved || resolved === STAGE_ALL_CLEAR_ID) return;
-    this.playGames.showLeaderboard(resolved);
+    if (!resolved || resolved === STAGE_ALL_CLEAR_ID) {
+      this._notifyPlayGamesFailure('leaderboard', { reason: 'unknown-leaderboard' });
+      return;
+    }
+    const result = await this.playGames.showLeaderboard(resolved);
+    if (!result?.ok) {
+      this._notifyPlayGamesFailure('leaderboard', result);
+    }
   }
 
   enableFastForwardDebug() {
@@ -1145,6 +1151,34 @@ export class Game {
     if (this.adManager && typeof this.adManager.handleGameCompleted === 'function') {
       this.adManager.handleGameCompleted();
     }
+  }
+
+  _notifyPlayGamesFailure(action, result = {}) {
+    if (!this.ui || typeof this.ui.showPlayGamesStatus !== 'function') return;
+    const reason = result?.reason;
+    let message = '';
+    switch (reason) {
+      case 'unavailable':
+        message = 'Play Games unavailable.';
+        break;
+      case 'not-authenticated':
+        message = 'Play Games sign-in required.';
+        break;
+      case 'unknown-leaderboard':
+        message = 'Leaderboard not configured.';
+        break;
+      case 'invalid-score':
+        message = 'Score rejected by Play Games.';
+        break;
+      default:
+        if (result?.error) {
+          message = `Play Games error: ${result.error}`;
+        } else {
+          message = `Play Games ${action} failed.`;
+        }
+        break;
+    }
+    this.ui.showPlayGamesStatus(message);
   }
 
   resetHighScores() {
