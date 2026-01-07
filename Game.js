@@ -1163,12 +1163,24 @@ export class Game {
         break;
       case 'not-authenticated':
         message = 'Play Games sign-in required.';
+        if (result?.statusCode != null) {
+          message = `${message} (code ${result.statusCode})`;
+        }
+        if (result?.error) {
+          message = `${message} ${result.error}`;
+        }
         break;
       case 'unknown-leaderboard':
         message = 'Leaderboard not configured.';
         break;
       case 'invalid-score':
         message = 'Score rejected by Play Games.';
+        break;
+      case 'show-failed':
+        message = 'Leaderboard failed to open.';
+        if (result?.error) {
+          message = `${message} ${result.error}`;
+        }
         break;
       default:
         if (result?.error) {
